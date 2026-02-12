@@ -9,10 +9,14 @@ export default function AuthCallback() {
   const router = useRouter()
   const [status, setStatus] = useState('Processing your sign in...')
   const [error, setError] = useState<string | null>(null)
+  const [debug, setDebug] = useState<string | null>(null)
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        const hash = window.location.hash.substring(1)
+        setDebug('Hash present: ' + (hash.length > 0 ? 'yes' : 'no'))
+        
         const result = await supabaseAuth.handleCallback()
         
         if (result.success) {
@@ -24,6 +28,7 @@ export default function AuthCallback() {
           setError(result.error || 'Authentication failed')
         }
       } catch (err) {
+        console.error('Callback error:', err)
         setError('An unexpected error occurred')
       }
     }
@@ -42,6 +47,7 @@ export default function AuthCallback() {
           <>
             <h1 className="text-xl font-semibold text-text-primary mb-2">Authentication Failed</h1>
             <p className="text-text-tertiary mb-6">{error}</p>
+            {debug && <p className="text-xs text-text-quaternary mb-4">{debug}</p>}
             <a href="/" className="btn-primary">
               Return to Home
             </a>
@@ -50,6 +56,7 @@ export default function AuthCallback() {
           <>
             <h1 className="text-xl font-semibold text-text-primary mb-2">Signing you in</h1>
             <p className="text-text-tertiary animate-pulse">{status}</p>
+            {debug && <p className="text-xs text-text-quaternary mt-4">{debug}</p>}
           </>
         )}
       </div>

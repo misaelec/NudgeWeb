@@ -184,10 +184,9 @@ class SupabaseAuth {
     const params = new URLSearchParams(hash)
     const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token')
-    const expiresAt = params.get('expires_at')
 
     if (!accessToken || !refreshToken) {
-      return { success: false, error: 'Missing tokens' }
+      return { success: false, error: 'Missing tokens: access_token=' + !!accessToken + ', refresh_token=' + !!refreshToken }
     }
 
     try {
@@ -201,7 +200,7 @@ class SupabaseAuth {
       })
 
       if (response.status !== 200) {
-        return { success: false, error: 'Failed to get user' }
+        return { success: false, error: 'Failed to get user: ' + response.status }
       }
 
       const user = await response.json()
@@ -221,7 +220,7 @@ class SupabaseAuth {
       window.history.replaceState({}, document.title, window.location.pathname)
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to process callback' }
+      return { success: false, error: 'Failed to process callback: ' + String(error) }
     }
   }
 }
