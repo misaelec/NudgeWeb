@@ -439,8 +439,10 @@ export const useStore = create<AppState>()(
 
       setSearchQuery: (query) => set({ searchQuery: query }),
     }),
+    const STORAGE_VERSION = 'nudge-storage-v2'
+
     {
-      name: 'nudge-storage',
+      name: STORAGE_VERSION,
     }
   )
 )
