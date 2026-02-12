@@ -162,9 +162,7 @@ class SupabaseAuth {
   }
 
   async signInWithGoogle(): Promise<void> {
-    const redirectUrl = typeof window !== 'undefined' 
-      ? `${window.location.origin}/auth/callback`
-      : 'http://localhost:3000/auth/callback'
+    const redirectUrl = supabaseConfig.redirectUrl
     
     const scopes = 'email profile'
     const encodedRedirect = encodeURIComponent(redirectUrl)
