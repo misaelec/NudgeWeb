@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware'
 
 const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
+const STORAGE_VERSION = 'nudge-storage-v2'
+
 export interface Objective {
   id: string
   title: string
@@ -439,8 +441,6 @@ export const useStore = create<AppState>()(
 
       setSearchQuery: (query) => set({ searchQuery: query }),
     }),
-    const STORAGE_VERSION = 'nudge-storage-v2'
-
     {
       name: STORAGE_VERSION,
     }
