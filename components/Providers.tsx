@@ -19,33 +19,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem('supabase_session')
-    if (stored) {
-      try {
-        const session = JSON.parse(stored)
-        setUser(session.user)
-      } catch (e) {
-        console.error('Failed to parse session', e)
-      }
-    }
-    setLoading(false)
-
-    const handleStorageChange = () => {
+    const loadSession = () => {
       const stored = localStorage.getItem('supabase_session')
       if (stored) {
         try {
           const session = JSON.parse(stored)
           setUser(session.user)
         } catch (e) {
+          console.error('Failed to parse session', e)
           setUser(null)
         }
       } else {
         setUser(null)
       }
+      setLoading(false)
+    }
+
+    loadSession()
+
+    const handleStorageChange = () => {
+      loadSession()
+    }
+
+    const handleAuthChange = () => {
+      loadSession()
     }
 
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    window.addEventListener('auth-state-change', handleAuthChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('auth-state-change', handleAuthChange)
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {

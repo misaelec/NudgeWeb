@@ -89,6 +89,7 @@ class SupabaseAuth {
             refresh_token: data.refresh_token,
             user: data.user,
           })
+          window.dispatchEvent(new Event('auth-state-change'))
           return { success: true }
         } else {
           return { success: false, needsConfirmation: true }
@@ -117,6 +118,7 @@ class SupabaseAuth {
           refresh_token: data.refresh_token,
           user: data.user,
         })
+        window.dispatchEvent(new Event('auth-state-change'))
         return { success: true }
       } else {
         return { success: false, error: data.error_description || data.message || 'Invalid credentials' }
@@ -182,18 +184,20 @@ class SupabaseAuth {
     const params = new URLSearchParams(hash)
     const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token')
+    const expiresAt = params.get('expires_at')
 
     if (!accessToken || !refreshToken) {
       return { success: false, error: 'Missing tokens' }
     }
 
-    this.accessToken = accessToken
-    this.refreshToken = refreshToken
-
     try {
       const response = await fetch(`${supabaseAuthUrl}/user`, {
         method: 'GET',
-        headers: this.authHeaders,
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
       })
 
       if (response.status !== 200) {
@@ -208,11 +212,12 @@ class SupabaseAuth {
         user: {
           id: user.id,
           email: user.email,
-          name: user.user_metadata?.display_name || user.user_metadata?.name,
+          name: user.user_metadata?.display_name || user.user_metadata?.name || user.email?.split('@')[0],
           avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
         },
       })
 
+      window.dispatchEvent(new Event('auth-state-change'))
       window.history.replaceState({}, document.title, window.location.pathname)
       return { success: true }
     } catch (error) {
