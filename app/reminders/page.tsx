@@ -18,7 +18,8 @@ import {
   Search,
   BellOff,
   TrendingUp,
-  Zap
+  Zap,
+  Edit2
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -29,7 +30,8 @@ export default function RemindersPage() {
   const { reminderActions, preferences, searchQuery, setSearchQuery } = useStore()
   const [mounted, setMounted] = useState(false)
   const [showAddReminder, setShowAddReminder] = useState(false)
-  const [showCompleted, setShowCompleted] = useState(false)
+  const [showEditReminder, setShowEditReminder] = useState(false)
+  const [editingReminder, setEditingReminder] = useState<any>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
 
@@ -92,6 +94,30 @@ export default function RemindersPage() {
 
     setShowAddReminder(false)
     setNewReminder({ title: '', notes: '', dueDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"), priority: 'medium', notify: true })
+  }
+
+  const handleEditReminder = async () => {
+    if (!editingReminder || !editingReminder.title.trim()) return
+
+    const dueDate = new Date(editingReminder.dueDate)
+    
+    reminderActions.updateReminder(editingReminder.id, {
+      title: editingReminder.title,
+      notes: editingReminder.notes,
+      dueDate,
+      priority: editingReminder.priority
+    })
+
+    setShowEditReminder(false)
+    setEditingReminder(null)
+  }
+
+  const openEditReminder = (reminder: any) => {
+    setEditingReminder({
+      ...reminder,
+      dueDate: format(new Date(reminder.dueDate), "yyyy-MM-dd'T'HH:mm")
+    })
+    setShowEditReminder(true)
   }
 
   const handleToggleReminder = async (id: string, title: string) => {
@@ -209,6 +235,7 @@ export default function RemindersPage() {
                       reminder={reminder}
                       onToggle={() => handleToggleReminder(reminder.id, reminder.title)}
                       onDelete={() => reminderActions.deleteReminder(reminder.id)}
+                      onEdit={() => openEditReminder(reminder)}
                     />
                   ))}
                 </div>
@@ -337,14 +364,101 @@ export default function RemindersPage() {
           </div>
         </div>
       )}
+
+      {showEditReminder && editingReminder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-primary rounded-apple-xl shadow-apple-xl p-6 w-full max-w-md animate-scale-in">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-text-primary">Edit Reminder</h2>
+              <button
+                onClick={() => { setShowEditReminder(false); setEditingReminder(null); }}
+                className="p-2 hover:bg-surface-secondary rounded-apple-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-text-tertiary" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
+                <input
+                  type="text"
+                  value={editingReminder.title}
+                  onChange={e => setEditingReminder({ ...editingReminder, title: e.target.value })}
+                  className="input"
+                  placeholder="What do you need to remember?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Notes</label>
+                <textarea
+                  value={editingReminder.notes}
+                  onChange={e => setEditingReminder({ ...editingReminder, notes: e.target.value })}
+                  className="input"
+                  rows={2}
+                  placeholder="Add details..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Due Date</label>
+                <input
+                  type="datetime-local"
+                  value={editingReminder.dueDate}
+                  onChange={e => setEditingReminder({ ...editingReminder, dueDate: e.target.value })}
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Priority</label>
+                <div className="flex gap-2">
+                  {(['high', 'medium', 'low'] as const).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setEditingReminder({ ...editingReminder, priority: p })}
+                      className={`flex-1 py-2 rounded-apple-lg font-medium transition-all ${
+                        editingReminder.priority === p
+                          ? p === 'high'
+                            ? 'bg-action-danger text-white'
+                            : p === 'medium'
+                              ? 'bg-action-warning text-white'
+                              : 'bg-success text-white'
+                          : 'bg-surface-secondary text-text-secondary hover:bg-border-primary'
+                      }`}
+                    >
+                      {p === 'high' && <AlertCircle className="w-4 h-4 inline mr-1" />}
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => { setShowEditReminder(false); setEditingReminder(null); }}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button onClick={handleEditReminder} className="btn-primary flex-1">
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function ReminderCard({ reminder, onToggle, onDelete }: {
+function ReminderCard({ reminder, onToggle, onDelete, onEdit }: {
   reminder: any
   onToggle: () => void
   onDelete: () => void
+  onEdit: () => void
 }) {
   const priorityConfig = {
     high: { icon: AlertCircle, color: 'text-action-danger', bg: 'bg-action-danger/10' },
@@ -401,6 +515,12 @@ function ReminderCard({ reminder, onToggle, onDelete }: {
           className="p-2 text-text-tertiary hover:text-action-danger hover:bg-action-danger/10 rounded-apple-lg transition-all"
         >
           <X className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onEdit}
+          className="p-2 text-text-tertiary hover:text-accent-primary hover:bg-accent-primary/10 rounded-apple-lg transition-all"
+        >
+          <Edit2 className="w-4 h-4" />
         </button>
       </div>
     </div>
