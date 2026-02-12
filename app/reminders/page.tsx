@@ -90,7 +90,11 @@ export default function RemindersPage() {
     })
 
     if (newReminder.notify && preferences.reminderNotifications) {
-      notificationService.handleReminderNotification(newReminder.title, dueDate, '')
+      try {
+        notificationService.handleReminderNotification(newReminder.title, dueDate, '')
+      } catch (e) {
+        console.error('Notification error:', e)
+      }
     }
 
     setShowAddReminder(false)
@@ -161,9 +165,9 @@ export default function RemindersPage() {
               <h1 className="text-3xl font-semibold text-text-primary mb-2">
                 Reminders
               </h1>
-              <p className="text-text-tertiary">
-                {pendingCount} pending, {highPriorityCount} high priority
-              </p>
+                <p className="text-text-tertiary">
+                  {pendingCount} pending, {highPriorityCount} High priority
+                </p>
             </div>
             <div className="flex items-center gap-3">
               {notificationPermission !== 'granted' && (
@@ -495,7 +499,7 @@ function ReminderCard({ reminder, onToggle, onDelete, onEdit }: {
             </div>
             <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${config.bg} ${config.color}`}>
               <config.icon className="w-3 h-3" />
-              {reminder.priority}
+              {reminder.priority.charAt(0).toUpperCase() + reminder.priority.slice(1)}
             </div>
           </div>
 
