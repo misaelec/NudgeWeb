@@ -53,12 +53,6 @@ export default function RemindersPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (mounted && preferences.notificationsEnabled && preferences.reminderNotifications) {
-      notificationService.requestPermission()
-    }
-  }, [mounted, preferences])
-
   const filteredReminders = reminders.filter(r => {
     const matchesFilter = filter === 'all' 
       ? true 
@@ -82,19 +76,19 @@ export default function RemindersPage() {
 
     const dueDate = new Date(newReminder.dueDate)
     
-    reminderActions.addReminder({
-      title: newReminder.title,
-      notes: newReminder.notes,
-      dueDate,
-      priority: newReminder.priority
-    })
+    try {
+      reminderActions.addReminder({
+        title: newReminder.title,
+        notes: newReminder.notes,
+        dueDate,
+        priority: newReminder.priority
+      })
 
-    if (newReminder.notify && preferences.reminderNotifications) {
-      try {
+      if (newReminder.notify && preferences.reminderNotifications) {
         notificationService.handleReminderNotification(newReminder.title, dueDate, '')
-      } catch (e) {
-        console.error('Notification error:', e)
       }
+    } catch (e) {
+      console.error('Error adding reminder:', e)
     }
 
     setShowAddReminder(false)
