@@ -37,6 +37,7 @@ class NotificationService {
   constructor() {
     if (typeof window !== 'undefined') {
       this.permission = Notification.permission
+      console.log('NotificationService initialized, permission:', this.permission)
     }
   }
 
@@ -44,7 +45,9 @@ class NotificationService {
     if (typeof window === 'undefined') return false
 
     try {
+      console.log('Requesting notification permission...')
       this.permission = await Notification.requestPermission()
+      console.log('Permission result:', this.permission)
       return this.permission === 'granted'
     } catch (error) {
       console.error('Failed to request notification permission:', error)
@@ -62,15 +65,22 @@ class NotificationService {
   }
 
   async show(type: NotificationType, data: NotificationData): Promise<boolean> {
+    console.log('NotificationService.show called:', type, data)
+    
     if (this.permission !== 'granted') {
+      console.log('Permission not granted, requesting...')
       const granted = await this.requestPermission()
-      if (!granted) return false
+      if (!granted) {
+        console.log('Permission denied')
+        return false
+      }
     }
 
     if (typeof window === 'undefined') return false
 
     try {
       const icon = data.icon || notificationIcons[type] || this.defaultIcon
+      console.log('Creating notification with icon:', icon)
       
       const notification = new Notification(data.title, {
         body: data.body,
@@ -85,6 +95,7 @@ class NotificationService {
         notification.close()
       }
 
+      console.log('Notification created successfully')
       return true
     } catch (error) {
       console.error('Failed to show notification:', error)
@@ -177,10 +188,15 @@ class NotificationService {
     dueDate: Date,
     reminderId: string
   ): number | null {
+    console.log('handleReminderNotification called:', { title, dueDate, reminderId })
+    console.log('Current permission:', this.permission)
+    
     const now = new Date()
     const delay = dueDate.getTime() - now.getTime()
+    console.log('Delay until notification (ms):', delay)
 
     if (delay <= 0) {
+      console.log('Reminder is past due, showing immediately')
       this.show('reminder_due', {
         title: 'Reminder Due',
         body: title,
@@ -190,6 +206,7 @@ class NotificationService {
     }
 
     if (this.permission !== 'granted') {
+      console.log('Permission not granted, cannot schedule')
       return null
     }
 
