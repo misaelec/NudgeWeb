@@ -77,15 +77,22 @@ export default function RemindersPage() {
     const dueDate = new Date(newReminder.dueDate)
     
     try {
-    addReminder({
-      title: newReminder.title,
-      notes: newReminder.notes,
-      dueDate,
-      priority: newReminder.priority
-    })
+      console.log('Adding reminder, notify:', newReminder.notify, 'preferences.reminderNotifications:', preferences.reminderNotifications)
+      
+      addReminder({
+        title: newReminder.title,
+        notes: newReminder.notes,
+        dueDate,
+        priority: newReminder.priority
+      })
+
+      console.log('Reminder added, checking notification...')
 
       if (newReminder.notify && preferences.reminderNotifications) {
+        console.log('Calling handleReminderNotification...')
         notificationService.handleReminderNotification(newReminder.title, dueDate, '')
+      } else {
+        console.log('Notification not triggered: notify=' + newReminder.notify + ', preferences=' + preferences.reminderNotifications)
       }
     } catch (e) {
       console.error('Error adding reminder:', e)
