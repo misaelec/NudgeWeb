@@ -205,6 +205,17 @@ class NotificationService {
       return null
     }
 
+    // For testing: show notification now if within 60 seconds
+    if (delay < 60000) {
+      console.log('Testing mode: showing notification now')
+      this.show('reminder_due', {
+        title: 'Reminder Due (Scheduled)',
+        body: `${title} - was due in ${Math.round(delay/1000)}s`,
+        tag: `reminder-${reminderId}`,
+      })
+      return null
+    }
+
     if (this.permission !== 'granted') {
       console.log('Permission not granted, cannot schedule')
       return null
