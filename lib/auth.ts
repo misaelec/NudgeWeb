@@ -179,9 +179,12 @@ class SupabaseAuth {
     if (typeof window === 'undefined') return { success: false, error: 'No window' }
 
     const hash = window.location.hash.substring(1)
-    const params = new URLSearchParams(hash)
-    const accessToken = params.get('access_token')
-    const refreshToken = params.get('refresh_token')
+    
+    const accessTokenMatch = hash.match(/access_token=([^&]*)/)
+    const refreshTokenMatch = hash.match(/refresh_token=([^&]*)/)
+    
+    const accessToken = accessTokenMatch ? decodeURIComponent(accessTokenMatch[1]) : null
+    const refreshToken = refreshTokenMatch ? decodeURIComponent(refreshTokenMatch[1]) : null
 
     if (!accessToken || !refreshToken) {
       return { success: false, error: 'Missing tokens: access_token=' + !!accessToken + ', refresh_token=' + !!refreshToken }
