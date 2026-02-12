@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
+import { useReminderStore } from '@/lib/reminderStore'
 import { notificationService } from '@/lib/notifications'
 import {
   Plus,
@@ -27,7 +28,8 @@ type Filter = 'all' | 'pending' | 'completed'
 
 export default function RemindersPage() {
   const { user, loading } = useAuth()
-  const { reminderActions, preferences, searchQuery, setSearchQuery } = useStore()
+  const { preferences, searchQuery, setSearchQuery } = useStore()
+  const { reminders, addReminder, updateReminder, deleteReminder, toggleReminder } = useReminderStore()
   const [mounted, setMounted] = useState(false)
   const [showAddReminder, setShowAddReminder] = useState(false)
   const [showEditReminder, setShowEditReminder] = useState(false)
@@ -43,8 +45,6 @@ export default function RemindersPage() {
     priority: 'medium' as 'high' | 'medium' | 'low',
     notify: true
   })
-
-  const { reminders } = useStore()
 
   useEffect(() => {
     setMounted(true)
@@ -77,12 +77,12 @@ export default function RemindersPage() {
     const dueDate = new Date(newReminder.dueDate)
     
     try {
-      reminderActions.addReminder({
-        title: newReminder.title,
-        notes: newReminder.notes,
-        dueDate,
-        priority: newReminder.priority
-      })
+    addReminder({
+      title: newReminder.title,
+      notes: newReminder.notes,
+      dueDate,
+      priority: newReminder.priority
+    })
 
       if (newReminder.notify && preferences.reminderNotifications) {
         notificationService.handleReminderNotification(newReminder.title, dueDate, '')
@@ -100,7 +100,7 @@ export default function RemindersPage() {
 
     const dueDate = new Date(editingReminder.dueDate)
     
-    reminderActions.updateReminder(editingReminder.id, {
+    updateReminder(editingReminder.id, {
       title: editingReminder.title,
       notes: editingReminder.notes,
       dueDate,
@@ -120,7 +120,7 @@ export default function RemindersPage() {
   }
 
   const handleToggleReminder = async (id: string, title: string) => {
-    reminderActions.toggleReminder(id)
+    toggleReminder(id)
     
     const reminder = reminders.find(r => r.id === id)
     if (reminder && !reminder.completed) {
@@ -233,7 +233,7 @@ export default function RemindersPage() {
                       key={reminder.id}
                       reminder={reminder}
                       onToggle={() => handleToggleReminder(reminder.id, reminder.title)}
-                      onDelete={() => reminderActions.deleteReminder(reminder.id)}
+                      onDelete={() => deleteReminder(reminder.id)}
                       onEdit={() => openEditReminder(reminder)}
                     />
                   ))}
