@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 37, 37, 35;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-action-primary text-white px-6 py-2.5 rounded-apple font-medium
+           hover:bg-orange-600 active:scale-95 transition-all duration-200
+           shadow-apple-sm hover:shadow-apple;
+  }
+
+  .btn-secondary {
+    @apply bg-surface-secondary text-text-primary px-6 py-2.5 rounded-apple font-medium
+           hover:bg-border-primary active:scale-95 transition-all duration-200 border border-border-primary;
+  }
+
+  .btn-danger {
+    @apply bg-action-danger text-white px-6 py-2.5 rounded-apple font-medium
+           hover:bg-red-600 active:scale-95 transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-surface-primary rounded-apple-xl shadow-apple p-6
+           border border-border-primary;
+  }
+
+  .input {
+    @apply w-full px-4 py-3 rounded-apple border border-border-primary
+           bg-surface-primary text-text-primary
+           placeholder-text-placeholder
+           focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent
+           transition-all duration-200;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-apple-lg
+           text-text-secondary hover:text-text-primary
+           hover:bg-surface-secondary transition-all duration-200;
+  }
+
+  .sidebar-link-active {
+    @apply bg-accent-primary/10 text-accent-primary font-medium;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-blue {
+    @apply bg-icon-primary/10 text-icon-primary;
+  }
+
+  .badge-green {
+    @apply bg-success/10 text-success;
+  }
+
+  .badge-red {
+    @apply bg-action-danger/10 text-action-danger;
+  }
+
+  .badge-orange {
+    @apply bg-action-warning/10 text-action-warning;
+  }
+
+  .badge-purple {
+    @apply bg-purple-500/10 text-purple-500;
+  }
+}
+
+@layer utilities {
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+}
