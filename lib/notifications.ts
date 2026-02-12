@@ -172,6 +172,26 @@ class NotificationService {
     window.clearTimeout(timeoutId)
   }
 
+  handleReminderNotification(
+    title: string,
+    dueDate: Date,
+    reminderId: string
+  ): number | null {
+    const now = new Date()
+    const delay = dueDate.getTime() - now.getTime()
+
+    if (delay <= 0) {
+      this.show('reminder_due', {
+        title: 'Reminder Due',
+        body: title,
+        tag: `reminder-${reminderId}`,
+      })
+      return null
+    }
+
+    return this.scheduleReminderNotification(title, dueDate, reminderId)
+  }
+
   scheduleReminderNotification(
     title: string, 
     dueDate: Date, 

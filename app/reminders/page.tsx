@@ -89,7 +89,7 @@ export default function RemindersPage() {
     })
 
     if (newReminder.notify && preferences.reminderNotifications) {
-      await notificationService.showReminderDue(newReminder.title, dueDate)
+      notificationService.handleReminderNotification(newReminder.title, dueDate, '')
     }
 
     setShowAddReminder(false)
