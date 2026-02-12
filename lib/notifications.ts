@@ -189,6 +189,10 @@ class NotificationService {
       return null
     }
 
+    if (this.permission !== 'granted') {
+      return null
+    }
+
     return this.scheduleReminderNotification(title, dueDate, reminderId)
   }
 

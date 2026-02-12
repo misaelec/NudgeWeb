@@ -193,16 +193,16 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
   }
 
   const categoryColors: Record<string, string> = {
-    work: 'bg-apple-blue/10 text-apple-blue',
-    personal: 'bg-apple-green/10 text-apple-green',
-    health: 'bg-apple-orange/10 text-apple-orange',
-    learning: 'bg-apple-purple/10 text-apple-purple'
+    work: 'bg-accent-secondary/10 text-accent-secondary',
+    personal: 'bg-success/10 text-success',
+    health: 'bg-action-warning/10 text-action-warning',
+    learning: 'bg-purple-500/10 text-purple-500'
   }
 
   const priorityColors: Record<string, string> = {
-    high: 'bg-apple-red/10 text-apple-red',
-    medium: 'bg-apple-orange/10 text-apple-orange',
-    low: 'bg-apple-green/10 text-apple-green'
+    high: 'bg-action-danger/10 text-action-danger',
+    medium: 'bg-action-warning/10 text-action-warning',
+    low: 'bg-success/10 text-success'
   }
 
   return (
@@ -320,7 +320,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
 
                 <button
                   onClick={() => onDelete(obj.id)}
-                  className="p-2 text-apple-gray-400 hover:text-apple-red hover:bg-apple-red/10 rounded-apple-lg transition-all"
+                  className="p-2 text-text-tertiary hover:text-action-danger hover:bg-action-danger/10 rounded-apple-lg transition-all"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -418,9 +418,9 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
   }
 
   const statusColors: Record<string, string> = {
-    active: 'bg-apple-orange/10 text-apple-orange',
-    resolved: 'bg-apple-green/10 text-apple-green',
-    abandoned: 'bg-apple-gray-100 text-apple-gray-500'
+    active: 'bg-action-warning/10 text-action-warning',
+    resolved: 'bg-success/10 text-success',
+    abandoned: 'bg-text-tertiary/10 text-text-tertiary'
   }
 
   const reflectionQuestions = [
@@ -445,8 +445,8 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
           {fears.map((fear: any) => (
             <div key={fear.id} className="card">
               <div className="flex items-start gap-4">
-                <div className="p-2 bg-apple-orange/10 rounded-apple-lg">
-                  <Brain className="w-5 h-5 text-apple-orange" />
+                <div className="p-2 bg-action-warning/10 rounded-apple-lg">
+                  <Brain className="w-5 h-5 text-action-warning" />
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -575,8 +575,8 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                       {fear.reflections && fear.reflections.length > 0 && (
                         <div className="space-y-3">
                           {fear.reflections.map((ref: any) => (
-                            <div key={ref.id} className="p-3 bg-apple-purple/5 rounded-apple-lg">
-                              <p className="text-xs font-medium text-apple-purple mb-1">{ref.question}</p>
+                            <div key={ref.id} className="p-3 bg-purple-500/5 rounded-apple-lg">
+                              <p className="text-xs font-medium text-purple-500 mb-1">{ref.question}</p>
                               <p className="text-sm text-apple-gray-600 dark:text-apple-gray-400">{ref.answer}</p>
                             </div>
                           ))}
@@ -591,7 +591,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
         </div>
       ) : (
         <div className="card text-center py-12">
-          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-apple-orange/50" />
+          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-action-warning/50" />
           <h3 className="text-lg font-medium text-apple-gray-900 dark:text-white mb-2">No fears documented yet</h3>
           <p className="text-apple-gray-500 mb-4">Use fear setting to overcome what&apos;s holding you back</p>
           <button onClick={() => setShowAddModal(true)} className="btn-primary">Add Fear</button>
@@ -688,7 +688,7 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
                 </div>
                 <button
                   onClick={() => onDelete(entry.id)}
-                  className="p-2 text-apple-gray-400 hover:text-apple-red hover:bg-apple-red/10 rounded-apple-lg transition-all"
+                  className="p-2 text-text-tertiary hover:text-action-danger hover:bg-action-danger/10 rounded-apple-lg transition-all"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
