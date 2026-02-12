@@ -32,6 +32,7 @@ export default function RemindersPage() {
   const [showAddReminder, setShowAddReminder] = useState(false)
   const [showEditReminder, setShowEditReminder] = useState(false)
   const [editingReminder, setEditingReminder] = useState<any>(null)
+  const [showCompleted, setShowCompleted] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
 

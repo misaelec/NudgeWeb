@@ -13,7 +13,7 @@ import {
   MapPin,
   X,
   Search,
-  Today
+  CircleDot
 } from 'lucide-react'
 import {
   format,
@@ -256,16 +256,16 @@ export default function CalendarPage() {
                       <ChevronRight className="w-5 h-5 text-text-primary" />
                     </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setCurrentMonth(new Date())
-                      setSelectedDate(new Date())
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
-                  >
-                    <Today className="w-4 h-4" />
-                    Today
-                  </button>
+                    <button
+                      onClick={() => {
+                        setCurrentMonth(new Date())
+                        setSelectedDate(new Date())
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
+                    >
+                      <CircleDot className="w-4 h-4" />
+                      Today
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-7 gap-1 mb-2">
