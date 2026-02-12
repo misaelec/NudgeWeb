@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+
 const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
 export interface Objective {
@@ -67,6 +68,7 @@ export interface CalendarEvent {
   endDate: Date
   location?: string
   color: string
+  sourceType: 'local' | 'google' | 'apple'
   createdAt: Date
 }
 
@@ -78,6 +80,29 @@ export interface JournalEntry {
   createdAt: Date
 }
 
+export interface Streak {
+  type: 'journal' | 'focus' | 'reminders' | 'objectives'
+  currentCount: number
+  longestCount: number
+  lastCompletedDate: string
+}
+
+export interface UserPreferences {
+  remindersEnabled: boolean
+  calendarEnabled: boolean
+  eventsEnabled: boolean
+  pomodoroEnabled: boolean
+  appBlockingEnabled: boolean
+  journalEnabled: boolean
+  objectivesEnabled: boolean
+  visualEffectsEnabled: boolean
+  darkMode: 'light' | 'dark' | 'system'
+  notificationsEnabled: boolean
+  reminderNotifications: boolean
+  focusNotifications: boolean
+  streakNotifications: boolean
+}
+
 interface AppState {
   objectives: Objective[]
   fearObjectives: FearObjective[]
@@ -86,7 +111,10 @@ interface AppState {
   journalEntries: JournalEntry[]
   pomodoroSessions: number
   totalFocusMinutes: number
+  streaks: Record<string, Streak>
   featureFlags: Record<string, boolean>
+  preferences: UserPreferences
+  searchQuery: string
 
   objectiveActions: {
     addObjective: (obj: Omit<Objective, 'id' | 'createdAt' | 'completed' | 'keyResults' | 'progress'>) => void
@@ -110,6 +138,7 @@ interface AppState {
     updateReminder: (id: string, updates: Partial<Reminder>) => void
     deleteReminder: (id: string) => void
     toggleReminder: (id: string) => void
+    markReminderComplete: (id: string) => void
   }
 
   calendarActions: {
@@ -128,9 +157,33 @@ interface AppState {
     reset: () => void
   }
 
+  streakActions: {
+    incrementStreak: (type: Streak['type']) => void
+    checkAndUpdateStreaks: () => void
+  }
+
   settingsActions: {
     toggleFeature: (key: string) => void
+    updatePreferences: (updates: Partial<UserPreferences>) => void
   }
+
+  setSearchQuery: (query: string) => void
+}
+
+const defaultPreferences: UserPreferences = {
+  remindersEnabled: true,
+  calendarEnabled: true,
+  eventsEnabled: true,
+  pomodoroEnabled: true,
+  appBlockingEnabled: true,
+  journalEnabled: true,
+  objectivesEnabled: true,
+  visualEffectsEnabled: true,
+  darkMode: 'dark',
+  notificationsEnabled: true,
+  reminderNotifications: true,
+  focusNotifications: true,
+  streakNotifications: true,
 }
 
 export const useStore = create<AppState>()(
@@ -143,6 +196,12 @@ export const useStore = create<AppState>()(
       journalEntries: [],
       pomodoroSessions: 0,
       totalFocusMinutes: 0,
+      streaks: {
+        journal: { type: 'journal', currentCount: 0, longestCount: 0, lastCompletedDate: '' },
+        focus: { type: 'focus', currentCount: 0, longestCount: 0, lastCompletedDate: '' },
+        reminders: { type: 'reminders', currentCount: 0, longestCount: 0, lastCompletedDate: '' },
+        objectives: { type: 'objectives', currentCount: 0, longestCount: 0, lastCompletedDate: '' },
+      },
       featureFlags: {
         reminders: true,
         calendar: true,
@@ -152,6 +211,8 @@ export const useStore = create<AppState>()(
         journal: true,
         objectives: true,
       },
+      preferences: defaultPreferences,
+      searchQuery: '',
 
       objectiveActions: {
         addObjective: (obj) => set((state) => ({
@@ -268,6 +329,14 @@ export const useStore = create<AppState>()(
             r.id === id ? { ...r, completed: !r.completed } : r
           )
         })),
+        markReminderComplete: (id) => {
+          set((state) => ({
+            reminders: state.reminders.map((r) =>
+              r.id === id ? { ...r, completed: true } : r
+            )
+          }))
+          get().streakActions.incrementStreak('reminders')
+        },
       },
 
       calendarActions: {
@@ -289,31 +358,86 @@ export const useStore = create<AppState>()(
       },
 
       journalActions: {
-        addEntry: (entry) => set((state) => ({
-          journalEntries: [...state.journalEntries, {
-            ...entry,
-            id: generateId(),
-            createdAt: new Date(),
-          }]
-        })),
+        addEntry: (entry) => set((state) => {
+          get().streakActions.incrementStreak('journal')
+          return {
+            journalEntries: [...state.journalEntries, {
+              ...entry,
+              id: generateId(),
+              createdAt: new Date(),
+            }]
+          }
+        }),
         deleteEntry: (id) => set((state) => ({
           journalEntries: state.journalEntries.filter((e) => e.id !== id)
         })),
       },
 
       pomodoroActions: {
-        completeSession: (minutes) => set((state) => ({
-          pomodoroSessions: state.pomodoroSessions + 1,
-          totalFocusMinutes: state.totalFocusMinutes + minutes,
-        })),
+        completeSession: (minutes) => {
+          set((state) => ({
+            pomodoroSessions: state.pomodoroSessions + 1,
+            totalFocusMinutes: state.totalFocusMinutes + minutes,
+          }))
+          get().streakActions.incrementStreak('focus')
+        },
         reset: () => set({ pomodoroSessions: 0, totalFocusMinutes: 0 }),
+      },
+
+      streakActions: {
+        incrementStreak: (type) => set((state) => {
+          const today = new Date().toISOString().split('T')[0]
+          const streak = state.streaks[type]
+          
+          if (streak.lastCompletedDate === today) {
+            return { streaks: { ...state.streaks } }
+          }
+
+          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+          const isConsecutive = streak.lastCompletedDate === yesterday || streak.lastCompletedDate === today
+          
+          const newCount = isConsecutive ? streak.currentCount + 1 : 1
+          const newLongest = Math.max(newCount, streak.longestCount)
+
+          return {
+            streaks: {
+              ...state.streaks,
+              [type]: {
+                ...streak,
+                currentCount: newCount,
+                longestCount: newLongest,
+                lastCompletedDate: today,
+              }
+            }
+          }
+        }),
+        checkAndUpdateStreaks: () => set((state) => {
+          const today = new Date().toISOString().split('T')[0]
+          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+          
+          const updatedStreaks = { ...state.streaks }
+          
+          Object.keys(updatedStreaks).forEach((key) => {
+            const streak = updatedStreaks[key]
+            if (streak.lastCompletedDate !== today && streak.lastCompletedDate !== yesterday) {
+              updatedStreaks[key] = { ...streak, currentCount: 0 }
+            }
+          })
+          
+          return { streaks: updatedStreaks }
+        }),
       },
 
       settingsActions: {
         toggleFeature: (key) => set((state) => ({
           featureFlags: { ...state.featureFlags, [key]: !state.featureFlags[key] }
         })),
+        updatePreferences: (updates) => set((state) => ({
+          preferences: { ...state.preferences, ...updates }
+        })),
       },
+
+      setSearchQuery: (query) => set({ searchQuery: query }),
     }),
     {
       name: 'nudge-storage',

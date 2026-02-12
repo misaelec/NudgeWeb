@@ -4,19 +4,24 @@ import { useState, useEffect, useCallback } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
-import { Play, Pause, RotateCcw, Clock, Target, Shield, CheckCircle2, XCircle } from 'lucide-react'
+import { notificationService } from '@/lib/notifications'
+import { Play, Pause, RotateCcw, Clock, Target, Shield, CheckCircle2, XCircle, Bell, BellOff } from 'lucide-react'
 
 export default function FocusPage() {
   const { user, loading } = useAuth()
-  const { pomodoroActions, featureFlags } = useStore()
+  const { pomodoroActions, preferences } = useStore()
   const [mounted, setMounted] = useState(false)
   const [mode, setMode] = useState<'pomodoro' | 'shortBreak' | 'longBreak'>('pomodoro')
   const [isRunning, setIsRunning] = useState(false)
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [sessions, setSessions] = useState(0)
+  const [notificationPermission, setNotificationPermission] = useState<string>('default')
 
   useEffect(() => {
     setMounted(true)
+    if (typeof window !== 'undefined') {
+      setNotificationPermission(notificationService.permissionStatus)
+    }
   }, [])
 
   useEffect(() => {
@@ -30,10 +35,13 @@ export default function FocusPage() {
       if (mode === 'pomodoro') {
         setSessions((s) => s + 1)
         pomodoroActions.completeSession(25)
+        if (preferences.focusNotifications) {
+          notificationService.showFocusSessionComplete(sessions + 1, (sessions + 1) * 25)
+        }
       }
     }
     return () => clearInterval(interval)
-  }, [isRunning, timeLeft, mode, pomodoroActions])
+  }, [isRunning, timeLeft, mode, pomodoroActions, preferences.focusNotifications, sessions])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -41,7 +49,14 @@ export default function FocusPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const startTimer = () => setIsRunning(true)
+  const startTimer = useCallback(async () => {
+    if (preferences.focusNotifications && notificationPermission !== 'granted') {
+      await notificationService.requestPermission()
+      setNotificationPermission(notificationService.permissionStatus)
+    }
+    setIsRunning(true)
+  }, [preferences.focusNotifications, notificationPermission])
+
   const pauseTimer = () => setIsRunning(false)
   const resetTimer = () => {
     setIsRunning(false)
@@ -62,85 +77,115 @@ export default function FocusPage() {
     }
   }
 
+  const requestNotificationPermission = async () => {
+    const granted = await notificationService.requestPermission()
+    setNotificationPermission(granted ? 'granted' : 'denied')
+  }
+
+  const progress = ((getTimeForMode(mode) - timeLeft) / getTimeForMode(mode)) * 100
+
   if (loading || !mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-apple-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background-primary">
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-16 h-16 bg-apple-blue/20 rounded-apple-xl animate-pulse" />
-          <p className="text-apple-gray-400">Loading...</p>
+          <div className="w-16 h-16 bg-accent-primary/20 rounded-apple-xl animate-pulse" />
+          <p className="text-text-tertiary">Loading...</p>
         </div>
       </div>
     )
   }
 
-  if (!user) {
-    return null
-  }
+  if (!user) return null
 
-  const isAppBlockingEnabled = featureFlags?.appBlocking !== false
+  const isPomodoroEnabled = preferences.pomodoroEnabled
+  const isAppBlockingEnabled = preferences.appBlockingEnabled && preferences.notificationsEnabled
 
   return (
-    <div className="min-h-screen bg-apple-gray-50 dark:bg-apple-gray-950">
+    <div className="min-h-screen bg-background-primary">
       <Sidebar />
 
       <main className="ml-64 p-8">
         <div className="max-w-4xl mx-auto">
-          <header className="mb-8">
-            <h1 className="text-3xl font-semibold text-apple-gray-900 dark:text-white mb-2">
-              Focus Mode
-            </h1>
-            <p className="text-apple-gray-500">Stay productive with Pomodoro technique</p>
+          <header className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-semibold text-text-primary mb-2">
+                Focus Mode
+              </h1>
+              <p className="text-text-tertiary">Stay productive with Pomodoro technique</p>
+            </div>
+            {notificationPermission !== 'granted' && (
+              <button
+                onClick={requestNotificationPermission}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <BellOff className="w-4 h-4" />
+                Enable Notifications
+              </button>
+            )}
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div className="lg:col-span-2 card">
               <div className="text-center py-8">
                 <div className="flex justify-center gap-2 mb-8">
-                  <button
-                    onClick={() => switchMode('pomodoro')}
-                    className={`px-4 py-2 rounded-apple-lg font-medium transition-all ${
-                      mode === 'pomodoro'
-                        ? 'bg-apple-blue text-white'
-                        : 'bg-apple-gray-100 dark:bg-apple-gray-800 text-apple-gray-600 dark:text-apple-gray-400'
-                    }`}
-                  >
-                    Pomodoro
-                  </button>
-                  <button
-                    onClick={() => switchMode('shortBreak')}
-                    className={`px-4 py-2 rounded-apple-lg font-medium transition-all ${
-                      mode === 'shortBreak'
-                        ? 'bg-apple-blue text-white'
-                        : 'bg-apple-gray-100 dark:bg-apple-gray-800 text-apple-gray-600 dark:text-apple-gray-400'
-                    }`}
-                  >
-                    Short Break
-                  </button>
-                  <button
-                    onClick={() => switchMode('longBreak')}
-                    className={`px-4 py-2 rounded-apple-lg font-medium transition-all ${
-                      mode === 'longBreak'
-                        ? 'bg-apple-blue text-white'
-                        : 'bg-apple-gray-100 dark:bg-apple-gray-800 text-apple-gray-600 dark:text-apple-gray-400'
-                    }`}
-                  >
-                    Long Break
-                  </button>
+                  {[
+                    { id: 'pomodoro', label: 'Pomodoro' },
+                    { id: 'shortBreak', label: 'Short Break' },
+                    { id: 'longBreak', label: 'Long Break' }
+                  ].map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => switchMode(item.id as typeof mode)}
+                      className={`px-4 py-2 rounded-apple-lg font-medium transition-all ${
+                        mode === item.id
+                          ? 'bg-accent-primary text-white'
+                          : 'bg-surface-secondary text-text-secondary hover:bg-border-primary'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="text-8xl font-light text-apple-gray-900 dark:text-white mb-8 tabular-nums">
-                  {formatTime(timeLeft)}
+                <div className="relative w-64 h-64 mx-auto mb-8">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="128"
+                      cy="128"
+                      r="120"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      className="text-surface-secondary"
+                    />
+                    <circle
+                      cx="128"
+                      cy="128"
+                      r="120"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${progress * 7.54} 754`}
+                      className="text-accent-primary transition-all duration-1000"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-6xl font-light text-text-primary tabular-nums">
+                      {formatTime(timeLeft)}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex justify-center gap-4">
                   {!isRunning ? (
-                    <button onClick={startTimer} className="btn-primary px-8 py-3 text-lg">
-                      <Play className="w-5 h-5 mr-2 inline" />
+                    <button onClick={startTimer} className="btn-primary px-8 py-3 text-lg flex items-center gap-2">
+                      <Play className="w-5 h-5" />
                       Start
                     </button>
                   ) : (
-                    <button onClick={pauseTimer} className="btn-secondary px-8 py-3 text-lg">
-                      <Pause className="w-5 h-5 mr-2 inline" />
+                    <button onClick={pauseTimer} className="btn-secondary px-8 py-3 text-lg flex items-center gap-2">
+                      <Pause className="w-5 h-5" />
                       Pause
                     </button>
                   )}
@@ -149,9 +194,12 @@ export default function FocusPage() {
                   </button>
                 </div>
 
-                <div className="mt-8 pt-8 border-t border-apple-gray-100 dark:border-apple-gray-800">
-                  <p className="text-sm text-apple-gray-500">
-                    Sessions completed today: <span className="font-semibold text-apple-gray-900 dark:text-white">{sessions}</span>
+                <div className="mt-8 pt-8 border-t border-border-primary">
+                  <p className="text-sm text-text-tertiary">
+                    Sessions completed today: <span className="font-semibold text-text-primary">{sessions}</span>
+                  </p>
+                  <p className="text-sm text-text-tertiary mt-1">
+                    Total focus time: <span className="font-semibold text-text-primary">{sessions * 25} minutes</span>
                   </p>
                 </div>
               </div>
@@ -160,19 +208,23 @@ export default function FocusPage() {
             <div className="space-y-6">
               <div className="card">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-apple-blue/10 rounded-apple-lg">
-                    <Clock className="w-5 h-5 text-apple-blue" />
+                  <div className="p-2 bg-accent-secondary/10 rounded-apple-lg">
+                    <Clock className="w-5 h-5 text-accent-secondary" />
                   </div>
-                  <h3 className="font-semibold text-apple-gray-900 dark:text-white">Session Stats</h3>
+                  <h3 className="font-semibold text-text-primary">Session Stats</h3>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-apple-gray-500">Today</span>
-                    <span className="font-medium text-apple-gray-900 dark:text-white">{sessions} sessions</span>
+                    <span className="text-sm text-text-tertiary">Today</span>
+                    <span className="font-medium text-text-primary">{sessions} sessions</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-apple-gray-500">Focus Time</span>
-                    <span className="font-medium text-apple-gray-900 dark:text-white">{sessions * 25} min</span>
+                    <span className="text-sm text-text-tertiary">Focus Time</span>
+                    <span className="font-medium text-text-primary">{sessions * 25} min</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-text-tertiary">Break Time</span>
+                    <span className="font-medium text-text-primary">{sessions * 5} min</span>
                   </div>
                 </div>
               </div>
@@ -180,23 +232,50 @@ export default function FocusPage() {
               {isAppBlockingEnabled && (
                 <div className="card">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-apple-red/10 rounded-apple-lg">
-                      <Shield className="w-5 h-5 text-apple-red" />
+                    <div className="p-2 bg-action-danger/10 rounded-apple-lg">
+                      <Shield className="w-5 h-5 text-action-danger" />
                     </div>
-                    <h3 className="font-semibold text-apple-gray-900 dark:text-white">App Blocking</h3>
+                    <h3 className="font-semibold text-text-primary">App Blocking</h3>
                   </div>
-                  <p className="text-sm text-apple-gray-500 mb-4">
+                  <p className="text-sm text-text-tertiary mb-4">
                     Block distracting apps during focus sessions.
                   </p>
-                  <div className="flex items-center justify-between p-3 bg-apple-gray-50 dark:bg-apple-gray-800 rounded-apple-lg">
+                  <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-apple-lg">
                     <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-apple-green" />
-                      <span className="text-sm font-medium text-apple-gray-900 dark:text-white">Enabled</span>
+                      {notificationPermission === 'granted' ? (
+                        <CheckCircle2 className="w-5 h-5 text-success" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-text-tertiary" />
+                      )}
+                      <span className="text-sm font-medium text-text-primary">
+                        {notificationPermission === 'granted' ? 'Enabled' : 'Disabled'}
+                      </span>
                     </div>
-                    <span className="text-xs text-apple-gray-500">iOS only</span>
+                    <span className="text-xs text-text-tertiary">iOS only</span>
                   </div>
                 </div>
               )}
+
+              <div className="card">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-success/10 rounded-apple-lg">
+                    <Target className="w-5 h-5 text-success" />
+                  </div>
+                  <h3 className="font-semibold text-text-primary">Today's Goal</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-text-tertiary">Sessions</span>
+                    <span className="font-medium text-text-primary">{sessions}/8</span>
+                  </div>
+                  <div className="w-full h-2 bg-surface-secondary rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent-primary rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min((sessions / 8) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

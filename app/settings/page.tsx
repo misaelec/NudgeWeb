@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
+import { notificationService } from '@/lib/notifications'
 import {
   Settings,
   Bell,
@@ -25,39 +26,86 @@ import {
   HelpCircle,
   LogOut,
   ChevronRight,
-  Smartphone
+  Smartphone,
+  BellOff,
+  Zap,
+  BarChart3
 } from 'lucide-react'
 
 export default function SettingsPage() {
   const { user, loading, signOut } = useAuth()
-  const { featureFlags, settingsActions } = useStore()
+  const { featureFlags, settingsActions, preferences, streaks, pomodoroSessions, totalFocusMinutes } = useStore()
   const [mounted, setMounted] = useState(false)
-  const [darkMode, setDarkMode] = useState(false)
-  const [notifications, setNotifications] = useState(true)
+  const [darkMode, setDarkMode] = useState<'light' | 'dark' | 'system'>('dark')
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [reminderNotifications, setReminderNotifications] = useState(true)
+  const [focusNotifications, setFocusNotifications] = useState(true)
+  const [streakNotifications, setStreakNotifications] = useState(true)
+  const [visualEffectsEnabled, setVisualEffectsEnabled] = useState(true)
+  const [notificationPermission, setNotificationPermission] = useState<string>('default')
 
   useEffect(() => {
     setMounted(true)
     const stored = localStorage.getItem('nudge-settings')
     if (stored) {
       const settings = JSON.parse(stored)
-      setDarkMode(settings.darkMode || false)
-      setNotifications(settings.notifications !== false)
+      setDarkMode(settings.darkMode || 'dark')
+      setNotificationsEnabled(settings.notificationsEnabled !== false)
+      setReminderNotifications(settings.reminderNotifications !== false)
+      setFocusNotifications(settings.focusNotifications !== false)
+      setStreakNotifications(settings.streakNotifications !== false)
+      setVisualEffectsEnabled(settings.visualEffectsEnabled !== false)
+    }
+    if (typeof window !== 'undefined') {
+      setNotificationPermission(notificationService.permissionStatus)
     }
   }, [])
 
   const toggleDarkMode = () => {
-    const newValue = !darkMode
+    const newValue = darkMode === 'dark' ? 'light' : 'dark'
     setDarkMode(newValue)
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
     localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, darkMode: newValue }))
-    document.documentElement.classList.toggle('dark', newValue)
+    document.documentElement.classList.toggle('dark', newValue === 'dark')
+  }
+
+  const toggleVisualEffects = () => {
+    const newValue = !visualEffectsEnabled
+    setVisualEffectsEnabled(newValue)
+    settingsActions.updatePreferences({ visualEffectsEnabled: newValue })
+    const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
+    localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, visualEffectsEnabled: newValue }))
   }
 
   const toggleNotifications = () => {
-    const newValue = !notifications
-    setNotifications(newValue)
+    const newValue = !notificationsEnabled
+    setNotificationsEnabled(newValue)
+    settingsActions.updatePreferences({ notificationsEnabled: newValue })
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
-    localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, notifications: newValue }))
+    localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, notificationsEnabled: newValue }))
+  }
+
+  const toggleReminderNotifications = () => {
+    const newValue = !reminderNotifications
+    setReminderNotifications(newValue)
+    settingsActions.updatePreferences({ reminderNotifications: newValue })
+  }
+
+  const toggleFocusNotifications = () => {
+    const newValue = !focusNotifications
+    setFocusNotifications(newValue)
+    settingsActions.updatePreferences({ focusNotifications: newValue })
+  }
+
+  const toggleStreakNotifications = () => {
+    const newValue = !streakNotifications
+    setStreakNotifications(newValue)
+    settingsActions.updatePreferences({ streakNotifications: newValue })
+  }
+
+  const requestNotificationPermission = async () => {
+    const granted = await notificationService.requestPermission()
+    setNotificationPermission(granted ? 'granted' : 'denied')
   }
 
   const featureList = [
@@ -124,7 +172,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
                   <div className="flex items-center gap-3">
-                    {darkMode ? <Moon className="w-5 h-5 text-accent-secondary" /> : <Sun className="w-5 h-5 text-action-warning" />}
+                    {darkMode === 'dark' ? <Moon className="w-5 h-5 text-accent-secondary" /> : <Sun className="w-5 h-5 text-action-warning" />}
                     <div>
                       <p className="font-medium text-text-primary">Dark Mode</p>
                       <p className="text-sm text-text-tertiary">Switch between light and dark theme</p>
@@ -133,12 +181,12 @@ export default function SettingsPage() {
                   <button
                     onClick={toggleDarkMode}
                     className={`relative w-14 h-8 rounded-full transition-colors ${
-                      darkMode ? 'bg-accent-primary' : 'bg-border-primary'
+                      darkMode === 'dark' ? 'bg-accent-primary' : 'bg-border-primary'
                     }`}
                   >
                     <span
                       className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                        darkMode ? 'translate-x-7' : 'translate-x-1'
+                        darkMode === 'dark' ? 'translate-x-7' : 'translate-x-1'
                       }`}
                     />
                   </button>
@@ -146,25 +194,124 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
                   <div className="flex items-center gap-3">
-                    <Bell className="w-5 h-5 text-action-warning" />
+                    <Zap className="w-5 h-5 text-accent-secondary" />
                     <div>
-                      <p className="font-medium text-text-primary">Notifications</p>
-                      <p className="text-sm text-text-tertiary">Receive push notifications</p>
+                      <p className="font-medium text-text-primary">Visual Effects</p>
+                      <p className="text-sm text-text-tertiary">Animations and transitions</p>
                     </div>
                   </div>
                   <button
-                    onClick={toggleNotifications}
+                    onClick={toggleVisualEffects}
                     className={`relative w-14 h-8 rounded-full transition-colors ${
-                      notifications ? 'bg-accent-primary' : 'bg-border-primary'
+                      visualEffectsEnabled ? 'bg-accent-primary' : 'bg-border-primary'
                     }`}
                   >
                     <span
                       className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                        notifications ? 'translate-x-7' : 'translate-x-1'
+                        visualEffectsEnabled ? 'translate-x-7' : 'translate-x-1'
                       }`}
                     />
                   </button>
                 </div>
+              </div>
+            </section>
+
+            <section className="card">
+              <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-action-warning" />
+                Notifications
+              </h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
+                  <div className="flex items-center gap-3">
+                    {notificationPermission === 'granted' ? <Bell className="w-5 h-5 text-success" /> : <BellOff className="w-5 h-5 text-text-tertiary" />}
+                    <div>
+                      <p className="font-medium text-text-primary">Push Notifications</p>
+                      <p className="text-sm text-text-tertiary">
+                        {notificationPermission === 'granted' ? 'Enabled' : 'Click to enable'}
+                      </p>
+                    </div>
+                  </div>
+                  {notificationPermission !== 'granted' ? (
+                    <button onClick={requestNotificationPermission} className="btn-secondary text-sm">
+                      Enable
+                    </button>
+                  ) : (
+                    <button
+                      onClick={toggleNotifications}
+                      className={`relative w-14 h-8 rounded-full transition-colors ${
+                        notificationsEnabled ? 'bg-accent-primary' : 'bg-border-primary'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                          notificationsEnabled ? 'translate-x-7' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  )}
+                </div>
+
+                {notificationsEnabled && (
+                  <>
+                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4">
+                      <div>
+                        <p className="font-medium text-text-primary">Reminder Notifications</p>
+                        <p className="text-sm text-text-tertiary">Get notified when reminders are due</p>
+                      </div>
+                      <button
+                        onClick={toggleReminderNotifications}
+                        className={`relative w-14 h-8 rounded-full transition-colors ${
+                          reminderNotifications ? 'bg-accent-primary' : 'bg-border-primary'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                            reminderNotifications ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4">
+                      <div>
+                        <p className="font-medium text-text-primary">Focus Notifications</p>
+                        <p className="text-sm text-text-tertiary">Session and break reminders</p>
+                      </div>
+                      <button
+                        onClick={toggleFocusNotifications}
+                        className={`relative w-14 h-8 rounded-full transition-colors ${
+                          focusNotifications ? 'bg-accent-primary' : 'bg-border-primary'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                            focusNotifications ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4">
+                      <div>
+                        <p className="font-medium text-text-primary">Streak Notifications</p>
+                        <p className="text-sm text-text-tertiary">Milestone achievements</p>
+                      </div>
+                      <button
+                        onClick={toggleStreakNotifications}
+                        className={`relative w-14 h-8 rounded-full transition-colors ${
+                          streakNotifications ? 'bg-accent-primary' : 'bg-border-primary'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                            streakNotifications ? 'translate-x-7' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </section>
 
@@ -207,6 +354,31 @@ export default function SettingsPage() {
                     </div>
                   )
                 })}
+              </div>
+            </section>
+
+            <section className="card">
+              <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-success" />
+                Your Stats
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
+                  <p className="text-2xl font-semibold text-text-primary">{streaks.journal?.currentCount || 0}</p>
+                  <p className="text-sm text-text-tertiary">Journal Streak</p>
+                </div>
+                <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
+                  <p className="text-2xl font-semibold text-text-primary">{streaks.focus?.currentCount || 0}</p>
+                  <p className="text-sm text-text-tertiary">Focus Streak</p>
+                </div>
+                <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
+                  <p className="text-2xl font-semibold text-text-primary">{pomodoroSessions}</p>
+                  <p className="text-sm text-text-tertiary">Sessions Today</p>
+                </div>
+                <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
+                  <p className="text-2xl font-semibold text-text-primary">{totalFocusMinutes}</p>
+                  <p className="text-sm text-text-tertiary">Minutes Focused</p>
+                </div>
               </div>
             </section>
 
