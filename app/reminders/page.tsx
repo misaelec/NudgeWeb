@@ -29,7 +29,7 @@ type Filter = 'all' | 'pending' | 'completed'
 export default function RemindersPage() {
   const { user, loading } = useAuth()
   const { preferences, searchQuery, setSearchQuery } = useStore()
-  const { reminders, addReminder, updateReminder, deleteReminder, toggleReminder } = useReminderStore()
+  const { reminders, addReminder, updateReminder, deleteReminder, toggleReminder, syncFromSupabase } = useReminderStore()
   const [mounted, setMounted] = useState(false)
   const [showAddReminder, setShowAddReminder] = useState(false)
   const [showEditReminder, setShowEditReminder] = useState(false)
@@ -52,6 +52,13 @@ export default function RemindersPage() {
       setNotificationPermission(notificationService.permissionStatus)
     }
   }, [])
+
+  useEffect(() => {
+    if (user && mounted) {
+      console.log('User logged in, syncing from Supabase...')
+      syncFromSupabase()
+    }
+  }, [user, mounted])
 
   const filteredReminders = reminders.filter(r => {
     const matchesFilter = filter === 'all' 
