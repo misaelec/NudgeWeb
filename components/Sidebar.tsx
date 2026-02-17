@@ -14,19 +14,21 @@ import {
   BarChart3
 } from 'lucide-react'
 import { useAuth } from './Providers'
-
-const navItems = [
-  { href: '/app/reminders', icon: Bell, label: 'Reminders' },
-  { href: '/app', icon: BarChart3, label: 'Statistics' },
-  { href: '/app/focus', icon: Focus, label: 'Focus' },
-  { href: '/app/calendar', icon: Calendar, label: 'Calendar' },
-  { href: '/app/journal', icon: BookOpen, label: 'Journal' },
-  { href: '/app/settings', icon: Settings, label: 'Settings' },
-]
+import { useStore } from '@/lib/store'
 
 export default function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
+  const { featureFlags } = useStore()
+
+  const navItems = [
+    { href: '/app/reminders', icon: Bell, label: 'Reminders', key: 'reminders' },
+    { href: '/app', icon: BarChart3, label: 'Statistics', key: null },
+    { href: '/app/focus', icon: Focus, label: 'Focus', key: 'pomodoro' },
+    { href: '/app/calendar', icon: Calendar, label: 'Calendar', key: 'calendar' },
+    { href: '/app/journal', icon: BookOpen, label: 'Journal', key: 'journal' },
+    { href: '/app/settings', icon: Settings, label: 'Settings', key: null },
+  ].filter(item => item.key === null || featureFlags?.[item.key] !== false)
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-background-secondary border-r border-border-primary flex flex-col">

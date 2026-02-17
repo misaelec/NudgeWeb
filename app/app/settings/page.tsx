@@ -254,7 +254,7 @@ export default function SettingsPage() {
 
                 {notificationsEnabled && (
                   <>
-                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4">
+                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4 pl-8">
                       <div>
                         <p className="font-medium text-text-primary">Reminder Notifications</p>
                         <p className="text-sm text-text-tertiary">Get notified when reminders are due</p>
@@ -273,7 +273,7 @@ export default function SettingsPage() {
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4">
+                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4 pl-8">
                       <div>
                         <p className="font-medium text-text-primary">Focus Notifications</p>
                         <p className="text-sm text-text-tertiary">Session and break reminders</p>
@@ -292,7 +292,7 @@ export default function SettingsPage() {
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4">
+                    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4 pl-8">
                       <div>
                         <p className="font-medium text-text-primary">Streak Notifications</p>
                         <p className="text-sm text-text-tertiary">Milestone achievements</p>
