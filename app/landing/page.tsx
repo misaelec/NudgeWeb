@@ -240,10 +240,15 @@ export default function LandingPage() {
 
             <button 
               onClick={handleAuth} 
-              className="btn-primary w-full mb-4 disabled:opacity-50"
+              className="btn-primary w-full mb-4 disabled:opacity-50 flex items-center justify-center gap-2"
               disabled={isLoading}
             >
-              {isLoading ? 'Please wait...' : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {authMode === 'signin' ? 'Signing in...' : 'Creating account...'}
+                </>
+              ) : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
             </button>
 
             <div className="relative mb-4">
