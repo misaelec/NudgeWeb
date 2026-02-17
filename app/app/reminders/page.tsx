@@ -6,6 +6,7 @@ import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { useReminderStore } from '@/lib/reminderStore'
 import { notificationService } from '@/lib/notifications'
+import confetti from 'canvas-confetti'
 import {
   Plus,
   Bell,
@@ -134,11 +135,16 @@ export default function RemindersPage() {
   }
 
   const handleToggleReminder = async (id: string, title: string) => {
+    const reminder = reminders.find(r => r.id === id)
     toggleReminder(id)
     
-    const reminder = reminders.find(r => r.id === id)
     if (reminder && !reminder.completed) {
-      await notificationService.showReminderCompleted(title)
+      confetti({
+        particleCount: 50,
+        spread: 70,
+        origin: { y: 0.8 },
+        colors: ['#E8704E', '#34C759', '#0086E3']
+      })
     }
   }
 

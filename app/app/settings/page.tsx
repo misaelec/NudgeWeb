@@ -137,10 +137,7 @@ export default function SettingsPage() {
   ]
 
   const toggleFeature = (key: string) => {
-    const currentValue = featureFlags?.[key] !== false
     settingsActions.toggleFeature(key)
-    const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
-    localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, [`feature_${key}`]: !currentValue }))
   }
 
   if (loading || !mounted) {
