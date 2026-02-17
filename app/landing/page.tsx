@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/Providers'
 import {
   Focus,
   Calendar,
@@ -27,6 +28,13 @@ export default function LandingPage() {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (user) {
+      router.replace('/app/reminders')
+    }
+  }, [user, router])
 
   useEffect(() => {
       const loggedOut = sessionStorage.getItem('logged_out')
