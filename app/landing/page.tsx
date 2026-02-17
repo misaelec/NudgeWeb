@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Focus,
@@ -20,12 +20,22 @@ import {
 export default function LandingPage() {
   const router = useRouter()
   const [showAuth, setShowAuth] = useState(false)
+  const [showLogoutBanner, setShowLogoutBanner] = useState(false)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    const loggedOut = sessionStorage.getItem('logged_out')
+    if (loggedOut === 'true') {
+      setShowLogoutBanner(true)
+      sessionStorage.removeItem('logged_out')
+      setTimeout(() => setShowLogoutBanner(false), 5000)
+    }
+  }, [])
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -84,6 +94,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background-primary">
+      {showLogoutBanner && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-success text-white px-6 py-3 rounded-apple-lg shadow-apple-lg animate-slide-down">
+          <p className="text-sm font-medium">You have been logged out successfully</p>
+        </div>
+      )}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background-primary/80 backdrop-blur-lg border-b border-border-primary">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

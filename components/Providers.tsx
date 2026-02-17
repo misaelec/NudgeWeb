@@ -83,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabaseAuth.signOut()
+    sessionStorage.setItem('logged_out', 'true')
     setUser(null)
+    window.location.href = '/landing'
   }
 
   return (
