@@ -432,7 +432,18 @@ export const useStore = create<AppState>()(
 
       settingsActions: {
         toggleFeature: (key) => set((state) => ({
-          featureFlags: { ...state.featureFlags, [key]: !state.featureFlags[key] }
+          featureFlags: { 
+            ...(state.featureFlags || {
+              reminders: true,
+              calendar: true,
+              events: true,
+              pomodoro: true,
+              appBlocking: true,
+              journal: true,
+              objectives: true,
+            }), 
+            [key]: !(state.featureFlags || {})[key] 
+          }
         })),
         updatePreferences: (updates) => set((state) => ({
           preferences: { ...state.preferences, ...updates }

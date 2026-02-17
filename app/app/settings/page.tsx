@@ -137,7 +137,9 @@ export default function SettingsPage() {
   ]
 
   const toggleFeature = (key: string) => {
-    settingsActions.toggleFeature(key)
+    if (settingsActions?.toggleFeature) {
+      settingsActions.toggleFeature(key)
+    }
   }
 
   if (loading || !mounted) {

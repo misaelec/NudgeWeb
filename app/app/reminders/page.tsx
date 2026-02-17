@@ -138,7 +138,7 @@ export default function RemindersPage() {
     const reminder = reminders.find(r => r.id === id)
     toggleReminder(id)
     
-    if (reminder && !reminder.completed) {
+    if (reminder && !reminder.completed && preferences?.visualEffectsEnabled) {
       confetti({
         particleCount: 50,
         spread: 70,
