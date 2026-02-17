@@ -16,7 +16,7 @@ export default function AuthCallback() {
       
       if (result.success) {
         setStatus('Success! Redirecting...')
-        window.location.href = '/app'
+        window.location.href = '/app/reminders'
       } else {
         setError(result.error || 'Authentication failed')
       }

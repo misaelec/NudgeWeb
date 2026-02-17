@@ -67,7 +67,7 @@ export default function LandingPage() {
         if (data.error) {
           setError(data.error.description || data.error.message)
         } else {
-          router.push('/app')
+          router.push('/app/reminders')
         }
       } else {
         const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
@@ -84,7 +84,7 @@ export default function LandingPage() {
           setError(data.error.description || data.error.message)
         } else {
           localStorage.setItem('supabase_session', JSON.stringify(data))
-          router.push('/app')
+          router.push('/app/reminders')
         }
       }
     } catch (err) {
