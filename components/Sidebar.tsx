@@ -10,15 +10,16 @@ import {
   BookOpen,
   Settings,
   LogOut,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react'
 import { useAuth } from './Providers'
 
 const navItems = [
-  { href: '/app', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/app/reminders', icon: Bell, label: 'Reminders' },
+  { href: '/app', icon: BarChart3, label: 'Statistics' },
   { href: '/app/focus', icon: Focus, label: 'Focus' },
   { href: '/app/calendar', icon: Calendar, label: 'Calendar' },
-  { href: '/app/reminders', icon: Bell, label: 'Reminders' },
   { href: '/app/journal', icon: BookOpen, label: 'Journal' },
   { href: '/app/settings', icon: Settings, label: 'Settings' },
 ]
@@ -30,7 +31,7 @@ export default function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-background-secondary border-r border-border-primary flex flex-col">
       <div className="p-6">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/app/reminders" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-accent-primary rounded-apple-xl flex items-center justify-center shadow-apple">
             <Sparkles className="w-5 h-5 text-white" />
           </div>

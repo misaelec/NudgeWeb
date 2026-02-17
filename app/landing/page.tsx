@@ -29,11 +29,11 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    const loggedOut = sessionStorage.getItem('logged_out')
+      const loggedOut = sessionStorage.getItem('logged_out')
     if (loggedOut === 'true') {
       setShowLogoutBanner(true)
       sessionStorage.removeItem('logged_out')
-      setTimeout(() => setShowLogoutBanner(false), 5000)
+      setTimeout(() => setShowLogoutBanner(false), 3000)
     }
   }, [])
 
