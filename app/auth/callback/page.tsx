@@ -26,7 +26,7 @@ export default function AuthCallback() {
       if (result.success) {
         setStatus('Success! Redirecting...')
         console.log('AuthCallback: Redirecting to /')
-        window.location.href = '/'
+        window.location.href = '/app'
       } else {
         setError(result.error || 'Authentication failed')
         console.error('AuthCallback: Error:', result.error)

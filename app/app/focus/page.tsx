@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Sidebar from '@/components/Sidebar'
+
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
@@ -102,9 +102,9 @@ export default function FocusPage() {
 
   return (
     <div className="min-h-screen bg-background-primary">
-      <Sidebar />
+      
 
-      <main className="ml-64 p-8">
+      
         <div className="max-w-4xl mx-auto">
           <header className="flex items-center justify-between mb-8">
             <div>
@@ -279,7 +279,7 @@ export default function FocusPage() {
             </div>
           </div>
         </div>
-      </main>
+      
     </div>
   )
 }

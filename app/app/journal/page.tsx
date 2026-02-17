@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Sidebar from '@/components/Sidebar'
+
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import {
@@ -102,9 +102,9 @@ export default function JournalPage() {
 
   return (
     <div className="min-h-screen bg-apple-gray-50 dark:bg-apple-gray-950">
-      <Sidebar />
+      
 
-      <main className="ml-64 p-8">
+      
         <div className="max-w-5xl mx-auto">
           <header className="mb-8">
             <h1 className="text-3xl font-semibold text-apple-gray-900 dark:text-white mb-2">
@@ -177,7 +177,7 @@ export default function JournalPage() {
             />
           )}
         </div>
-      </main>
+      
     </div>
   )
 }

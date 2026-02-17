@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Sidebar from '@/components/Sidebar'
+
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import {
@@ -159,9 +159,9 @@ export default function CalendarPage() {
 
   return (
     <div className="min-h-screen bg-background-primary">
-      <Sidebar />
+      
 
-      <main className="ml-64 p-8">
+      
         <div className="max-w-7xl mx-auto">
           <header className="flex items-center justify-between mb-6">
             <div>
@@ -385,7 +385,7 @@ export default function CalendarPage() {
             </div>
           )}
         </div>
-      </main>
+      
 
       {showAddEvent && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">

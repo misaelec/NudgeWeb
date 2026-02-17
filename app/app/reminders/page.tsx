@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Sidebar from '@/components/Sidebar'
+
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { useReminderStore } from '@/lib/reminderStore'
@@ -164,9 +164,9 @@ export default function RemindersPage() {
 
   return (
     <div className="min-h-screen bg-background-primary">
-      <Sidebar />
+      
 
-      <main className="ml-64 p-8">
+      
         <div className="max-w-4xl mx-auto">
           <header className="flex items-center justify-between mb-8">
             <div>
@@ -282,7 +282,7 @@ export default function RemindersPage() {
             </>
           )}
         </div>
-      </main>
+      
 
       {showAddReminder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

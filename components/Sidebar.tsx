@@ -15,12 +15,12 @@ import {
 import { useAuth } from './Providers'
 
 const navItems = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/focus', icon: Focus, label: 'Focus' },
-  { href: '/calendar', icon: Calendar, label: 'Calendar' },
-  { href: '/reminders', icon: Bell, label: 'Reminders' },
-  { href: '/journal', icon: BookOpen, label: 'Journal' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/app', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/app/focus', icon: Focus, label: 'Focus' },
+  { href: '/app/calendar', icon: Calendar, label: 'Calendar' },
+  { href: '/app/reminders', icon: Bell, label: 'Reminders' },
+  { href: '/app/journal', icon: BookOpen, label: 'Journal' },
+  { href: '/app/settings', icon: Settings, label: 'Settings' },
 ]
 
 export default function Sidebar() {

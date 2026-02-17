@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Sidebar from '@/components/Sidebar'
+
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
@@ -135,9 +135,9 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-background-primary">
-      <Sidebar />
+      
 
-      <main className="ml-64 p-8">
+      
         <div className="max-w-4xl mx-auto">
           <header className="mb-8">
             <h1 className="text-3xl font-semibold text-text-primary mb-2">
@@ -428,7 +428,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-      </main>
+      
     </div>
   )
 }
