@@ -90,7 +90,9 @@ export default function SettingsPage() {
   const toggleVisualEffects = () => {
     const newValue = !visualEffectsEnabled
     setVisualEffectsEnabled(newValue)
-    settingsActions.updatePreferences({ visualEffectsEnabled: newValue })
+    if (settingsActions?.updatePreferences) {
+      settingsActions.updatePreferences({ visualEffectsEnabled: newValue })
+    }
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
     localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, visualEffectsEnabled: newValue }))
   }
@@ -98,7 +100,9 @@ export default function SettingsPage() {
   const toggleNotifications = () => {
     const newValue = !notificationsEnabled
     setNotificationsEnabled(newValue)
-    settingsActions.updatePreferences({ notificationsEnabled: newValue })
+    if (settingsActions?.updatePreferences) {
+      settingsActions.updatePreferences({ notificationsEnabled: newValue })
+    }
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
     localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, notificationsEnabled: newValue }))
   }
@@ -106,19 +110,25 @@ export default function SettingsPage() {
   const toggleReminderNotifications = () => {
     const newValue = !reminderNotifications
     setReminderNotifications(newValue)
-    settingsActions.updatePreferences({ reminderNotifications: newValue })
+    if (settingsActions?.updatePreferences) {
+      settingsActions.updatePreferences({ reminderNotifications: newValue })
+    }
   }
 
   const toggleFocusNotifications = () => {
     const newValue = !focusNotifications
     setFocusNotifications(newValue)
-    settingsActions.updatePreferences({ focusNotifications: newValue })
+    if (settingsActions?.updatePreferences) {
+      settingsActions.updatePreferences({ focusNotifications: newValue })
+    }
   }
 
   const toggleStreakNotifications = () => {
     const newValue = !streakNotifications
     setStreakNotifications(newValue)
-    settingsActions.updatePreferences({ streakNotifications: newValue })
+    if (settingsActions?.updatePreferences) {
+      settingsActions.updatePreferences({ streakNotifications: newValue })
+    }
   }
 
   const requestNotificationPermission = async () => {

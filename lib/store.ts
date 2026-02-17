@@ -446,7 +446,24 @@ export const useStore = create<AppState>()(
           }
         })),
         updatePreferences: (updates) => set((state) => ({
-          preferences: { ...state.preferences, ...updates }
+          preferences: { 
+            ...(state.preferences || {
+              remindersEnabled: true,
+              calendarEnabled: true,
+              eventsEnabled: true,
+              pomodoroEnabled: true,
+              appBlockingEnabled: true,
+              journalEnabled: true,
+              objectivesEnabled: true,
+              visualEffectsEnabled: true,
+              darkMode: 'dark',
+              notificationsEnabled: true,
+              reminderNotifications: true,
+              focusNotifications: true,
+              streakNotifications: true,
+            }), 
+            ...updates 
+          }
         })),
       },
 

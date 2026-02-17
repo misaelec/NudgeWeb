@@ -41,7 +41,7 @@ const convertToLocal = (supabaseReminder: SupabaseReminder): Reminder => ({
 const convertToInput = (reminder: Reminder): ReminderInput => ({
   title: reminder.title,
   notes: reminder.notes,
-  dueDate: reminder.dueDate,
+  dueDate: typeof reminder.dueDate === 'string' ? new Date(reminder.dueDate) : reminder.dueDate,
   priority: reminder.priority,
   recurrence: reminder.recurrence,
 })
