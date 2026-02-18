@@ -323,31 +323,43 @@ export function useSupabaseSync() {
 
   const previousUserIdRef = useRef<string | null>(null)
   const userChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const fetchAllDataRef = useRef(fetchAllData)
+
+  useEffect(() => {
+    fetchAllDataRef.current = fetchAllData
+  }, [fetchAllData])
 
   useEffect(() => {
     const currentUserId = getUserId()
+    
+    if (!currentUserId) {
+      if (previousUserIdRef.current !== null) {
+        previousUserIdRef.current = null
+      }
+      return
+    }
+
+    if (currentUserId === previousUserIdRef.current) {
+      return
+    }
     
     if (userChangeTimeoutRef.current) {
       clearTimeout(userChangeTimeoutRef.current)
     }
 
-    if (currentUserId && currentUserId !== previousUserIdRef.current) {
-      console.log('👤 User changed, debouncing reconnect...')
-      userChangeTimeoutRef.current = setTimeout(() => {
-        previousUserIdRef.current = currentUserId
-        cleanupChannel()
-        fetchAllData()
-      }, 1000)
-    } else if (!currentUserId) {
-      previousUserIdRef.current = null
-    }
+    console.log('👤 User changed, debouncing reconnect...')
+    previousUserIdRef.current = currentUserId
+    userChangeTimeoutRef.current = setTimeout(() => {
+      cleanupChannel()
+      fetchAllDataRef.current()
+    }, 1000)
 
     return () => {
       if (userChangeTimeoutRef.current) {
         clearTimeout(userChangeTimeoutRef.current)
       }
     }
-  }, [getUserId, cleanupChannel, fetchAllData])
+  }, [getUserId, cleanupChannel])
 
   return { fetchAllData }
 }
