@@ -138,13 +138,19 @@ export default function RemindersPage() {
     const reminder = reminders.find(r => r.id === id)
     toggleReminder(id)
     
-    if (reminder && !reminder.completed && preferences?.visualEffectsEnabled) {
-      confetti({
-        particleCount: 50,
-        spread: 70,
-        origin: { y: 0.8 },
-        colors: ['#E8704E', '#34C759', '#0086E3']
-      })
+    if (reminder && !reminder.completed) {
+      const stored = localStorage.getItem('nudge-settings')
+      const settings = stored ? JSON.parse(stored) : {}
+      const visualEffectsEnabled = settings.visualEffectsEnabled !== false
+      
+      if (visualEffectsEnabled) {
+        confetti({
+          particleCount: 50,
+          spread: 70,
+          origin: { y: 0.8 },
+          colors: ['#E8704E', '#34C759', '#0086E3']
+        })
+      }
     }
   }
 

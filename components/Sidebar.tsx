@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -14,12 +15,26 @@ import {
   BarChart3
 } from 'lucide-react'
 import { useAuth } from './Providers'
-import { useStore } from '@/lib/store'
 
 export default function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
-  const { featureFlags } = useStore()
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({
+    reminders: true,
+    calendar: true,
+    events: true,
+    pomodoro: true,
+    appBlocking: true,
+    journal: true,
+    objectives: true,
+  })
+
+  useEffect(() => {
+    const stored = localStorage.getItem('nudge-feature-flags')
+    if (stored) {
+      setFeatureFlags(JSON.parse(stored))
+    }
+  }, [])
 
   const navItems = [
     { href: '/app/reminders', icon: Bell, label: 'Reminders', key: 'reminders' },
@@ -28,7 +43,7 @@ export default function Sidebar() {
     { href: '/app/calendar', icon: Calendar, label: 'Calendar', key: 'calendar' },
     { href: '/app/journal', icon: BookOpen, label: 'Journal', key: 'journal' },
     { href: '/app/settings', icon: Settings, label: 'Settings', key: null },
-  ].filter(item => item.key === null || featureFlags?.[item.key] !== false)
+  ].filter(item => item.key === null || featureFlags[item.key] !== false)
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-background-secondary border-r border-border-primary flex flex-col">

@@ -52,7 +52,7 @@ function Toggle({ enabled, onClick }: { enabled: boolean; onClick: () => void })
 export default function SettingsPage() {
   const router = useRouter()
   const { user, loading, signOut } = useAuth()
-  const { featureFlags, settingsActions, preferences, streaks, pomodoroSessions, totalFocusMinutes } = useStore()
+  const { settingsActions, preferences, streaks, pomodoroSessions, totalFocusMinutes } = useStore()
   const [mounted, setMounted] = useState(false)
   const [darkMode, setDarkMode] = useState<'light' | 'dark' | 'system'>('dark')
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
@@ -61,18 +61,31 @@ export default function SettingsPage() {
   const [streakNotifications, setStreakNotifications] = useState(true)
   const [visualEffectsEnabled, setVisualEffectsEnabled] = useState(true)
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({
+    reminders: true,
+    calendar: true,
+    events: true,
+    pomodoro: true,
+    appBlocking: true,
+    journal: true,
+    objectives: true,
+  })
 
   useEffect(() => {
     setMounted(true)
-    const stored = localStorage.getItem('nudge-settings')
-    if (stored) {
-      const settings = JSON.parse(stored)
+    const settingsStored = localStorage.getItem('nudge-settings')
+    if (settingsStored) {
+      const settings = JSON.parse(settingsStored)
       setDarkMode(settings.darkMode || 'dark')
       setNotificationsEnabled(settings.notificationsEnabled !== false)
       setReminderNotifications(settings.reminderNotifications !== false)
       setFocusNotifications(settings.focusNotifications !== false)
       setStreakNotifications(settings.streakNotifications !== false)
       setVisualEffectsEnabled(settings.visualEffectsEnabled !== false)
+    }
+    const featuresStored = localStorage.getItem('nudge-feature-flags')
+    if (featuresStored) {
+      setFeatureFlags(JSON.parse(featuresStored))
     }
     if (typeof window !== 'undefined') {
       setNotificationPermission(notificationService.permissionStatus)
@@ -147,9 +160,9 @@ export default function SettingsPage() {
   ]
 
   const toggleFeature = (key: string) => {
-    if (settingsActions?.toggleFeature) {
-      settingsActions.toggleFeature(key)
-    }
+    const newFlags = { ...featureFlags, [key]: !featureFlags[key] }
+    setFeatureFlags(newFlags)
+    localStorage.setItem('nudge-feature-flags', JSON.stringify(newFlags))
   }
 
   if (loading || !mounted) {
