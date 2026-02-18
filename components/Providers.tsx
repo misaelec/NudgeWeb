@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabaseAuth, User } from '@/lib/auth'
+import { settingsSyncService } from '@/lib/settingsSync'
 
 interface AuthContextType {
   user: User | null
@@ -14,17 +15,47 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+async function loadUserSettings() {
+  try {
+    const prefs = await settingsSyncService.fetchPreferences()
+    if (prefs) {
+      const settings = {
+        darkMode: prefs.dark_mode || 'dark',
+        notificationsEnabled: prefs.notifications_enabled,
+        reminderNotifications: prefs.reminder_notifications,
+        focusNotifications: prefs.focus_notifications,
+        streakNotifications: prefs.streak_notifications,
+        visualEffectsEnabled: prefs.visual_effects_enabled,
+      }
+      localStorage.setItem('nudge-settings', JSON.stringify(settings))
+      
+      const featureFlags = {
+        reminders: prefs.reminders_enabled,
+        calendar: prefs.calendar_enabled,
+        pomodoro: prefs.pomodoro_enabled,
+        journal: prefs.journal_enabled,
+      }
+      localStorage.setItem('nudge-feature-flags', JSON.stringify(featureFlags))
+      
+      window.dispatchEvent(new Event('feature-flags-updated'))
+    }
+  } catch (error) {
+    console.error('Failed to load user settings:', error)
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadSession = () => {
+    const loadSession = async () => {
       const stored = localStorage.getItem('supabase_session')
       if (stored) {
         try {
           const session = JSON.parse(stored)
           setUser(session.user)
+          await loadUserSettings()
         } catch (e) {
           console.error('Failed to parse session', e)
           setUser(null)
@@ -37,12 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     loadSession()
 
-    const handleStorageChange = () => {
-      loadSession()
+    const handleStorageChange = async () => {
+      await loadSession()
     }
 
-    const handleAuthChange = () => {
-      loadSession()
+    const handleAuthChange = async () => {
+      await loadSession()
     }
 
     window.addEventListener('storage', handleStorageChange)
@@ -60,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const session = JSON.parse(stored)
         setUser(session.user)
+        await loadUserSettings()
       }
     }
     return result
@@ -72,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const session = JSON.parse(stored)
         setUser(session.user)
+        await loadUserSettings()
       }
     }
     return result

@@ -73,7 +73,7 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadSettings = () => {
       setMounted(true)
       
       const settingsStored = localStorage.getItem('nudge-settings')
@@ -95,43 +95,13 @@ export default function SettingsPage() {
       if (typeof window !== 'undefined') {
         setNotificationPermission(notificationService.permissionStatus)
       }
-
-      if (user) {
-        const prefs = await settingsSyncService.fetchPreferences()
-        if (prefs) {
-          const newSettings = {
-            darkMode: (prefs.dark_mode || 'dark') as 'light' | 'dark' | 'system',
-            notificationsEnabled: prefs.notifications_enabled,
-            reminderNotifications: prefs.reminder_notifications,
-            focusNotifications: prefs.focus_notifications,
-            streakNotifications: prefs.streak_notifications,
-            visualEffectsEnabled: prefs.visual_effects_enabled,
-          }
-          setDarkMode(newSettings.darkMode)
-          setNotificationsEnabled(newSettings.notificationsEnabled)
-          setReminderNotifications(newSettings.reminderNotifications)
-          setFocusNotifications(newSettings.focusNotifications)
-          setStreakNotifications(newSettings.streakNotifications)
-          setVisualEffectsEnabled(newSettings.visualEffectsEnabled)
-          localStorage.setItem('nudge-settings', JSON.stringify(newSettings))
-
-          setFeatureFlags({
-            reminders: prefs.reminders_enabled,
-            calendar: prefs.calendar_enabled,
-            pomodoro: prefs.pomodoro_enabled,
-            journal: prefs.journal_enabled,
-          })
-          localStorage.setItem('nudge-feature-flags', JSON.stringify({
-            reminders: prefs.reminders_enabled,
-            calendar: prefs.calendar_enabled,
-            pomodoro: prefs.pomodoro_enabled,
-            journal: prefs.journal_enabled,
-          }))
-        }
-      }
     }
     loadSettings()
-  }, [user])
+    
+    const handleSettingsChange = () => loadSettings()
+    window.addEventListener('storage', handleSettingsChange)
+    return () => window.removeEventListener('storage', handleSettingsChange)
+  }, [])
 
   const toggleDarkMode = async () => {
     const newValue = darkMode === 'dark' ? 'light' : 'dark'
