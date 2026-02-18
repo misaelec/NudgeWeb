@@ -24,6 +24,7 @@ export function useSupabaseSync() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const isConnectedRef = useRef(false)
   const currentUserIdRef = useRef<string | null>(null)
+  const isFetchingRef = useRef(false)
 
   const getAccessToken = useCallback((): string | null => {
     if (typeof window === 'undefined') return null
@@ -67,6 +68,11 @@ export function useSupabaseSync() {
   }, [getAccessToken])
 
   const handleDatabaseChange = useCallback((payload: any, table: string) => {
+    if (isFetchingRef.current) {
+      console.log('⏭️ Skipping realtime event - currently fetching')
+      return
+    }
+    
     console.log(`📡 Realtime change on ${table}:`, payload)
     const { eventType, new: newRecord, old: oldRecord } = payload
     
@@ -230,10 +236,17 @@ export function useSupabaseSync() {
   }, [getAccessToken, getUserId, injectAuth, handleDatabaseChange, cleanupChannel])
 
   const fetchAllData = useCallback(async () => {
+    if (isFetchingRef.current) {
+      console.log('⏭️ Already fetching, skipping')
+      return
+    }
+    
+    isFetchingRef.current = true
     console.log('📥 Fetching all data from Supabase...')
     const token = getAccessToken()
     if (!token) {
       console.log('⚠️ No access token, skipping fetch')
+      isFetchingRef.current = false
       return
     }
 
@@ -247,62 +260,66 @@ export function useSupabaseSync() {
 
     const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
 
-    const [remindersRes, calendarRes, journalRes, objectivesRes] = await Promise.all([
-      fetch(`${API_URL}/rest/v1/reminders?select=*&order=created_at.desc`, { headers }),
-      fetch(`${API_URL}/rest/v1/calendar_events?select=*&order=start_date.asc`, { headers }),
-      fetch(`${API_URL}/rest/v1/journal_entries?select=*&order=created_at.desc`, { headers }),
-      fetch(`${API_URL}/rest/v1/objectives?select=*&order=created_at.desc`, { headers }),
-    ])
+    try {
+      const [remindersRes, calendarRes, journalRes, objectivesRes] = await Promise.all([
+        fetch(`${API_URL}/rest/v1/reminders?select=*&order=created_at.desc`, { headers }),
+        fetch(`${API_URL}/rest/v1/calendar_events?select=*&order=start_date.asc`, { headers }),
+        fetch(`${API_URL}/rest/v1/journal_entries?select=*&order=created_at.desc`, { headers }),
+        fetch(`${API_URL}/rest/v1/objectives?select=*&order=created_at.desc`, { headers }),
+      ])
 
-    const reminders = await remindersRes.json()
-    const calendar = await calendarRes.json()
-    const journal = await journalRes.json()
-    const objectives = await objectivesRes.json()
+      const reminders = await remindersRes.json()
+      const calendar = await calendarRes.json()
+      const journal = await journalRes.json()
+      const objectives = await objectivesRes.json()
 
-    console.log('📊 Fetch results:', {
-      reminders: reminders?.length || 0,
-      calendar: calendar?.length || 0,
-      journal: journal?.length || 0,
-      objectives: objectives?.length || 0,
-    })
+      console.log('📊 Fetch results:', {
+        reminders: reminders?.length || 0,
+        calendar: calendar?.length || 0,
+        journal: journal?.length || 0,
+        objectives: objectives?.length || 0,
+      })
 
-    if (Array.isArray(reminders)) {
-      const mappedReminders = reminders.map((r: any) => ({
-        ...r,
-        id: r.id,
-        dueDate: r.due_date ? new Date(r.due_date) : new Date(),
-        createdAt: r.created_at ? new Date(r.created_at) : new Date(),
-        completed: r.is_completed ?? false,
-        completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
-      }))
-      reminderStore.setReminders(mappedReminders)
+      if (Array.isArray(reminders)) {
+        const mappedReminders = reminders.map((r: any) => ({
+          ...r,
+          id: r.id,
+          dueDate: r.due_date ? new Date(r.due_date) : new Date(),
+          createdAt: r.created_at ? new Date(r.created_at) : new Date(),
+          completed: r.is_completed ?? false,
+          completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
+        }))
+        reminderStore.setReminders(mappedReminders)
+      }
+
+      if (Array.isArray(calendar)) {
+        setCalendarEvents(calendar.map((e: any) => ({
+          ...e,
+          startDate: new Date(e.start_date),
+          endDate: new Date(e.end_date),
+          createdAt: new Date(e.created_at),
+        })))
+      }
+
+      if (Array.isArray(journal)) {
+        setJournalEntries(journal.map((j: any) => ({
+          ...j,
+          createdAt: new Date(j.created_at),
+        })))
+      }
+
+      if (Array.isArray(objectives)) {
+        setObjectives(objectives.map((o: any) => ({
+          ...o,
+          dueDate: o.due_date ? new Date(o.due_date) : undefined,
+          createdAt: new Date(o.created_at),
+        })))
+      }
+
+      await setupRealtime()
+    } finally {
+      isFetchingRef.current = false
     }
-
-    if (Array.isArray(calendar)) {
-      setCalendarEvents(calendar.map((e: any) => ({
-        ...e,
-        startDate: new Date(e.start_date),
-        endDate: new Date(e.end_date),
-        createdAt: new Date(e.created_at),
-      })))
-    }
-
-    if (Array.isArray(journal)) {
-      setJournalEntries(journal.map((j: any) => ({
-        ...j,
-        createdAt: new Date(j.created_at),
-      })))
-    }
-
-    if (Array.isArray(objectives)) {
-      setObjectives(objectives.map((o: any) => ({
-        ...o,
-        dueDate: o.due_date ? new Date(o.due_date) : undefined,
-        createdAt: new Date(o.created_at),
-      })))
-    }
-
-    await setupRealtime()
   }, [getAccessToken, setReminders, setCalendarEvents, setJournalEntries, setObjectives, setupRealtime])
 
   useEffect(() => {
@@ -325,6 +342,7 @@ export function useSupabaseSync() {
   const userChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const fetchAllDataRef = useRef(fetchAllData)
   const getUserIdRef = useRef(getUserId)
+  const cleanupChannelRef = useRef(cleanupChannel)
 
   useEffect(() => {
     fetchAllDataRef.current = fetchAllData
@@ -333,6 +351,10 @@ export function useSupabaseSync() {
   useEffect(() => {
     getUserIdRef.current = getUserId
   }, [getUserId])
+
+  useEffect(() => {
+    cleanupChannelRef.current = cleanupChannel
+  }, [cleanupChannel])
 
   useEffect(() => {
     const currentUserId = getUserIdRef.current()
@@ -355,7 +377,7 @@ export function useSupabaseSync() {
     console.log('👤 User changed, debouncing reconnect...')
     previousUserIdRef.current = currentUserId
     userChangeTimeoutRef.current = setTimeout(() => {
-      cleanupChannel()
+      cleanupChannelRef.current()
       fetchAllDataRef.current()
     }, 1000)
 
@@ -364,7 +386,7 @@ export function useSupabaseSync() {
         clearTimeout(userChangeTimeoutRef.current)
       }
     }
-  }, [cleanupChannel])
+  }, [])
 
   return { fetchAllData }
 }
