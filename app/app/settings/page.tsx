@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
+import { settingsSyncService } from '@/lib/settingsSync'
 import {
   Settings,
   Bell,
@@ -72,32 +73,73 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    setMounted(true)
-    const settingsStored = localStorage.getItem('nudge-settings')
-    if (settingsStored) {
-      const settings = JSON.parse(settingsStored)
-      setDarkMode(settings.darkMode || 'dark')
-      setNotificationsEnabled(settings.notificationsEnabled !== false)
-      setReminderNotifications(settings.reminderNotifications !== false)
-      setFocusNotifications(settings.focusNotifications !== false)
-      setStreakNotifications(settings.streakNotifications !== false)
-      setVisualEffectsEnabled(settings.visualEffectsEnabled !== false)
-    }
-    const featuresStored = localStorage.getItem('nudge-feature-flags')
-    if (featuresStored) {
-      setFeatureFlags(JSON.parse(featuresStored))
-    }
-    if (typeof window !== 'undefined') {
-      setNotificationPermission(notificationService.permissionStatus)
-    }
-  }, [])
+    const loadSettings = async () => {
+      setMounted(true)
+      
+      const settingsStored = localStorage.getItem('nudge-settings')
+      if (settingsStored) {
+        const settings = JSON.parse(settingsStored)
+        setDarkMode(settings.darkMode || 'dark')
+        setNotificationsEnabled(settings.notificationsEnabled !== false)
+        setReminderNotifications(settings.reminderNotifications !== false)
+        setFocusNotifications(settings.focusNotifications !== false)
+        setStreakNotifications(settings.streakNotifications !== false)
+        setVisualEffectsEnabled(settings.visualEffectsEnabled !== false)
+      }
+      
+      const featuresStored = localStorage.getItem('nudge-feature-flags')
+      if (featuresStored) {
+        setFeatureFlags(JSON.parse(featuresStored))
+      }
+      
+      if (typeof window !== 'undefined') {
+        setNotificationPermission(notificationService.permissionStatus)
+      }
 
-  const toggleDarkMode = () => {
+      if (user) {
+        const prefs = await settingsSyncService.fetchPreferences()
+        if (prefs) {
+          const newSettings = {
+            darkMode: (prefs.dark_mode || 'dark') as 'light' | 'dark' | 'system',
+            notificationsEnabled: prefs.notifications_enabled,
+            reminderNotifications: prefs.reminder_notifications,
+            focusNotifications: prefs.focus_notifications,
+            streakNotifications: prefs.streak_notifications,
+            visualEffectsEnabled: prefs.visual_effects_enabled,
+          }
+          setDarkMode(newSettings.darkMode)
+          setNotificationsEnabled(newSettings.notificationsEnabled)
+          setReminderNotifications(newSettings.reminderNotifications)
+          setFocusNotifications(newSettings.focusNotifications)
+          setStreakNotifications(newSettings.streakNotifications)
+          setVisualEffectsEnabled(newSettings.visualEffectsEnabled)
+          localStorage.setItem('nudge-settings', JSON.stringify(newSettings))
+
+          setFeatureFlags({
+            reminders: prefs.reminders_enabled,
+            calendar: prefs.calendar_enabled,
+            pomodoro: prefs.pomodoro_enabled,
+            journal: prefs.journal_enabled,
+          })
+          localStorage.setItem('nudge-feature-flags', JSON.stringify({
+            reminders: prefs.reminders_enabled,
+            calendar: prefs.calendar_enabled,
+            pomodoro: prefs.pomodoro_enabled,
+            journal: prefs.journal_enabled,
+          }))
+        }
+      }
+    }
+    loadSettings()
+  }, [user])
+
+  const toggleDarkMode = async () => {
     const newValue = darkMode === 'dark' ? 'light' : 'dark'
     setDarkMode(newValue)
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
     localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, darkMode: newValue }))
     document.documentElement.classList.toggle('dark', newValue === 'dark')
+    await settingsSyncService.updatePreferences({ dark_mode: newValue })
   }
 
   const toggleVisualEffects = () => {
@@ -108,6 +150,7 @@ export default function SettingsPage() {
     }
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
     localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, visualEffectsEnabled: newValue }))
+    settingsSyncService.updatePreferences({ visual_effects_enabled: newValue })
   }
 
   const toggleNotifications = () => {
@@ -118,6 +161,7 @@ export default function SettingsPage() {
     }
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
     localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, notificationsEnabled: newValue }))
+    settingsSyncService.updatePreferences({ notifications_enabled: newValue })
   }
 
   const toggleReminderNotifications = () => {
@@ -126,6 +170,7 @@ export default function SettingsPage() {
     if (settingsActions?.updatePreferences) {
       settingsActions.updatePreferences({ reminderNotifications: newValue })
     }
+    settingsSyncService.updatePreferences({ reminder_notifications: newValue })
   }
 
   const toggleFocusNotifications = () => {
@@ -134,6 +179,7 @@ export default function SettingsPage() {
     if (settingsActions?.updatePreferences) {
       settingsActions.updatePreferences({ focusNotifications: newValue })
     }
+    settingsSyncService.updatePreferences({ focus_notifications: newValue })
   }
 
   const toggleStreakNotifications = () => {
@@ -142,6 +188,7 @@ export default function SettingsPage() {
     if (settingsActions?.updatePreferences) {
       settingsActions.updatePreferences({ streakNotifications: newValue })
     }
+    settingsSyncService.updatePreferences({ streak_notifications: newValue })
   }
 
   const requestNotificationPermission = async () => {
@@ -161,6 +208,17 @@ export default function SettingsPage() {
     setFeatureFlags(newFlags)
     localStorage.setItem('nudge-feature-flags', JSON.stringify(newFlags))
     window.dispatchEvent(new Event('feature-flags-updated'))
+    
+    const supabaseKeyMap: Record<string, string> = {
+      reminders: 'reminders_enabled',
+      calendar: 'calendar_enabled',
+      pomodoro: 'pomodoro_enabled',
+      journal: 'journal_enabled',
+    }
+    
+    if (supabaseKeyMap[key]) {
+      settingsSyncService.updatePreferences({ [supabaseKeyMap[key]]: newFlags[key] })
+    }
   }
 
   if (loading || !mounted) {
