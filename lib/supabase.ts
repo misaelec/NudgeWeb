@@ -1,3 +1,5 @@
+'use client'
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export const supabaseConfig = {
@@ -27,3 +29,12 @@ export function getSupabaseClient(): SupabaseClient {
 }
 
 export const supabase = getSupabaseClient()
+
+export function syncSupabaseSession(accessToken: string, refreshToken: string) {
+  if (supabaseInstance) {
+    supabaseInstance.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    })
+  }
+}

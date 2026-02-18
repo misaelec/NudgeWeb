@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { supabaseAuth, User } from '@/lib/auth'
 import { settingsSyncService } from '@/lib/settingsSync'
 import { useSupabaseSync } from '@/hooks/useSupabaseSync'
+import { syncSupabaseSession } from '@/lib/supabase'
 
 interface AuthContextType {
   user: User | null
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const session = JSON.parse(stored)
         setUser(session.user)
+        syncSupabaseSession(session.access_token, session.refresh_token)
         await loadUserSettings()
         await fetchAllData()
       }
@@ -109,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const session = JSON.parse(stored)
         setUser(session.user)
+        syncSupabaseSession(session.access_token, session.refresh_token)
         await loadUserSettings()
         await fetchAllData()
       }

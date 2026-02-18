@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseAuth } from '@/lib/auth'
+import { syncSupabaseSession } from '@/lib/supabase'
 import { Sparkles, Loader2 } from 'lucide-react'
 
 export default function AuthCallback() {
@@ -15,6 +16,11 @@ export default function AuthCallback() {
       const result = await supabaseAuth.handleCallback()
       
       if (result.success) {
+        const stored = localStorage.getItem('supabase_session')
+        if (stored) {
+          const session = JSON.parse(stored)
+          syncSupabaseSession(session.access_token, session.refresh_token)
+        }
         setStatus('Success! Redirecting...')
         window.location.href = '/app/reminders'
       } else {
