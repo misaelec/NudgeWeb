@@ -19,7 +19,7 @@ interface ReminderStore {
   reminders: Reminder[]
   isLoading: boolean
   lastSynced: string | null
-  addReminder: (rem: Omit<Reminder, 'id' | 'createdAt' | 'completed'>) => void
+  addReminder: (rem: Partial<Reminder> & { title: string }) => void
   updateReminder: (id: string, updates: Partial<Reminder>) => void
   deleteReminder: (id: string) => void
   toggleReminder: (id: string) => void
@@ -58,9 +58,11 @@ export const useReminderStore = create<ReminderStore>()(
         
         const newReminder: Reminder = {
           ...rem,
-          id: generateId(),
-          createdAt: new Date(),
-          completed: false,
+          id: rem.id || generateId(),
+          createdAt: rem.createdAt || new Date(),
+          completed: rem.completed ?? false,
+          dueDate: rem.dueDate ? new Date(rem.dueDate) : new Date(),
+          priority: rem.priority || 'medium',
         }
         
         set((state) => ({
@@ -69,8 +71,10 @@ export const useReminderStore = create<ReminderStore>()(
         
         console.log('Reminders after add:', get().reminders)
         
-        // Sync to Supabase in background
-        reminderSyncService.createReminder(convertToInput(newReminder))
+        // Sync to Supabase in background (only if no ID - meaning it's a new local reminder)
+        if (!rem.id) {
+          reminderSyncService.createReminder(convertToInput(newReminder))
+        }
       },
 
       updateReminder: (id, updates) => {

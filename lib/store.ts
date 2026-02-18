@@ -136,7 +136,7 @@ interface AppState {
   }
 
   reminderActions: {
-    addReminder: (rem: Omit<Reminder, 'id' | 'createdAt' | 'completed'>) => void
+    addReminder: (rem: any) => void
     updateReminder: (id: string, updates: Partial<Reminder>) => void
     deleteReminder: (id: string) => void
     toggleReminder: (id: string) => void
@@ -315,12 +315,13 @@ export const useStore = create<AppState>()(
       },
 
       reminderActions: {
-        addReminder: (rem) => set((state) => ({
+        addReminder: (rem: any) => set((state) => ({
           reminders: [...state.reminders, {
             ...rem,
-            id: generateId(),
-            createdAt: new Date(),
-            completed: false,
+            id: rem.id || generateId(),
+            createdAt: rem.createdAt || new Date(),
+            completed: rem.completed ?? false,
+            dueDate: rem.dueDate ? new Date(rem.dueDate) : new Date(),
           }]
         })),
         updateReminder: (id, updates) => set((state) => ({

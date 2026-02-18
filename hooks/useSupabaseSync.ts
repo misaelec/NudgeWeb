@@ -69,17 +69,23 @@ export function useSupabaseSync() {
     
     switch (table) {
       case 'reminders':
+        if (!reminderActions) {
+          console.warn('⚠️ reminderActions not available')
+          return
+        }
         if (eventType === 'INSERT') {
-          reminderActions.addReminder({
+          const reminderData = {
             ...newRecord,
-            dueDate: new Date(newRecord.due_date),
-            createdAt: new Date(newRecord.created_at),
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : null,
+            createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
             completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
-          })
+            completed: newRecord.is_completed ?? false,
+          }
+          reminderActions.addReminder(reminderData)
         } else if (eventType === 'UPDATE') {
           reminderActions.updateReminder(newRecord.id, {
             ...newRecord,
-            dueDate: new Date(newRecord.due_date),
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : null,
             completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
           })
         } else if (eventType === 'DELETE') {
@@ -87,6 +93,10 @@ export function useSupabaseSync() {
         }
         break
       case 'calendar_events':
+        if (!calendarActions) {
+          console.warn('⚠️ calendarActions not available')
+          return
+        }
         if (eventType === 'INSERT') {
           calendarActions.addEvent({
             ...newRecord,
@@ -105,6 +115,10 @@ export function useSupabaseSync() {
         }
         break
       case 'journal_entries':
+        if (!journalActions) {
+          console.warn('⚠️ journalActions not available')
+          return
+        }
         if (eventType === 'INSERT') {
           journalActions.addEntry({
             ...newRecord,
@@ -115,6 +129,10 @@ export function useSupabaseSync() {
         }
         break
       case 'objectives':
+        if (!objectiveActions) {
+          console.warn('⚠️ objectiveActions not available')
+          return
+        }
         if (eventType === 'INSERT') {
           objectiveActions.addObjective({
             ...newRecord,
