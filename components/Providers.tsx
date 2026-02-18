@@ -38,6 +38,7 @@ async function loadUserSettings() {
       localStorage.setItem('nudge-feature-flags', JSON.stringify(featureFlags))
       
       window.dispatchEvent(new Event('feature-flags-updated'))
+      window.dispatchEvent(new Event('settings-updated'))
     }
   } catch (error) {
     console.error('Failed to load user settings:', error)
@@ -83,6 +84,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('auth-state-change', handleAuthChange)
     }
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+
+    const pollInterval = setInterval(() => {
+      loadUserSettings()
+    }, 5000)
+
+    return () => clearInterval(pollInterval)
+  }, [user])
 
   const signIn = async (email: string, password: string) => {
     const result = await supabaseAuth.signIn(email, password)

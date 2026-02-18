@@ -1,5 +1,4 @@
 import { supabaseConfig } from './supabase'
-import { supabaseAuth } from './auth'
 
 const API_URL = supabaseConfig.projectUrl
 
@@ -33,25 +32,33 @@ export interface UserPreferencesInput {
   streak_notifications?: boolean
 }
 
-class SettingsSyncService {
-  private accessToken: string | null = null
-
-  setAccessToken(token: string) {
-    this.accessToken = token
+function getAccessToken(): string | null {
+  if (typeof window === 'undefined') return null
+  const stored = localStorage.getItem('supabase_session')
+  if (stored) {
+    try {
+      const session = JSON.parse(stored)
+      return session.access_token || null
+    } catch {
+      return null
+    }
   }
+  return null
+}
 
+class SettingsSyncService {
   private getHeaders() {
+    const token = getAccessToken()
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.accessToken}`,
+      'Authorization': `Bearer ${token}`,
       'apikey': supabaseConfig.anonKey,
     }
   }
 
   async fetchPreferences(): Promise<SupabaseUserPreferences | null> {
-    this.accessToken = supabaseAuth.currentAccessToken
-    
-    if (!this.accessToken) {
+    const token = getAccessToken()
+    if (!token) {
       return null
     }
 
@@ -73,9 +80,8 @@ class SettingsSyncService {
   }
 
   async updatePreferences(updates: UserPreferencesInput): Promise<boolean> {
-    this.accessToken = supabaseAuth.currentAccessToken
-    
-    if (!this.accessToken) {
+    const token = getAccessToken()
+    if (!token) {
       return false
     }
 

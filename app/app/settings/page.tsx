@@ -100,7 +100,13 @@ export default function SettingsPage() {
     
     const handleSettingsChange = () => loadSettings()
     window.addEventListener('storage', handleSettingsChange)
-    return () => window.removeEventListener('storage', handleSettingsChange)
+    window.addEventListener('settings-updated', handleSettingsChange)
+    window.addEventListener('feature-flags-updated', handleSettingsChange)
+    return () => {
+      window.removeEventListener('storage', handleSettingsChange)
+      window.removeEventListener('settings-updated', handleSettingsChange)
+      window.removeEventListener('feature-flags-updated', handleSettingsChange)
+    }
   }, [])
 
   const toggleDarkMode = async () => {
