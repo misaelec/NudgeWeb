@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/Providers'
 
 export function useSupabaseSync() {
   const { 
@@ -16,7 +17,12 @@ export function useSupabaseSync() {
     setObjectives,
   } = useStore()
 
+  const { user } = useAuth()
+  const [userId, setUserId] = useState<string | null>(null)
+
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const isConnectedRef = useRef(false)
+  const currentUserIdRef = useRef<string | null>(null)
 
   const getAccessToken = useCallback((): string | null => {
     if (typeof window === 'undefined') return null
@@ -25,6 +31,20 @@ export function useSupabaseSync() {
       try {
         const session = JSON.parse(stored)
         return session.access_token || null
+      } catch {
+        return null
+      }
+    }
+    return null
+  }, [])
+
+  const getUserId = useCallback((): string | null => {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('supabase_session')
+    if (stored) {
+      try {
+        const session = JSON.parse(stored)
+        return session.user?.id || null
       } catch {
         return null
       }
@@ -92,8 +112,6 @@ export function useSupabaseSync() {
             ...newRecord,
             createdAt: new Date(newRecord.created_at),
           })
-        } else if (eventType === 'UPDATE') {
-          // journalEntries is immutable, no update
         } else if (eventType === 'DELETE') {
           journalActions.deleteEntry(oldRecord.id)
         }
@@ -117,15 +135,37 @@ export function useSupabaseSync() {
     }
   }, [reminderActions, calendarActions, journalActions, objectiveActions])
 
+  const cleanupChannel = useCallback(() => {
+    if (channelRef.current) {
+      console.log('🧹 Cleaning up WebSocket channel...')
+      channelRef.current.unsubscribe()
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+      isConnectedRef.current = false
+      currentUserIdRef.current = null
+    }
+  }, [])
+
   const setupRealtime = useCallback(async () => {
     const token = getAccessToken()
-    if (!token) {
-      console.log('⚠️ No token, skipping realtime setup')
+    const userId = getUserId()
+    
+    if (!token || !userId) {
+      console.log('⚠️ No token or userId, skipping realtime setup')
+      return
+    }
+
+    if (isConnectedRef.current && currentUserIdRef.current === userId) {
+      console.log('⏭️ Already connected for user:', userId)
       return
     }
 
     console.log('🔌 Setting up WebSocket realtime...')
     await injectAuth()
+
+    if (channelRef.current) {
+      cleanupChannel()
+    }
 
     const channel = supabase
       .channel('db-changes')
@@ -153,11 +193,22 @@ export function useSupabaseSync() {
         console.log('📡 WebSocket status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('✅ WebSocket connected and subscribed to all tables!')
+          isConnectedRef.current = true
+          currentUserIdRef.current = userId
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ WebSocket CHANNEL_ERROR - retrying in 3s...')
+          setTimeout(() => {
+            isConnectedRef.current = false
+            setupRealtime()
+          }, 3000)
+        } else if (status === 'CLOSED') {
+          console.log('📡 WebSocket closed')
+          isConnectedRef.current = false
         }
       })
 
     channelRef.current = channel
-  }, [getAccessToken, injectAuth, handleDatabaseChange])
+  }, [getAccessToken, getUserId, injectAuth, handleDatabaseChange, cleanupChannel])
 
   const fetchAllData = useCallback(async () => {
     console.log('📥 Fetching all data from Supabase...')
@@ -233,15 +284,29 @@ export function useSupabaseSync() {
   }, [getAccessToken, setReminders, setCalendarEvents, setJournalEntries, setObjectives, setupRealtime])
 
   useEffect(() => {
-    fetchAllData()
+    let mounted = true
+
+    const debouncedFetch = setTimeout(() => {
+      if (mounted) {
+        fetchAllData()
+      }
+    }, 500)
 
     return () => {
-      if (channelRef.current) {
-        console.log('🧹 Cleaning up WebSocket channel')
-        supabase.removeChannel(channelRef.current)
-      }
+      mounted = false
+      clearTimeout(debouncedFetch)
+      cleanupChannel()
     }
   }, [])
+
+  useEffect(() => {
+    const currentUserId = user?.id
+    if (currentUserId && currentUserId !== currentUserIdRef.current) {
+      console.log('👤 User changed, reconnecting realtime...')
+      cleanupChannel()
+      setTimeout(() => fetchAllData(), 100)
+    }
+  }, [user, cleanupChannel, fetchAllData])
 
   return { fetchAllData }
 }
