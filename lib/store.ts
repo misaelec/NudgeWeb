@@ -164,6 +164,11 @@ interface AppState {
     checkAndUpdateStreaks: () => void
   }
 
+  setReminders: (reminders: Reminder[]) => void
+  setCalendarEvents: (events: CalendarEvent[]) => void
+  setJournalEntries: (entries: JournalEntry[]) => void
+  setObjectives: (objectives: Objective[]) => void
+
   settingsActions: {
     toggleFeature: (key: string) => void
     updatePreferences: (updates: Partial<UserPreferences>) => void
@@ -468,6 +473,11 @@ export const useStore = create<AppState>()(
       },
 
       setSearchQuery: (query) => set({ searchQuery: query }),
+
+      setReminders: (reminders) => set({ reminders }),
+      setCalendarEvents: (events) => set({ calendarEvents: events }),
+      setJournalEntries: (entries) => set({ journalEntries: entries }),
+      setObjectives: (objectives) => set({ objectives }),
     }),
     {
       name: STORAGE_VERSION,

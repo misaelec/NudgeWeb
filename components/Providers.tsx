@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabaseAuth, User } from '@/lib/auth'
 import { settingsSyncService } from '@/lib/settingsSync'
+import { useSupabaseSync } from '@/hooks/useSupabaseSync'
 
 interface AuthContextType {
   user: User | null
@@ -48,6 +49,7 @@ async function loadUserSettings() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const { fetchAllData } = useSupabaseSync()
 
   useEffect(() => {
     const loadSession = async () => {
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const session = JSON.parse(stored)
           setUser(session.user)
           await loadUserSettings()
+          await fetchAllData()
         } catch (e) {
           console.error('Failed to parse session', e)
           setUser(null)
@@ -83,17 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('auth-state-change', handleAuthChange)
     }
-  }, [])
-
-  useEffect(() => {
-    if (!user) return
-
-    const pollInterval = setInterval(() => {
-      loadUserSettings()
-    }, 5000)
-
-    return () => clearInterval(pollInterval)
-  }, [user])
+  }, [fetchAllData])
 
   const signIn = async (email: string, password: string) => {
     const result = await supabaseAuth.signIn(email, password)
@@ -103,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const session = JSON.parse(stored)
         setUser(session.user)
         await loadUserSettings()
+        await fetchAllData()
       }
     }
     return result
@@ -116,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const session = JSON.parse(stored)
         setUser(session.user)
         await loadUserSettings()
+        await fetchAllData()
       }
     }
     return result
