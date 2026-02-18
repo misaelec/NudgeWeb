@@ -46,10 +46,22 @@ async function loadUserSettings() {
   }
 }
 
+function RealtimeSyncWrapper({ user }: { user: User | null }) {
+  const { fetchAllData } = useSupabaseSync()
+
+  useEffect(() => {
+    if (user) {
+      loadUserSettings()
+      fetchAllData()
+    }
+  }, [user, fetchAllData])
+
+  return null
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const { fetchAllData } = useSupabaseSync()
 
   useEffect(() => {
     const loadSession = async () => {
@@ -58,8 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const session = JSON.parse(stored)
           setUser(session.user)
-          await loadUserSettings()
-          await fetchAllData()
         } catch (e) {
           console.error('Failed to parse session', e)
           setUser(null)
@@ -86,33 +96,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('auth-state-change', handleAuthChange)
     }
-  }, [fetchAllData])
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     const result = await supabaseAuth.signIn(email, password)
-    if (result.success) {
-      const stored = localStorage.getItem('supabase_session')
-      if (stored) {
-        const session = JSON.parse(stored)
-        setUser(session.user)
-        await loadUserSettings()
-        await fetchAllData()
-      }
-    }
     return result
   }
 
   const signUp = async (email: string, password: string) => {
     const result = await supabaseAuth.signUp(email, password)
-    if (result.success) {
-      const stored = localStorage.getItem('supabase_session')
-      if (stored) {
-        const session = JSON.parse(stored)
-        setUser(session.user)
-        await loadUserSettings()
-        await fetchAllData()
-      }
-    }
     return result
   }
 
@@ -129,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithGoogle, signOut }}>
+      <RealtimeSyncWrapper user={user} />
       {children}
     </AuthContext.Provider>
   )

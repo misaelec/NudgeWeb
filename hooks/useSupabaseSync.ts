@@ -3,7 +3,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/components/Providers'
 
 export function useSupabaseSync() {
   const { 
@@ -17,7 +16,6 @@ export function useSupabaseSync() {
     setObjectives,
   } = useStore()
 
-  const { user } = useAuth()
   const [userId, setUserId] = useState<string | null>(null)
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
@@ -300,13 +298,13 @@ export function useSupabaseSync() {
   }, [])
 
   useEffect(() => {
-    const currentUserId = user?.id
+    const currentUserId = getUserId()
     if (currentUserId && currentUserId !== currentUserIdRef.current) {
       console.log('👤 User changed, reconnecting realtime...')
       cleanupChannel()
       setTimeout(() => fetchAllData(), 100)
     }
-  }, [user, cleanupChannel, fetchAllData])
+  }, [getUserId, cleanupChannel, fetchAllData])
 
   return { fetchAllData }
 }
