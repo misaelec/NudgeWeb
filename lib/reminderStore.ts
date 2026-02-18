@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { reminderSyncService, SupabaseReminder, ReminderInput } from './reminderSync'
 
-const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+const generateId = () => crypto.randomUUID()
 
 export interface Reminder {
   id: string

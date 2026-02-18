@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+const generateId = () => crypto.randomUUID()
 
 const STORAGE_VERSION = 'nudge-storage-v2'
 
