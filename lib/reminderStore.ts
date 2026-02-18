@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { v4 as uuidv4 } from 'uuid'
 import { reminderSyncService, SupabaseReminder, ReminderInput } from './reminderSync'
 
-const generateId = () => crypto.randomUUID()
+const generateId = () => uuidv4()
 
 export interface Reminder {
   id: string
@@ -23,6 +24,7 @@ interface ReminderStore {
   updateReminder: (id: string, updates: Partial<Reminder>) => void
   deleteReminder: (id: string) => void
   toggleReminder: (id: string) => void
+  setReminders: (reminders: Reminder[]) => void
   syncFromSupabase: () => Promise<void>
   syncToSupabase: () => Promise<void>
 }
@@ -116,6 +118,8 @@ export const useReminderStore = create<ReminderStore>()(
           })
         }
       },
+
+      setReminders: (reminders) => set({ reminders }),
 
       syncFromSupabase: async () => {
         set({ isLoading: true })

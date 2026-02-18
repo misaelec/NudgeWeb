@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useStore } from '@/lib/store'
+import { useReminderStore } from '@/lib/reminderStore'
 import { supabase } from '@/lib/supabase'
 
 export function useSupabaseSync() {
   const { 
-    reminderActions,
     calendarActions,
     journalActions,
     objectiveActions,
@@ -15,6 +15,9 @@ export function useSupabaseSync() {
     setJournalEntries,
     setObjectives,
   } = useStore()
+
+  const reminderStore = useReminderStore()
+  const reminderActions = reminderStore
 
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -264,12 +267,15 @@ export function useSupabaseSync() {
     })
 
     if (Array.isArray(reminders)) {
-      setReminders(reminders.map((r: any) => ({
+      const mappedReminders = reminders.map((r: any) => ({
         ...r,
-        dueDate: new Date(r.due_date),
-        createdAt: new Date(r.created_at),
+        id: r.id,
+        dueDate: r.due_date ? new Date(r.due_date) : new Date(),
+        createdAt: r.created_at ? new Date(r.created_at) : new Date(),
+        completed: r.is_completed ?? false,
         completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
-      })))
+      }))
+      reminderStore.setReminders(mappedReminders)
     }
 
     if (Array.isArray(calendar)) {
