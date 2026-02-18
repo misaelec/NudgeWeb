@@ -324,13 +324,18 @@ export function useSupabaseSync() {
   const previousUserIdRef = useRef<string | null>(null)
   const userChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const fetchAllDataRef = useRef(fetchAllData)
+  const getUserIdRef = useRef(getUserId)
 
   useEffect(() => {
     fetchAllDataRef.current = fetchAllData
   }, [fetchAllData])
 
   useEffect(() => {
-    const currentUserId = getUserId()
+    getUserIdRef.current = getUserId
+  }, [getUserId])
+
+  useEffect(() => {
+    const currentUserId = getUserIdRef.current()
     
     if (!currentUserId) {
       if (previousUserIdRef.current !== null) {
@@ -359,7 +364,7 @@ export function useSupabaseSync() {
         clearTimeout(userChangeTimeoutRef.current)
       }
     }
-  }, [getUserId, cleanupChannel])
+  }, [cleanupChannel])
 
   return { fetchAllData }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import { supabaseAuth, User } from '@/lib/auth'
 import { settingsSyncService } from '@/lib/settingsSync'
 import { useSupabaseSync } from '@/hooks/useSupabaseSync'
@@ -48,13 +48,18 @@ async function loadUserSettings() {
 
 function RealtimeSyncWrapper({ user }: { user: User | null }) {
   const { fetchAllData } = useSupabaseSync()
+  const fetchAllDataRef = useRef(fetchAllData)
+
+  useEffect(() => {
+    fetchAllDataRef.current = fetchAllData
+  }, [fetchAllData])
 
   useEffect(() => {
     if (user) {
       loadUserSettings()
-      fetchAllData()
+      fetchAllDataRef.current()
     }
-  }, [user, fetchAllData])
+  }, [user])
 
   return null
 }
