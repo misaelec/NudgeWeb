@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
-import { supabase, syncSupabaseSession } from '@/lib/supabase'
 import { useStore } from '@/lib/store'
+import { supabase } from '@/lib/supabase'
 
 export function useSupabaseSync() {
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const { 
     reminderActions,
     calendarActions,
@@ -17,35 +16,188 @@ export function useSupabaseSync() {
     setObjectives,
   } = useStore()
 
-  const fetchAllData = useCallback(async () => {
-    console.log('📥 Fetching all data from Supabase...')
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) {
-      console.log('⚠️ No session found, skipping fetch')
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+
+  const getAccessToken = useCallback((): string | null => {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('supabase_session')
+    if (stored) {
+      try {
+        const session = JSON.parse(stored)
+        return session.access_token || null
+      } catch {
+        return null
+      }
+    }
+    return null
+  }, [])
+
+  const injectAuth = useCallback(async () => {
+    const token = getAccessToken()
+    if (token) {
+      console.log('✅ Auth Token injected:', token.substring(0, 20) + '...')
+      await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: token,
+      })
+    } else {
+      console.log('⚠️ No auth token found in localStorage')
+    }
+  }, [getAccessToken])
+
+  const handleDatabaseChange = useCallback((payload: any, table: string) => {
+    console.log(`📡 Realtime change on ${table}:`, payload)
+    const { eventType, new: newRecord, old: oldRecord } = payload
+    
+    switch (table) {
+      case 'reminders':
+        if (eventType === 'INSERT') {
+          reminderActions.addReminder({
+            ...newRecord,
+            dueDate: new Date(newRecord.due_date),
+            createdAt: new Date(newRecord.created_at),
+            completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
+          })
+        } else if (eventType === 'UPDATE') {
+          reminderActions.updateReminder(newRecord.id, {
+            ...newRecord,
+            dueDate: new Date(newRecord.due_date),
+            completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
+          })
+        } else if (eventType === 'DELETE') {
+          reminderActions.deleteReminder(oldRecord.id)
+        }
+        break
+      case 'calendar_events':
+        if (eventType === 'INSERT') {
+          calendarActions.addEvent({
+            ...newRecord,
+            startDate: new Date(newRecord.start_date),
+            endDate: new Date(newRecord.end_date),
+            createdAt: new Date(newRecord.created_at),
+          })
+        } else if (eventType === 'UPDATE') {
+          calendarActions.updateEvent(newRecord.id, {
+            ...newRecord,
+            startDate: new Date(newRecord.start_date),
+            endDate: new Date(newRecord.end_date),
+          })
+        } else if (eventType === 'DELETE') {
+          calendarActions.deleteEvent(oldRecord.id)
+        }
+        break
+      case 'journal_entries':
+        if (eventType === 'INSERT') {
+          journalActions.addEntry({
+            ...newRecord,
+            createdAt: new Date(newRecord.created_at),
+          })
+        } else if (eventType === 'UPDATE') {
+          // journalEntries is immutable, no update
+        } else if (eventType === 'DELETE') {
+          journalActions.deleteEntry(oldRecord.id)
+        }
+        break
+      case 'objectives':
+        if (eventType === 'INSERT') {
+          objectiveActions.addObjective({
+            ...newRecord,
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
+            createdAt: new Date(newRecord.created_at),
+          })
+        } else if (eventType === 'UPDATE') {
+          objectiveActions.updateObjective(newRecord.id, {
+            ...newRecord,
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
+          })
+        } else if (eventType === 'DELETE') {
+          objectiveActions.deleteObjective(oldRecord.id)
+        }
+        break
+    }
+  }, [reminderActions, calendarActions, journalActions, objectiveActions])
+
+  const setupRealtime = useCallback(async () => {
+    const token = getAccessToken()
+    if (!token) {
+      console.log('⚠️ No token, skipping realtime setup')
       return
     }
 
-    console.log('✅ Session found, user:', session.user.id)
-    const userId = session.user.id
+    console.log('🔌 Setting up WebSocket realtime...')
+    await injectAuth()
 
-    syncSupabaseSession(session.access_token, session.refresh_token)
+    const channel = supabase
+      .channel('db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reminders' },
+        (payload) => handleDatabaseChange(payload, 'reminders')
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'calendar_events' },
+        (payload) => handleDatabaseChange(payload, 'calendar_events')
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'journal_entries' },
+        (payload) => handleDatabaseChange(payload, 'journal_entries')
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'objectives' },
+        (payload) => handleDatabaseChange(payload, 'objectives')
+      )
+      .subscribe((status) => {
+        console.log('📡 WebSocket status:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ WebSocket connected and subscribed to all tables!')
+        }
+      })
+
+    channelRef.current = channel
+  }, [getAccessToken, injectAuth, handleDatabaseChange])
+
+  const fetchAllData = useCallback(async () => {
+    console.log('📥 Fetching all data from Supabase...')
+    const token = getAccessToken()
+    if (!token) {
+      console.log('⚠️ No access token, skipping fetch')
+      return
+    }
+
+    console.log('✅ Token found, fetching data...')
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
+    }
+
+    const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
 
     const [remindersRes, calendarRes, journalRes, objectivesRes] = await Promise.all([
-      supabase.from('reminders').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('calendar_events').select('*').eq('user_id', userId).order('start_date', { ascending: true }),
-      supabase.from('journal_entries').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('objectives').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      fetch(`${API_URL}/rest/v1/reminders?select=*&order=created_at.desc`, { headers }),
+      fetch(`${API_URL}/rest/v1/calendar_events?select=*&order=start_date.asc`, { headers }),
+      fetch(`${API_URL}/rest/v1/journal_entries?select=*&order=created_at.desc`, { headers }),
+      fetch(`${API_URL}/rest/v1/objectives?select=*&order=created_at.desc`, { headers }),
     ])
 
+    const reminders = await remindersRes.json()
+    const calendar = await calendarRes.json()
+    const journal = await journalRes.json()
+    const objectives = await objectivesRes.json()
+
     console.log('📊 Fetch results:', {
-      reminders: remindersRes.data?.length || 0,
-      calendar: calendarRes.data?.length || 0,
-      journal: journalRes.data?.length || 0,
-      objectives: objectivesRes.data?.length || 0,
+      reminders: reminders?.length || 0,
+      calendar: calendar?.length || 0,
+      journal: journal?.length || 0,
+      objectives: objectives?.length || 0,
     })
 
-    if (remindersRes.data) {
-      setReminders(remindersRes.data.map(r => ({
+    if (Array.isArray(reminders)) {
+      setReminders(reminders.map((r: any) => ({
         ...r,
         dueDate: new Date(r.due_date),
         createdAt: new Date(r.created_at),
@@ -53,8 +205,8 @@ export function useSupabaseSync() {
       })))
     }
 
-    if (calendarRes.data) {
-      setCalendarEvents(calendarRes.data.map(e => ({
+    if (Array.isArray(calendar)) {
+      setCalendarEvents(calendar.map((e: any) => ({
         ...e,
         startDate: new Date(e.start_date),
         endDate: new Date(e.end_date),
@@ -62,217 +214,34 @@ export function useSupabaseSync() {
       })))
     }
 
-    if (journalRes.data) {
-      setJournalEntries(journalRes.data.map(j => ({
+    if (Array.isArray(journal)) {
+      setJournalEntries(journal.map((j: any) => ({
         ...j,
         createdAt: new Date(j.created_at),
       })))
     }
 
-    if (objectivesRes.data) {
-      setObjectives(objectivesRes.data.map(o => ({
+    if (Array.isArray(objectives)) {
+      setObjectives(objectives.map((o: any) => ({
         ...o,
         dueDate: o.due_date ? new Date(o.due_date) : undefined,
         createdAt: new Date(o.created_at),
       })))
     }
-  }, [setReminders, setCalendarEvents, setJournalEntries, setObjectives])
+
+    await setupRealtime()
+  }, [getAccessToken, setReminders, setCalendarEvents, setJournalEntries, setObjectives, setupRealtime])
 
   useEffect(() => {
-    let isMounted = true
-    let currentUserId: string | null = null
-
-    const setupChannel = async () => {
-      console.log('🔌 Setting up Supabase realtime channel...')
-      
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError) {
-        console.error('❌ Session error:', sessionError)
-        return
-      }
-      
-      if (!session?.user) {
-        console.log('⚠️ No session, cannot setup realtime')
-        return
-      }
-
-      currentUserId = session.user.id
-      syncSupabaseSession(session.access_token, session.refresh_token)
-      
-      console.log('✅ Setting up realtime for user:', currentUserId)
-
-      if (channelRef.current) {
-        await supabase.removeChannel(channelRef.current)
-      }
-
-      const channel = supabase
-        .channel('db-changes')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'reminders', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ INSERT reminders:', payload.new)
-            if (payload.new) {
-              const newReminder = {
-                ...payload.new,
-                dueDate: new Date(payload.new.due_date),
-                createdAt: new Date(payload.new.created_at),
-                completedAt: payload.new.completed_at ? new Date(payload.new.completed_at) : undefined,
-              }
-              reminderActions.addReminder(newReminder as any)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'reminders', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ UPDATE reminders:', payload.new)
-            if (payload.new) {
-              const updatedReminder = {
-                ...payload.new,
-                dueDate: new Date(payload.new.due_date),
-                createdAt: new Date(payload.new.created_at),
-                completedAt: payload.new.completed_at ? new Date(payload.new.completed_at) : undefined,
-              }
-              reminderActions.updateReminder((payload.new as any).id, updatedReminder as any)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'reminders', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ DELETE reminders:', payload.old)
-            if (payload.old) {
-              reminderActions.deleteReminder(payload.old.id)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'calendar_events', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ INSERT calendar_events:', payload.new)
-            if (payload.new) {
-              const newEvent = {
-                ...payload.new,
-                startDate: new Date(payload.new.start_date),
-                endDate: new Date(payload.new.end_date),
-                createdAt: new Date(payload.new.created_at),
-              }
-              calendarActions.addEvent(newEvent as any)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'calendar_events', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ UPDATE calendar_events:', payload.new)
-            if (payload.new) {
-              const updatedEvent = {
-                ...payload.new,
-                startDate: new Date(payload.new.start_date),
-                endDate: new Date(payload.new.end_date),
-                createdAt: new Date(payload.new.created_at),
-              }
-              calendarActions.updateEvent((payload.new as any).id, updatedEvent as any)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'calendar_events', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ DELETE calendar_events:', payload.old)
-            if (payload.old) {
-              calendarActions.deleteEvent(payload.old.id)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'journal_entries', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ INSERT journal_entries:', payload.new)
-            if (payload.new) {
-              const newEntry = {
-                ...payload.new,
-                createdAt: new Date(payload.new.created_at),
-              }
-              journalActions.addEntry(newEntry as any)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'journal_entries', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ DELETE journal_entries:', payload.old)
-            if (payload.old) {
-              journalActions.deleteEntry(payload.old.id)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'objectives', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ INSERT objectives:', payload.new)
-            if (payload.new) {
-              const newObjective = {
-                ...payload.new,
-                dueDate: payload.new.due_date ? new Date(payload.new.due_date) : undefined,
-                createdAt: new Date(payload.new.created_at),
-              }
-              objectiveActions.addObjective(newObjective as any)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'objectives', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ UPDATE objectives:', payload.new)
-            if (payload.new) {
-              const updatedObjective = {
-                ...payload.new,
-                dueDate: payload.new.due_date ? new Date(payload.new.due_date) : undefined,
-                createdAt: new Date(payload.new.created_at),
-              }
-              objectiveActions.updateObjective((payload.new as any).id, updatedObjective as any)
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'objectives', filter: `user_id=eq.${currentUserId}` },
-          (payload) => {
-            console.log('⚡ DELETE objectives:', payload.old)
-            if (payload.old) {
-              objectiveActions.deleteObjective(payload.old.id)
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('📡 Channel status:', status)
-        })
-
-      channelRef.current = channel
-    }
-
-    setupChannel()
+    fetchAllData()
 
     return () => {
-      isMounted = false
       if (channelRef.current) {
+        console.log('🧹 Cleaning up WebSocket channel')
         supabase.removeChannel(channelRef.current)
-        channelRef.current = null
       }
     }
-  }, [reminderActions, calendarActions, journalActions, objectiveActions])
+  }, [])
 
   return { fetchAllData }
 }

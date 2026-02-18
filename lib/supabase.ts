@@ -21,6 +21,7 @@ export function getSupabaseClient(): SupabaseClient {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
+          detectSessionInUrl: false,
         },
       }
     )
@@ -35,6 +36,28 @@ export function syncSupabaseSession(accessToken: string, refreshToken: string) {
     supabaseInstance.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken,
+    }).then(({ data, error }) => {
+      if (error) {
+        console.error('Error setting session:', error)
+      } else {
+        console.log('Session set successfully')
+      }
     })
   }
+}
+
+export function getSupabaseAuthHeaders() {
+  const stored = typeof window !== 'undefined' ? localStorage.getItem('supabase_session') : null
+  if (stored) {
+    try {
+      const session = JSON.parse(stored)
+      return {
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': supabaseConfig.anonKey,
+      }
+    } catch {
+      return {}
+    }
+  }
+  return {}
 }
