@@ -163,6 +163,7 @@ export default function SettingsPage() {
     const newFlags = { ...featureFlags, [key]: !featureFlags[key] }
     setFeatureFlags(newFlags)
     localStorage.setItem('nudge-feature-flags', JSON.stringify(newFlags))
+    window.dispatchEvent(new Event('feature-flags-updated'))
   }
 
   if (loading || !mounted) {

@@ -30,9 +30,21 @@ export default function Sidebar() {
   })
 
   useEffect(() => {
-    const stored = localStorage.getItem('nudge-feature-flags')
-    if (stored) {
-      setFeatureFlags(JSON.parse(stored))
+    const loadFlags = () => {
+      const stored = localStorage.getItem('nudge-feature-flags')
+      if (stored) {
+        setFeatureFlags(JSON.parse(stored))
+      }
+    }
+    loadFlags()
+    
+    const handleStorage = () => loadFlags()
+    const handleCustom = () => loadFlags()
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('feature-flags-updated', handleCustom)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('feature-flags-updated', handleCustom)
     }
   }, [])
 
