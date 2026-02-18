@@ -152,11 +152,8 @@ export default function SettingsPage() {
   const featureList = [
     { key: 'reminders', icon: Bell, label: 'Reminders', description: 'Create and manage reminders' },
     { key: 'calendar', icon: Calendar, label: 'Calendar', description: 'View and manage events' },
-    { key: 'events', icon: Clock, label: 'Events', description: 'Schedule and track events' },
-    { key: 'pomodoro', icon: Sparkles, label: 'Focus Timer', description: 'Pomodoro technique for productivity' },
-    { key: 'appBlocking', icon: Shield, label: 'App Blocking', description: 'Block distractions during focus' },
+    { key: 'pomodoro', icon: Sparkles, label: 'Focus', description: 'Pomodoro technique for productivity' },
     { key: 'journal', icon: BookOpen, label: 'Journal', description: 'Write daily reflections' },
-    { key: 'objectives', icon: Target, label: 'Objectives', description: 'Track OKRs and goals' },
   ]
 
   const toggleFeature = (key: string) => {
@@ -179,7 +176,7 @@ export default function SettingsPage() {
 
   if (!user) return null
 
-  const enabledCount = Object.values(featureFlags || {}).filter(Boolean).length
+  const enabledCount = featureList.filter(f => featureFlags[f.key] !== false).length
 
   return (
     <div className="min-h-screen bg-background-primary">
