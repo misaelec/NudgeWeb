@@ -297,12 +297,31 @@ export function useSupabaseSync() {
     }
   }, [])
 
+  const previousUserIdRef = useRef<string | null>(null)
+  const userChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   useEffect(() => {
     const currentUserId = getUserId()
-    if (currentUserId && currentUserId !== currentUserIdRef.current) {
-      console.log('👤 User changed, reconnecting realtime...')
-      cleanupChannel()
-      setTimeout(() => fetchAllData(), 100)
+    
+    if (userChangeTimeoutRef.current) {
+      clearTimeout(userChangeTimeoutRef.current)
+    }
+
+    if (currentUserId && currentUserId !== previousUserIdRef.current) {
+      console.log('👤 User changed, debouncing reconnect...')
+      userChangeTimeoutRef.current = setTimeout(() => {
+        previousUserIdRef.current = currentUserId
+        cleanupChannel()
+        fetchAllData()
+      }, 1000)
+    } else if (!currentUserId) {
+      previousUserIdRef.current = null
+    }
+
+    return () => {
+      if (userChangeTimeoutRef.current) {
+        clearTimeout(userChangeTimeoutRef.current)
+      }
     }
   }, [getUserId, cleanupChannel, fetchAllData])
 

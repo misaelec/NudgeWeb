@@ -40,11 +40,26 @@ class ReminderSyncService {
     }
   }
 
+  private getUserId(): string | null {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('supabase_session')
+    if (stored) {
+      try {
+        const session = JSON.parse(stored)
+        return session.user?.id || null
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
+
   async createReminder(input: ReminderInput): Promise<SupabaseReminder | null> {
     this.accessToken = supabaseAuth.currentAccessToken
+    const userId = this.getUserId()
     
-    if (!this.accessToken) {
-      console.log('No access token, using local storage only')
+    if (!this.accessToken || !userId) {
+      console.log('No access token or userId, using local storage only')
       return null
     }
 
@@ -53,16 +68,18 @@ class ReminderSyncService {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
+          user_id: userId,
           title: input.title,
-          notes: input.notes,
-          due_date: input.dueDate.toISOString(),
+          notes: input.notes || null,
+          due_date: input.dueDate ? new Date(input.dueDate).toISOString() : null,
           priority: input.priority,
-          recurrence: input.recurrence,
+          recurrence: input.recurrence || null,
         }),
       })
 
       if (!response.ok) {
-        console.error('Failed to create reminder in Supabase:', response.status)
+        const errorText = await response.text()
+        console.error('Failed to create reminder in Supabase:', response.status, errorText)
         return null
       }
 
@@ -87,14 +104,14 @@ class ReminderSyncService {
       const body: Record<string, any> = {}
       
       if (updates.title !== undefined) body.title = updates.title
-      if (updates.notes !== undefined) body.notes = updates.notes
-      if (updates.dueDate !== undefined) body.due_date = updates.dueDate.toISOString()
+      if (updates.notes !== undefined) body.notes = updates.notes || null
+      if (updates.dueDate !== undefined) body.due_date = updates.dueDate ? new Date(updates.dueDate).toISOString() : null
       if (updates.priority !== undefined) body.priority = updates.priority
       if (updates.isCompleted !== undefined) {
         body.is_completed = updates.isCompleted
         body.completed_at = updates.isCompleted ? new Date().toISOString() : null
       }
-      if (updates.recurrence !== undefined) body.recurrence = updates.recurrence
+      if (updates.recurrence !== undefined) body.recurrence = updates.recurrence || null
 
       const response = await fetch(`${API_URL}/rest/v1/reminders?id=eq.${id}`, {
         method: 'PATCH',
@@ -103,7 +120,8 @@ class ReminderSyncService {
       })
 
       if (!response.ok) {
-        console.error('Failed to update reminder in Supabase:', response.status)
+        const errorText = await response.text()
+        console.error('Failed to update reminder in Supabase:', response.status, errorText)
         return false
       }
 
@@ -117,14 +135,15 @@ class ReminderSyncService {
 
   async deleteReminder(id: string): Promise<boolean> {
     this.accessToken = supabaseAuth.currentAccessToken
+    const userId = this.getUserId()
     
-    if (!this.accessToken) {
-      console.log('No access token, using local storage only')
+    if (!this.accessToken || !userId) {
+      console.log('No access token or userId, using local storage only')
       return false
     }
 
     try {
-      const response = await fetch(`${API_URL}/rest/v1/reminders?id=eq.${id}`, {
+      const response = await fetch(`${API_URL}/rest/v1/reminders?id=eq.${id}&user_id=eq.${userId}`, {
         method: 'DELETE',
         headers: this.getHeaders(),
       })
@@ -144,15 +163,16 @@ class ReminderSyncService {
 
   async fetchReminders(): Promise<SupabaseReminder[]> {
     this.accessToken = supabaseAuth.currentAccessToken
+    const userId = this.getUserId()
     
-    if (!this.accessToken) {
-      console.log('No access token, returning empty array')
+    if (!this.accessToken || !userId) {
+      console.log('No access token or userId, returning empty array')
       return []
     }
 
     try {
       const response = await fetch(
-        `${API_URL}/rest/v1/reminders?order=due_date.asc`,
+        `${API_URL}/rest/v1/reminders?user_id=eq.${userId}&order=due_date.asc`,
         {
           method: 'GET',
           headers: this.getHeaders(),
