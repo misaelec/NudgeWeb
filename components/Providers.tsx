@@ -46,21 +46,8 @@ async function loadUserSettings() {
   }
 }
 
-function RealtimeSyncWrapper({ user }: { user: User | null }) {
-  const { fetchAllData } = useSupabaseSync()
-  const fetchAllDataRef = useRef(fetchAllData)
-
-  useEffect(() => {
-    fetchAllDataRef.current = fetchAllData
-  }, [fetchAllData])
-
-  useEffect(() => {
-    if (user) {
-      loadUserSettings()
-      fetchAllDataRef.current()
-    }
-  }, [user])
-
+function RealtimeSyncWrapper() {
+  useSupabaseSync()
   return null
 }
 
@@ -126,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithGoogle, signOut }}>
-      <RealtimeSyncWrapper user={user} />
+      <RealtimeSyncWrapper />
       {children}
     </AuthContext.Provider>
   )

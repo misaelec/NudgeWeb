@@ -1,32 +1,17 @@
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStore } from '@/lib/store'
 import { useReminderStore } from '@/lib/reminderStore'
 import { supabase } from '@/lib/supabase'
 
 export function useSupabaseSync() {
-  const { 
-    calendarActions,
-    journalActions,
-    objectiveActions,
-    setReminders,
-    setCalendarEvents,
-    setJournalEntries,
-    setObjectives,
-  } = useStore()
-
-  const reminderStore = useReminderStore()
-  const reminderActions = reminderStore
-
-  const [userId, setUserId] = useState<string | null>(null)
-
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const isConnectedRef = useRef(false)
   const currentUserIdRef = useRef<string | null>(null)
-  const isFetchingRef = useRef(false)
+  const isProcessingRef = useRef(false)
 
-  const getAccessToken = useCallback((): string | null => {
+  const getAccessToken = (): string | null => {
     if (typeof window === 'undefined') return null
     const stored = localStorage.getItem('supabase_session')
     if (stored) {
@@ -38,9 +23,9 @@ export function useSupabaseSync() {
       }
     }
     return null
-  }, [])
+  }
 
-  const getUserId = useCallback((): string | null => {
+  const getUserId = (): string | null => {
     if (typeof window === 'undefined') return null
     const stored = localStorage.getItem('supabase_session')
     if (stored) {
@@ -52,9 +37,9 @@ export function useSupabaseSync() {
       }
     }
     return null
-  }, [])
+  }
 
-  const injectAuth = useCallback(async () => {
+  const injectAuth = async () => {
     const token = getAccessToken()
     if (token) {
       console.log('✅ Auth Token injected:', token.substring(0, 20) + '...')
@@ -62,120 +47,99 @@ export function useSupabaseSync() {
         access_token: token,
         refresh_token: token,
       })
-    } else {
-      console.log('⚠️ No auth token found in localStorage')
     }
-  }, [getAccessToken])
+  }
 
-  const isProcessingRealtimeRef = useRef(false)
-
-  const handleDatabaseChange = useCallback((payload: any, table: string) => {
-    if (isFetchingRef.current || isProcessingRealtimeRef.current) {
-      console.log('⏭️ Skipping realtime event - busy')
+  const handleDatabaseChange = (payload: any, table: string) => {
+    if (isProcessingRef.current) {
       return
     }
-    
+
     console.log(`📡 Realtime change on ${table}:`, payload)
     const { eventType, new: newRecord, old: oldRecord } = payload
-    
-    isProcessingRealtimeRef.current = true
-    
+
+    isProcessingRef.current = true
+
+    const reminderStore = useReminderStore.getState()
+    const store = useStore.getState()
+
     try {
       switch (table) {
         case 'reminders':
-          if (!reminderActions) {
-            console.warn('⚠️ reminderActions not available')
-            return
-          }
           if (eventType === 'INSERT') {
-            const existingReminder = reminderStore.reminders.find(r => r.id === newRecord.id)
-            if (existingReminder) {
-              console.log('⏭️ Reminder already exists, skipping')
-              return
-            }
-            const reminderData = {
+            const existing = reminderStore.reminders.find(r => r.id === newRecord.id)
+            if (existing) return
+            reminderStore.addReminder({
               ...newRecord,
-              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : null,
+              id: newRecord.id,
+              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
               createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
-              completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
               completed: newRecord.is_completed ?? false,
-            }
-            reminderActions.addReminder(reminderData)
+              completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
+            })
           } else if (eventType === 'UPDATE') {
-            reminderActions.updateReminder(newRecord.id, {
+            reminderStore.updateReminder(newRecord.id, {
               ...newRecord,
-              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : null,
+              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
               completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
             })
           } else if (eventType === 'DELETE') {
-            reminderActions.deleteReminder(oldRecord.id)
+            reminderStore.deleteReminder(oldRecord.id)
           }
           break
         case 'calendar_events':
-          if (!calendarActions) {
-            console.warn('⚠️ calendarActions not available')
-            return
-          }
           if (eventType === 'INSERT') {
-            calendarActions.addEvent({
+            store.calendarActions.addEvent({
               ...newRecord,
               startDate: new Date(newRecord.start_date),
               endDate: new Date(newRecord.end_date),
               createdAt: new Date(newRecord.created_at),
             })
           } else if (eventType === 'UPDATE') {
-            calendarActions.updateEvent(newRecord.id, {
+            store.calendarActions.updateEvent(newRecord.id, {
               ...newRecord,
               startDate: new Date(newRecord.start_date),
               endDate: new Date(newRecord.end_date),
             })
           } else if (eventType === 'DELETE') {
-            calendarActions.deleteEvent(oldRecord.id)
+            store.calendarActions.deleteEvent(oldRecord.id)
           }
           break
         case 'journal_entries':
-          if (!journalActions) {
-            console.warn('⚠️ journalActions not available')
-            return
-          }
           if (eventType === 'INSERT') {
-            journalActions.addEntry({
+            store.journalActions.addEntry({
               ...newRecord,
               createdAt: new Date(newRecord.created_at),
             })
           } else if (eventType === 'DELETE') {
-            journalActions.deleteEntry(oldRecord.id)
+            store.journalActions.deleteEntry(oldRecord.id)
           }
           break
         case 'objectives':
-          if (!objectiveActions) {
-            console.warn('⚠️ objectiveActions not available')
-            return
-          }
           if (eventType === 'INSERT') {
-            objectiveActions.addObjective({
+            store.objectiveActions.addObjective({
               ...newRecord,
               dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
               createdAt: new Date(newRecord.created_at),
             })
           } else if (eventType === 'UPDATE') {
-            objectiveActions.updateObjective(newRecord.id, {
+            store.objectiveActions.updateObjective(newRecord.id, {
               ...newRecord,
               dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
             })
           } else if (eventType === 'DELETE') {
-            objectiveActions.deleteObjective(oldRecord.id)
+            store.objectiveActions.deleteObjective(oldRecord.id)
           }
           break
       }
     } finally {
       setTimeout(() => {
-        isProcessingRealtimeRef.current = false
+        isProcessingRef.current = false
       }, 100)
     }
-  }, [reminderActions, calendarActions, journalActions, objectiveActions])
+  }
 
-  const cleanupChannel = useCallback(() => {
+  const cleanupChannel = () => {
     if (channelRef.current) {
       console.log('🧹 Cleaning up WebSocket channel...')
       channelRef.current.unsubscribe()
@@ -184,28 +148,106 @@ export function useSupabaseSync() {
       isConnectedRef.current = false
       currentUserIdRef.current = null
     }
-  }, [])
+  }
 
-  const setupRealtime = useCallback(async () => {
+  const fetchAllData = async () => {
     const token = getAccessToken()
     const userId = getUserId()
-    
+    if (!token || !userId) return
+
+    console.log('📥 Fetching all data from Supabase...')
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
+    }
+
+    const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
+
+    try {
+      const [remindersRes, calendarRes, journalRes, objectivesRes] = await Promise.all([
+        fetch(`${API_URL}/rest/v1/reminders?user_id=eq.${userId}&order=created_at.desc`, { headers }),
+        fetch(`${API_URL}/rest/v1/calendar_events?user_id=eq.${userId}&order=start_date.asc`, { headers }),
+        fetch(`${API_URL}/rest/v1/journal_entries?user_id=eq.${userId}&order=created_at.desc`, { headers }),
+        fetch(`${API_URL}/rest/v1/objectives?user_id=eq.${userId}&order=created_at.desc`, { headers }),
+      ])
+
+      const reminders = await remindersRes.json()
+      const calendar = await calendarRes.json()
+      const journal = await journalRes.json()
+      const objectives = await objectivesRes.json()
+
+      console.log('📊 Fetch results:', {
+        reminders: reminders?.length || 0,
+        calendar: calendar?.length || 0,
+        journal: journal?.length || 0,
+        objectives: objectives?.length || 0,
+      })
+
+      const reminderStore = useReminderStore.getState()
+      const store = useStore.getState()
+
+      if (Array.isArray(reminders)) {
+        reminderStore.setReminders(reminders.map((r: any) => ({
+          ...r,
+          id: r.id,
+          dueDate: r.due_date ? new Date(r.due_date) : new Date(),
+          createdAt: r.created_at ? new Date(r.created_at) : new Date(),
+          completed: r.is_completed ?? false,
+          completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
+        })))
+      }
+
+      if (Array.isArray(calendar)) {
+        store.setCalendarEvents(calendar.map((e: any) => ({
+          ...e,
+          startDate: new Date(e.start_date),
+          endDate: new Date(e.end_date),
+          createdAt: new Date(e.created_at),
+        })))
+      }
+
+      if (Array.isArray(journal)) {
+        store.setJournalEntries(journal.map((j: any) => ({
+          ...j,
+          createdAt: new Date(j.created_at),
+        })))
+      }
+
+      if (Array.isArray(objectives)) {
+        store.setObjectives(objectives.map((o: any) => ({
+          ...o,
+          dueDate: o.due_date ? new Date(o.due_date) : undefined,
+          createdAt: new Date(o.created_at),
+        })))
+      }
+
+      setupRealtime()
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    }
+  }
+
+  const setupRealtime = () => {
+    const token = getAccessToken()
+    const userId = getUserId()
+
     if (!token || !userId) {
       console.log('⚠️ No token or userId, skipping realtime setup')
       return
     }
 
-    if (isConnectedRef.current && currentUserIdRef.current === userId) {
+    if (channelRef.current && isConnectedRef.current && currentUserIdRef.current === userId) {
       console.log('⏭️ Already connected for user:', userId)
       return
     }
 
-    console.log('🔌 Setting up WebSocket realtime...')
-    await injectAuth()
-
     if (channelRef.current) {
       cleanupChannel()
     }
+
+    console.log('🔌 Setting up WebSocket realtime...')
 
     const channel = supabase
       .channel('db-changes')
@@ -229,18 +271,15 @@ export function useSupabaseSync() {
         { event: '*', schema: 'public', table: 'objectives' },
         (payload) => handleDatabaseChange(payload, 'objectives')
       )
-      .subscribe((status) => {
+      .subscribe(async (status) => {
         console.log('📡 WebSocket status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('✅ WebSocket connected and subscribed to all tables!')
           isConnectedRef.current = true
           currentUserIdRef.current = userId
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ WebSocket CHANNEL_ERROR - retrying in 3s...')
-          setTimeout(() => {
-            isConnectedRef.current = false
-            setupRealtime()
-          }, 3000)
+          console.error('❌ WebSocket CHANNEL_ERROR')
+          isConnectedRef.current = false
         } else if (status === 'CLOSED') {
           console.log('📡 WebSocket closed')
           isConnectedRef.current = false
@@ -248,158 +287,27 @@ export function useSupabaseSync() {
       })
 
     channelRef.current = channel
-  }, [getAccessToken, getUserId, injectAuth, handleDatabaseChange, cleanupChannel])
-
-  const fetchAllData = useCallback(async () => {
-    if (isFetchingRef.current) {
-      console.log('⏭️ Already fetching, skipping')
-      return
-    }
-    
-    isFetchingRef.current = true
-    console.log('📥 Fetching all data from Supabase...')
-    const token = getAccessToken()
-    if (!token) {
-      console.log('⚠️ No access token, skipping fetch')
-      isFetchingRef.current = false
-      return
-    }
-
-    console.log('✅ Token found, fetching data...')
-
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'apikey': 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
-    }
-
-    const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
-
-    try {
-      const [remindersRes, calendarRes, journalRes, objectivesRes] = await Promise.all([
-        fetch(`${API_URL}/rest/v1/reminders?select=*&order=created_at.desc`, { headers }),
-        fetch(`${API_URL}/rest/v1/calendar_events?select=*&order=start_date.asc`, { headers }),
-        fetch(`${API_URL}/rest/v1/journal_entries?select=*&order=created_at.desc`, { headers }),
-        fetch(`${API_URL}/rest/v1/objectives?select=*&order=created_at.desc`, { headers }),
-      ])
-
-      const reminders = await remindersRes.json()
-      const calendar = await calendarRes.json()
-      const journal = await journalRes.json()
-      const objectives = await objectivesRes.json()
-
-      console.log('📊 Fetch results:', {
-        reminders: reminders?.length || 0,
-        calendar: calendar?.length || 0,
-        journal: journal?.length || 0,
-        objectives: objectives?.length || 0,
-      })
-
-      if (Array.isArray(reminders)) {
-        const mappedReminders = reminders.map((r: any) => ({
-          ...r,
-          id: r.id,
-          dueDate: r.due_date ? new Date(r.due_date) : new Date(),
-          createdAt: r.created_at ? new Date(r.created_at) : new Date(),
-          completed: r.is_completed ?? false,
-          completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
-        }))
-        reminderStore.setReminders(mappedReminders)
-      }
-
-      if (Array.isArray(calendar)) {
-        setCalendarEvents(calendar.map((e: any) => ({
-          ...e,
-          startDate: new Date(e.start_date),
-          endDate: new Date(e.end_date),
-          createdAt: new Date(e.created_at),
-        })))
-      }
-
-      if (Array.isArray(journal)) {
-        setJournalEntries(journal.map((j: any) => ({
-          ...j,
-          createdAt: new Date(j.created_at),
-        })))
-      }
-
-      if (Array.isArray(objectives)) {
-        setObjectives(objectives.map((o: any) => ({
-          ...o,
-          dueDate: o.due_date ? new Date(o.due_date) : undefined,
-          createdAt: new Date(o.created_at),
-        })))
-      }
-
-      await setupRealtime()
-    } finally {
-      isFetchingRef.current = false
-    }
-  }, [getAccessToken, setReminders, setCalendarEvents, setJournalEntries, setObjectives, setupRealtime])
+  }
 
   useEffect(() => {
-    let mounted = true
-
-    const debouncedFetch = setTimeout(() => {
-      if (mounted) {
-        fetchAllData()
-      }
-    }, 500)
-
-    return () => {
-      mounted = false
-      clearTimeout(debouncedFetch)
+    const userId = getUserId()
+    if (!userId) {
       cleanupChannel()
-    }
-  }, [])
-
-  const previousUserIdRef = useRef<string | null>(null)
-  const userChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const fetchAllDataRef = useRef(fetchAllData)
-  const getUserIdRef = useRef(getUserId)
-  const cleanupChannelRef = useRef(cleanupChannel)
-
-  useEffect(() => {
-    fetchAllDataRef.current = fetchAllData
-  }, [fetchAllData])
-
-  useEffect(() => {
-    getUserIdRef.current = getUserId
-  }, [getUserId])
-
-  useEffect(() => {
-    cleanupChannelRef.current = cleanupChannel
-  }, [cleanupChannel])
-
-  useEffect(() => {
-    const currentUserId = getUserIdRef.current()
-    
-    if (!currentUserId) {
-      if (previousUserIdRef.current !== null) {
-        previousUserIdRef.current = null
-      }
       return
     }
 
-    if (currentUserId === previousUserIdRef.current) {
+    if (currentUserIdRef.current === userId && channelRef.current) {
       return
     }
-    
-    if (userChangeTimeoutRef.current) {
-      clearTimeout(userChangeTimeoutRef.current)
-    }
 
-    console.log('👤 User changed, debouncing reconnect...')
-    previousUserIdRef.current = currentUserId
-    userChangeTimeoutRef.current = setTimeout(() => {
-      cleanupChannelRef.current()
-      fetchAllDataRef.current()
-    }, 1000)
+    currentUserIdRef.current = userId
+    
+    injectAuth().then(() => {
+      fetchAllData()
+    })
 
     return () => {
-      if (userChangeTimeoutRef.current) {
-        clearTimeout(userChangeTimeoutRef.current)
-      }
+      cleanupChannel()
     }
   }, [])
 
