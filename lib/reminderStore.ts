@@ -117,8 +117,7 @@ export const useReminderStore = create<ReminderStore>()(
         const reminder = get().reminders.find(r => r.id === id)
         if (reminder) {
           reminderSyncService.updateReminder(id, { 
-            ...convertToInput(reminder), 
-            isCompleted: !reminder.completed 
+            isCompleted: reminder.completed 
           })
         }
       },
