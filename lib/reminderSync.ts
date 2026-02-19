@@ -100,9 +100,10 @@ class ReminderSyncService {
 
   async updateReminder(id: string, updates: Partial<ReminderInput> & { isCompleted?: boolean }): Promise<boolean> {
     this.accessToken = supabaseAuth.currentAccessToken
+    const userId = this.getUserId()
     
-    if (!this.accessToken) {
-      console.log('No access token, using local storage only')
+    if (!this.accessToken || !userId) {
+      console.log('No access token or userId, using local storage only')
       return false
     }
 
@@ -119,7 +120,7 @@ class ReminderSyncService {
       }
       if (updates.recurrence !== undefined) body.recurrence = updates.recurrence || null
 
-      const response = await fetch(`${API_URL}/rest/v1/reminders?id=eq.${id}`, {
+      const response = await fetch(`${API_URL}/rest/v1/reminders?id=eq.${id}&user_id=eq.${userId}`, {
         method: 'PATCH',
         headers: this.getHeaders(),
         body: JSON.stringify(body),
