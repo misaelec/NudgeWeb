@@ -21,9 +21,9 @@ interface ReminderStore {
   isLoading: boolean
   lastSynced: string | null
   addReminder: (rem: Partial<Reminder> & { title: string }) => void
-  updateReminder: (id: string, updates: Partial<Reminder>) => void
-  deleteReminder: (id: string) => void
-  toggleReminder: (id: string) => void
+  updateReminder: (id: string, updates: Partial<Reminder>, skipSync?: boolean) => void
+  deleteReminder: (id: string, skipSync?: boolean) => void
+  toggleReminder: (id: string, skipSync?: boolean) => void
   setReminders: (reminders: Reminder[]) => void
   syncFromSupabase: () => Promise<void>
   syncToSupabase: () => Promise<void>
@@ -79,37 +79,40 @@ export const useReminderStore = create<ReminderStore>()(
         }
       },
 
-      updateReminder: (id, updates) => {
+      updateReminder: (id, updates, skipSync = false) => {
         set((state) => ({
           reminders: state.reminders.map((r) =>
             r.id === id ? { ...r, ...updates } : r
           )
         }))
         
-        // Sync to Supabase
+        if (skipSync) return
+        
         const reminder = get().reminders.find(r => r.id === id)
         if (reminder) {
           reminderSyncService.updateReminder(id, convertToInput(reminder))
         }
       },
 
-      deleteReminder: (id) => {
+      deleteReminder: (id, skipSync = false) => {
         set((state) => ({
           reminders: state.reminders.filter((r) => r.id !== id)
         }))
         
-        // Sync to Supabase
+        if (skipSync) return
+        
         reminderSyncService.deleteReminder(id)
       },
 
-      toggleReminder: (id) => {
+      toggleReminder: (id, skipSync = false) => {
         set((state) => ({
           reminders: state.reminders.map((r) =>
             r.id === id ? { ...r, completed: !r.completed } : r
           )
         }))
         
-        // Sync to Supabase
+        if (skipSync) return
+        
         const reminder = get().reminders.find(r => r.id === id)
         if (reminder) {
           reminderSyncService.updateReminder(id, { 

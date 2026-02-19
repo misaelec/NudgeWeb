@@ -82,9 +82,9 @@ export function useSupabaseSync() {
               ...newRecord,
               dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
               completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
-            })
+            }, true)
           } else if (eventType === 'DELETE') {
-            reminderStore.deleteReminder(oldRecord.id)
+            reminderStore.deleteReminder(oldRecord.id, true)
           }
           break
         case 'calendar_events':
