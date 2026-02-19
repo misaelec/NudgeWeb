@@ -57,7 +57,9 @@ export function useSupabaseSync() {
 
     console.log(`📡 Realtime change on ${table}:`, payload)
     const { eventType, new: newRecord, old: oldRecord } = payload
-
+    
+    console.log('🔍 Realtime payload details:', { eventType, newRecord_keys: Object.keys(newRecord), newRecord_is_completed: newRecord.is_completed })
+    
     isProcessingRef.current = true
 
     const reminderStore = useReminderStore.getState()

@@ -126,29 +126,26 @@ export const useReminderStore = create<ReminderStore>()(
       setReminders: (reminders) => set({ reminders }),
 
       syncFromRealtime: (reminder, updates?) => {
+        console.log('🔄 syncFromRealtime called:', { reminderId: reminder.id, updates, reminderCompleted: reminder.completed })
         set((state) => {
           const existing = state.reminders.find(r => r.id === reminder.id)
-          if (existing) {
-            const hasChanges = updates?.isCompleted !== undefined 
-              ? existing.completed !== updates.isCompleted
-              : false
-            
-            if (!hasChanges) {
-              console.log('⏭️ No changes detected, skipping syncFromRealtime')
-              return state
-            }
-            
-            return {
-              reminders: state.reminders.map(r => 
-                r.id === reminder.id 
-                  ? { ...r, ...reminder, completed: updates?.isCompleted ?? r.completed } 
-                  : r
-              )
-            }
+          console.log('🔍 Existing reminder:', { id: existing?.id, completed: existing?.completed })
+          
+          const isCompletedValue = updates?.isCompleted !== undefined ? updates.isCompleted : (reminder.completed ?? false)
+          console.log('🔍 isCompleted value:', isCompletedValue)
+          
+          if (existing && updates?.isCompleted !== undefined && existing.completed === updates.isCompleted) {
+            console.log('⏭️ No changes detected, skipping syncFromRealtime')
+            return state
           }
-          return {
-            reminders: [...state.reminders, reminder as Reminder]
+          
+          const newState = {
+            reminders: existing
+              ? state.reminders.map(r => r.id === reminder.id ? { ...r, ...reminder, completed: isCompletedValue } : r)
+              : [...state.reminders, reminder as Reminder]
           }
+          console.log('🔍 New state reminder:', newState.reminders.find(r => r.id === reminder.id))
+          return newState
         })
       },
 
