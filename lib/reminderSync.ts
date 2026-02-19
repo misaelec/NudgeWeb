@@ -83,7 +83,13 @@ class ReminderSyncService {
         return null
       }
 
-      const data = await response.json()
+      const text = await response.text()
+      if (!text) {
+        console.log('Reminder created (no response body)')
+        return null
+      }
+      
+      const data = JSON.parse(text)
       console.log('Reminder created in Supabase:', data)
       return data
     } catch (error) {
@@ -125,7 +131,16 @@ class ReminderSyncService {
         return false
       }
 
-      console.log('Reminder updated in Supabase:', id)
+      const text = await response.text()
+      if (text) {
+        try {
+          JSON.parse(text)
+        } catch {
+          console.log('Reminder updated in Supabase (non-JSON response)')
+        }
+      } else {
+        console.log('Reminder updated in Supabase:', id)
+      }
       return true
     } catch (error) {
       console.error('Error updating reminder in Supabase:', error)
