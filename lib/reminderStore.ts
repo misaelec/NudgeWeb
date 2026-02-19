@@ -126,28 +126,30 @@ export const useReminderStore = create<ReminderStore>()(
       setReminders: (reminders) => set({ reminders }),
 
       syncFromRealtime: (reminder, updates?) => {
-        console.log('🔄 syncFromRealtime called:', { reminderId: reminder.id, updates, reminderCompleted: reminder.completed })
+        console.log('🔄 syncFromRealtime called:', reminder.id)
         set((state) => {
           const existing = state.reminders.find(r => r.id === reminder.id)
-          console.log('🔍 Existing reminder:', { id: existing?.id, completed: existing?.completed })
           
-          if (existing && updates?.oldIsCompleted !== undefined) {
-            if (existing.completed === updates.oldIsCompleted) {
-              console.log('⏭️ Local already matches old value from server, skipping to preserve user change')
-              return state
-            }
+          // Skip if reminder doesn't exist locally
+          if (!existing) {
+            return { reminders: [...state.reminders, reminder as Reminder] }
           }
           
-          const isCompletedValue = updates?.isCompleted !== undefined ? updates.isCompleted : (reminder.completed ?? false)
-          console.log('🔍 isCompleted value:', isCompletedValue)
+          // Skip completion status changes - preserve user's local toggle
+          const isSameExceptCompletion = 
+            existing.title === reminder.title &&
+            existing.notes === reminder.notes &&
+            existing.priority === reminder.priority &&
+            (existing.dueDate?.getTime() === reminder.dueDate?.getTime())
           
-          const newState = {
-            reminders: existing
-              ? state.reminders.map(r => r.id === reminder.id ? { ...r, ...reminder, completed: isCompletedValue } : r)
-              : [...state.reminders, reminder as Reminder]
+          if (isSameExceptCompletion) {
+            console.log('⏭️ Only completion changed, skipping to preserve user toggle')
+            return state
           }
-          console.log('🔍 New state reminder:', newState.reminders.find(r => r.id === reminder.id))
-          return newState
+          
+          return {
+            reminders: state.reminders.map(r => r.id === reminder.id ? { ...r, ...reminder } : r)
+          }
         })
       },
 

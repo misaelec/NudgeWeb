@@ -58,8 +58,6 @@ export function useSupabaseSync() {
     console.log(`📡 Realtime change on ${table}:`, payload)
     const { eventType, new: newRecord, old: oldRecord } = payload
     
-    console.log('🔍 Realtime payload details:', { eventType, newRecord_keys: Object.keys(newRecord), newRecord_is_completed: newRecord.is_completed })
-    
     isProcessingRef.current = true
 
     const reminderStore = useReminderStore.getState()
@@ -81,7 +79,6 @@ export function useSupabaseSync() {
               createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
             })
           } else if (eventType === 'UPDATE') {
-            const oldCompleted = oldRecord?.is_completed
             reminderStore.syncFromRealtime({
               id: newRecord.id,
               title: newRecord.title || '',
@@ -89,9 +86,6 @@ export function useSupabaseSync() {
               dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
               priority: newRecord.priority || 'medium',
               completed: newRecord.is_completed ?? false,
-            }, {
-              isCompleted: newRecord.is_completed,
-              oldIsCompleted: oldCompleted
             })
           } else if (eventType === 'DELETE') {
             reminderStore.deleteReminder(oldRecord.id, true)
