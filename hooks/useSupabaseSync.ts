@@ -81,6 +81,7 @@ export function useSupabaseSync() {
               createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
             })
           } else if (eventType === 'UPDATE') {
+            const oldCompleted = oldRecord?.is_completed
             reminderStore.syncFromRealtime({
               id: newRecord.id,
               title: newRecord.title || '',
@@ -89,7 +90,8 @@ export function useSupabaseSync() {
               priority: newRecord.priority || 'medium',
               completed: newRecord.is_completed ?? false,
             }, {
-              isCompleted: newRecord.is_completed
+              isCompleted: newRecord.is_completed,
+              oldIsCompleted: oldCompleted
             })
           } else if (eventType === 'DELETE') {
             reminderStore.deleteReminder(oldRecord.id, true)

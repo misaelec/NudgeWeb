@@ -25,7 +25,7 @@ interface ReminderStore {
   deleteReminder: (id: string, skipSync?: boolean) => void
   toggleReminder: (id: string, skipSync?: boolean) => void
   setReminders: (reminders: Reminder[]) => void
-  syncFromRealtime: (reminder: Partial<Reminder> & { id: string }, updates?: { isCompleted?: boolean }) => void
+  syncFromRealtime: (reminder: Partial<Reminder> & { id: string }, updates?: { isCompleted?: boolean, oldIsCompleted?: boolean }) => void
   syncFromSupabase: () => Promise<void>
   syncToSupabase: () => Promise<void>
 }
@@ -131,13 +131,15 @@ export const useReminderStore = create<ReminderStore>()(
           const existing = state.reminders.find(r => r.id === reminder.id)
           console.log('🔍 Existing reminder:', { id: existing?.id, completed: existing?.completed })
           
+          if (existing && updates?.oldIsCompleted !== undefined) {
+            if (existing.completed === updates.oldIsCompleted) {
+              console.log('⏭️ Local already matches old value from server, skipping to preserve user change')
+              return state
+            }
+          }
+          
           const isCompletedValue = updates?.isCompleted !== undefined ? updates.isCompleted : (reminder.completed ?? false)
           console.log('🔍 isCompleted value:', isCompletedValue)
-          
-          if (existing && updates?.isCompleted !== undefined && existing.completed === updates.isCompleted) {
-            console.log('⏭️ No changes detected, skipping syncFromRealtime')
-            return state
-          }
           
           const newState = {
             reminders: existing
