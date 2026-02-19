@@ -7,6 +7,8 @@ export interface Reminder {
   completed: boolean
 }
 
+import { v4 as uuidv4 } from 'uuid'
+
 export interface ReminderSuggestion {
   id: string
   title: string
@@ -110,7 +112,7 @@ export class LocalSuggestionEngine {
 
     if (timePatterns.mostCommonTime && timePatterns.confidence > 0.3) {
       suggestions.push({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         title: 'Optimal Time Detected',
         description: `Based on your patterns, you complete more tasks in the ${timePatterns.mostCommonTime}. Consider scheduling important tasks then.`,
         type: 'time',
@@ -120,7 +122,7 @@ export class LocalSuggestionEngine {
 
     if (categoryPatterns.mostCommonCategory && categoryPatterns.confidence > 0.4) {
       suggestions.push({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         title: 'Work Pattern Detected',
         description: `You often create ${categoryPatterns.mostCommonCategory} reminders. Want to set up a recurring reminder?`,
         type: 'category',
@@ -130,7 +132,7 @@ export class LocalSuggestionEngine {
 
     if (wordFrequency.mostCommonWord && wordFrequency.confidence > 0.2 && wordFrequency.commonWords.length > 0) {
       suggestions.push({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         title: 'Habit Opportunity',
         description: `You frequently mention "${wordFrequency.mostCommonWord}". This could be a good daily habit to track.`,
         type: 'habit',
@@ -141,7 +143,7 @@ export class LocalSuggestionEngine {
     const pendingHighPriority = reminders.filter(r => !r.completed && r.priority === 'high')
     if (pendingHighPriority.length > 3) {
       suggestions.push({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         title: 'High Priority Buildup',
         description: `You have ${pendingHighPriority.length} high-priority reminders. Consider breaking some into smaller tasks.`,
         type: 'frequency',
