@@ -81,11 +81,13 @@ export function useSupabaseSync() {
           } else if (eventType === 'UPDATE') {
             reminderStore.syncFromRealtime({
               id: newRecord.id,
-              title: newRecord.title,
+              title: newRecord.title || '',
               notes: newRecord.notes,
               dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
-              priority: newRecord.priority,
+              priority: newRecord.priority || 'medium',
               completed: newRecord.is_completed ?? false,
+            }, {
+              isCompleted: newRecord.is_completed
             })
           } else if (eventType === 'DELETE') {
             reminderStore.deleteReminder(oldRecord.id, true)

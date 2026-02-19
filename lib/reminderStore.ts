@@ -25,7 +25,7 @@ interface ReminderStore {
   deleteReminder: (id: string, skipSync?: boolean) => void
   toggleReminder: (id: string, skipSync?: boolean) => void
   setReminders: (reminders: Reminder[]) => void
-  syncFromRealtime: (reminder: Partial<Reminder> & { id: string }) => void
+  syncFromRealtime: (reminder: Partial<Reminder> & { id: string }, updates?: { isCompleted?: boolean }) => void
   syncFromSupabase: () => Promise<void>
   syncToSupabase: () => Promise<void>
 }
@@ -125,24 +125,29 @@ export const useReminderStore = create<ReminderStore>()(
 
       setReminders: (reminders) => set({ reminders }),
 
-      syncFromRealtime: (reminder) => {
+      syncFromRealtime: (reminder, updates?) => {
         set((state) => {
           const existing = state.reminders.find(r => r.id === reminder.id)
           if (existing) {
-            const hasChanges = 
-              existing.title !== reminder.title ||
-              existing.notes !== reminder.notes ||
-              existing.completed !== reminder.completed ||
-              (existing.dueDate?.getTime() !== reminder.dueDate?.getTime())
+            const hasChanges = updates?.isCompleted !== undefined 
+              ? existing.completed !== updates.isCompleted
+              : false
+            
             if (!hasChanges) {
               console.log('⏭️ No changes detected, skipping syncFromRealtime')
               return state
             }
+            
+            return {
+              reminders: state.reminders.map(r => 
+                r.id === reminder.id 
+                  ? { ...r, ...reminder, completed: updates?.isCompleted ?? r.completed } 
+                  : r
+              )
+            }
           }
           return {
-            reminders: existing
-              ? state.reminders.map(r => r.id === reminder.id ? { ...r, ...reminder } : r)
-              : [...state.reminders, reminder as Reminder]
+            reminders: [...state.reminders, reminder as Reminder]
           }
         })
       },
