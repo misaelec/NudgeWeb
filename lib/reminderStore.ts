@@ -126,11 +126,25 @@ export const useReminderStore = create<ReminderStore>()(
       setReminders: (reminders) => set({ reminders }),
 
       syncFromRealtime: (reminder) => {
-        set((state) => ({
-          reminders: state.reminders.some(r => r.id === reminder.id)
-            ? state.reminders.map(r => r.id === reminder.id ? { ...r, ...reminder } : r)
-            : [...state.reminders, reminder as Reminder]
-        }))
+        set((state) => {
+          const existing = state.reminders.find(r => r.id === reminder.id)
+          if (existing) {
+            const hasChanges = 
+              existing.title !== reminder.title ||
+              existing.notes !== reminder.notes ||
+              existing.completed !== reminder.completed ||
+              (existing.dueDate?.getTime() !== reminder.dueDate?.getTime())
+            if (!hasChanges) {
+              console.log('⏭️ No changes detected, skipping syncFromRealtime')
+              return state
+            }
+          }
+          return {
+            reminders: existing
+              ? state.reminders.map(r => r.id === reminder.id ? { ...r, ...reminder } : r)
+              : [...state.reminders, reminder as Reminder]
+          }
+        })
       },
 
       syncFromSupabase: async () => {
