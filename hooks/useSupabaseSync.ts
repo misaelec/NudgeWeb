@@ -69,20 +69,24 @@ export function useSupabaseSync() {
           if (eventType === 'INSERT') {
             const existing = reminderStore.reminders.find(r => r.id === newRecord.id)
             if (existing) return
-            reminderStore.addReminder({
-              ...newRecord,
+            reminderStore.syncFromRealtime({
               id: newRecord.id,
+              title: newRecord.title,
+              notes: newRecord.notes,
               dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
-              createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
+              priority: newRecord.priority || 'medium',
               completed: newRecord.is_completed ?? false,
-              completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
+              createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
             })
           } else if (eventType === 'UPDATE') {
-            reminderStore.updateReminder(newRecord.id, {
-              ...newRecord,
+            reminderStore.syncFromRealtime({
+              id: newRecord.id,
+              title: newRecord.title,
+              notes: newRecord.notes,
               dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
-              completedAt: newRecord.completed_at ? new Date(newRecord.completed_at) : undefined,
-            }, true)
+              priority: newRecord.priority,
+              completed: newRecord.is_completed ?? false,
+            })
           } else if (eventType === 'DELETE') {
             reminderStore.deleteReminder(oldRecord.id, true)
           }

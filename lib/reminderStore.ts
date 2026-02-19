@@ -25,6 +25,7 @@ interface ReminderStore {
   deleteReminder: (id: string, skipSync?: boolean) => void
   toggleReminder: (id: string, skipSync?: boolean) => void
   setReminders: (reminders: Reminder[]) => void
+  syncFromRealtime: (reminder: Partial<Reminder> & { id: string }) => void
   syncFromSupabase: () => Promise<void>
   syncToSupabase: () => Promise<void>
 }
@@ -123,6 +124,14 @@ export const useReminderStore = create<ReminderStore>()(
       },
 
       setReminders: (reminders) => set({ reminders }),
+
+      syncFromRealtime: (reminder) => {
+        set((state) => ({
+          reminders: state.reminders.some(r => r.id === reminder.id)
+            ? state.reminders.map(r => r.id === reminder.id ? { ...r, ...reminder } : r)
+            : [...state.reminders, reminder as Reminder]
+        }))
+      },
 
       syncFromSupabase: async () => {
         set({ isLoading: true })
