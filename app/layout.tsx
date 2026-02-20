@@ -5,6 +5,9 @@ import { AuthProvider } from '@/components/Providers'
 export const metadata: Metadata = {
   title: 'Nudge - Your Personal Growth Companion',
   description: 'Nudge helps you achieve your goals through focus, organization, and self-reflection.',
+  other: {
+    'google-site-verification': '7KDJdhcdqujpN7oYBI1g2_vVMJop-jY5H4VE9flYQhU',
+  },
 }
 
 export default function RootLayout({
