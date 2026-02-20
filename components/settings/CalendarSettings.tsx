@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
+import { useAuth } from '@/components/Providers'
+import { Calendar, Plus, X, Globe, Loader2 } from 'lucide-react'
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Google Calendar',
@@ -23,24 +25,22 @@ const DIRECTION_OPTIONS: { value: SyncDirection; label: string }[] = [
 
 function CalendarCard({ calendar, onRemove }: { calendar: ConnectedCalendar; onRemove: () => void }) {
   return (
-    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+    <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
       <div className="flex items-center gap-3">
         <div 
           className="w-4 h-4 rounded-full" 
           style={{ backgroundColor: calendar.color }}
         />
         <div>
-          <p className="font-medium text-gray-900">{calendar.accountName || calendar.accountEmail}</p>
-          <p className="text-sm text-gray-500">{PROVIDER_LABELS[calendar.provider]}</p>
+          <p className="font-medium text-text-primary">{calendar.accountName || calendar.accountEmail}</p>
+          <p className="text-sm text-text-tertiary">{PROVIDER_LABELS[calendar.provider]}</p>
         </div>
       </div>
       <button
         onClick={onRemove}
-        className="text-gray-400 hover:text-red-500 transition-colors"
+        className="text-text-tertiary hover:text-action-danger transition-colors"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <X className="w-5 h-5" />
       </button>
     </div>
   )
@@ -65,13 +65,13 @@ function SyncRuleRow({
   if (!sourceCalendar || !targetCalendar) return null
 
   return (
-    <div className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
-      <div className="flex-1">
-        <span className="text-sm font-medium text-gray-700">
+    <div className="flex items-center gap-4 py-3 border-b border-border-primary last:border-0">
+      <div className="flex-1 flex items-center gap-2">
+        <span className="text-sm font-medium text-text-primary">
           {sourceCalendar.accountName || sourceCalendar.accountEmail}
         </span>
-        <span className="mx-2 text-gray-400">→</span>
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-text-tertiary">→</span>
+        <span className="text-sm font-medium text-text-primary">
           {targetCalendar.accountName || targetCalendar.accountEmail}
         </span>
       </div>
@@ -83,13 +83,13 @@ function SyncRuleRow({
           onChange={onToggle}
           className="sr-only peer"
         />
-        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        <div className="w-11 h-6 bg-border-primary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-primary after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary"></div>
       </label>
 
       <select
         value={rule.visibilityType}
         onChange={(e) => onVisibilityChange(e.target.value as VisibilityType)}
-        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        className="text-sm bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
       >
         {VISIBILITY_OPTIONS.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -99,7 +99,7 @@ function SyncRuleRow({
       <select
         value={rule.syncDirection}
         onChange={(e) => onDirectionChange(e.target.value as SyncDirection)}
-        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        className="text-sm bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
       >
         {DIRECTION_OPTIONS.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -116,143 +116,189 @@ export default function CalendarSettings() {
     addCalendar, 
     removeCalendar, 
     toggleSyncRule,
-    updateSyncRule 
+    updateSyncRule,
+    setCalendars,
+    setSyncRules
   } = useCalendarSyncStore()
+  
+  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false)
 
+  // Load calendars from Supabase on mount
+  useEffect(() => {
+    async function loadCalendars() {
+      if (!user) return
+      
+      try {
+        const response = await fetch('/api/calendar/list', {
+          headers: {
+            'x-user-id': user.id
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.calendars) {
+            setCalendars(data.calendars.map((c: any) => ({
+              id: c.id,
+              userId: c.user_id,
+              provider: c.provider,
+              accountEmail: c.account_email,
+              accountName: c.account_name,
+              calendarId: c.calendar_id,
+              isPrimary: c.is_primary,
+              color: c.color,
+              createdAt: new Date(c.created_at),
+              updatedAt: new Date(c.updated_at),
+            })))
+          }
+          if (data.rules) {
+            setSyncRules(data.rules.map((r: any) => ({
+              id: r.id,
+              userId: r.user_id,
+              sourceCalendarId: r.source_calendar_id,
+              targetCalendarId: r.target_calendar_id,
+              isEnabled: r.is_enabled,
+              visibilityType: r.visibility_type,
+              syncDirection: r.sync_direction,
+              createdAt: new Date(r.created_at),
+              updatedAt: new Date(r.updated_at),
+            })))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load calendars:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadCalendars()
+  }, [user, setCalendars, setSyncRules])
+
+  const handleConnectGoogle = async () => {
+    if (!user) return
+    
+    setIsConnectingGoogle(true)
+    try {
+      const response = await fetch(`/api/calendar/google/connect?user_id=${user.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.url) {
+          window.location.href = data.url
+        }
+      }
+    } catch (error) {
+      console.error('Failed to connect Google calendar:', error)
+      setIsConnectingGoogle(false)
+    }
+  }
+
+  const handleRemoveCalendar = async (calendarId: string) => {
+    try {
+      await fetch(`/api/calendar/disconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendar_id: calendarId })
+      })
+      removeCalendar(calendarId)
+    } catch (error) {
+      console.error('Failed to remove calendar:', error)
+    }
+  }
+
+  // Get nudge calendar and external calendars
   const nudgeCalendar = calendars.find(c => c.provider === 'nudge')
+  const externalCalendars = calendars.filter(c => c.provider !== 'nudge')
+  const googleCalendars = calendars.filter(c => c.provider === 'google')
 
-  // Mock data for demonstration
-  const mockCalendars: ConnectedCalendar[] = calendars.length > 0 ? calendars : [
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+      </div>
+    )
+  }
+
+  // Ensure nudge calendar always exists in display
+  const displayCalendars = nudgeCalendar ? calendars : [
     {
-      id: '1',
-      userId: 'user-1',
-      provider: 'nudge',
-      accountEmail: 'me@example.com',
+      id: 'nudge-local',
+      userId: user?.id || '',
+      provider: 'nudge' as const,
+      accountEmail: user?.email || 'me@example.com',
       accountName: 'My Nudge Calendar',
       isPrimary: true,
       color: '#6366f1',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
-    {
-      id: '2',
-      userId: 'user-1',
-      provider: 'google',
-      accountEmail: 'work@gmail.com',
-      accountName: 'Work Calendar',
-      isPrimary: false,
-      color: '#ea4335',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: '3',
-      userId: 'user-1',
-      provider: 'google',
-      accountEmail: 'personal@gmail.com',
-      accountName: 'Personal',
-      isPrimary: false,
-      color: '#34a853',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: '4',
-      userId: 'user-1',
-      provider: 'apple',
-      accountEmail: 'icloud.com',
-      accountName: 'iCloud',
-      isPrimary: false,
-      color: '#a259ff',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    ...calendars
   ]
-
-  const mockRules: CalendarSyncRule[] = syncRules.length > 0 ? syncRules : [
-    {
-      id: 'r1',
-      userId: 'user-1',
-      sourceCalendarId: '2', // Work
-      targetCalendarId: '1',  // Nudge
-      isEnabled: true,
-      visibilityType: 'busy',
-      syncDirection: 'one_way',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'r2',
-      userId: 'user-1',
-      sourceCalendarId: '3', // Personal
-      targetCalendarId: '1', // Nudge
-      isEnabled: true,
-      visibilityType: 'full',
-      syncDirection: 'one_way',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'r3',
-      userId: 'user-1',
-      sourceCalendarId: '4', // iCloud
-      targetCalendarId: '1', // Nudge
-      isEnabled: false,
-      visibilityType: 'busy',
-      syncDirection: 'bidirectional',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ]
-
-  const externalCalendars = mockCalendars.filter(c => c.provider !== 'nudge')
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Calendar Connections</h2>
-        <p className="text-gray-600 mb-6">
-          Connect external calendars to sync events with your Nudge calendar.
-        </p>
-
-        <div className="space-y-3">
-          {mockCalendars.map(calendar => (
-            <CalendarCard
-              key={calendar.id}
-              calendar={calendar}
-              onRemove={() => removeCalendar(calendar.id)}
-            />
-          ))}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-accent-secondary" />
+            Calendar Connections
+          </h2>
+          <p className="text-sm text-text-tertiary mt-1">
+            Connect external calendars to sync events with your Nudge calendar.
+          </p>
         </div>
-
-        <button className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Connect Calendar
-        </button>
       </div>
 
-      {externalCalendars.length > 0 && nudgeCalendar && (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sync Rules</h2>
-          <p className="text-gray-600 mb-6">
+      <div className="space-y-3">
+        {displayCalendars.map(calendar => (
+          <CalendarCard
+            key={calendar.id}
+            calendar={calendar}
+            onRemove={() => handleRemoveCalendar(calendar.id)}
+          />
+        ))}
+      </div>
+
+      <button 
+        onClick={handleConnectGoogle}
+        disabled={isConnectingGoogle}
+        className="btn-secondary flex items-center gap-2 disabled:opacity-50"
+      >
+        {isConnectingGoogle ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+        )}
+        {isConnectingGoogle ? 'Connecting...' : 'Connect Google Calendar'}
+      </button>
+
+      {externalCalendars.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-md font-semibold text-text-primary mb-1">Sync Rules</h3>
+          <p className="text-sm text-text-tertiary mb-4">
             Configure how events from connected calendars sync to your Nudge calendar.
           </p>
 
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[2fr_100px_140px_140px] gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-500">
+          <div className="bg-surface-secondary rounded-apple-lg overflow-hidden">
+            <div className="grid grid-cols-[2fr_80px_140px_140px] gap-4 px-4 py-3 bg-background-primary border-b border-border-primary text-sm font-medium text-text-tertiary">
               <div>Block events from</div>
               <div>Active</div>
               <div>Show as</div>
               <div>Direction</div>
             </div>
 
-            {mockRules.map(rule => (
+            {syncRules.map(rule => (
               <SyncRuleRow
                 key={rule.id}
                 rule={rule}
-                calendars={mockCalendars}
+                calendars={displayCalendars}
                 onToggle={() => toggleSyncRule(rule.id)}
                 onVisibilityChange={(v) => updateSyncRule(rule.id, { visibilityType: v })}
                 onDirectionChange={(d) => updateSyncRule(rule.id, { syncDirection: d })}
@@ -260,19 +306,24 @@ export default function CalendarSettings() {
             ))}
           </div>
 
-          <button className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium">
+          <button className="mt-4 text-sm text-accent-primary hover:underline font-medium">
             + Add custom rule
           </button>
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-medium text-blue-900 mb-1">Coming Soon</h3>
-        <p className="text-sm text-blue-700">
-          OAuth integration for Google, Apple, and Outlook calendars will be available in the next update.
-          For now, you can see the UI layout and configure sync rules.
-        </p>
-      </div>
+      {googleCalendars.length === 0 && (
+        <div className="bg-accent-secondary/10 border border-accent-secondary/20 rounded-apple-lg p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Globe className="w-4 h-4 text-accent-secondary" />
+            <h4 className="text-sm font-medium text-text-primary">Connect Your Calendars</h4>
+          </div>
+          <p className="text-xs text-text-tertiary">
+            Link your Google Calendar to automatically sync events with Nudge. 
+            You'll be able to configure which events show up and how they're displayed.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
