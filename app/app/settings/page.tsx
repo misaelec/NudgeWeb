@@ -6,6 +6,7 @@ import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
 import { settingsSyncService } from '@/lib/settingsSync'
+import CalendarSettings from '@/components/settings/CalendarSettings'
 import {
   Settings,
   Bell,
@@ -354,6 +355,10 @@ export default function SettingsPage() {
                 )
               })}
             </div>
+          </section>
+
+          <section className="card">
+            <CalendarSettings />
           </section>
 
           <section className="card">
