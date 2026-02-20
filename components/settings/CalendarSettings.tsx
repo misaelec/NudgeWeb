@@ -33,7 +33,9 @@ function CalendarCard({ calendar, onRemove }: { calendar: ConnectedCalendar; onR
           style={{ backgroundColor: calendar.color }}
         />
         <div>
-          <p className="font-medium text-text-primary">{calendar.accountEmail}</p>
+          <p className="font-medium text-text-primary">
+            {calendar.provider === 'nudge' ? 'My Nudge Calendar' : calendar.accountEmail}
+          </p>
           <p className="text-sm text-text-tertiary">{PROVIDER_LABELS[calendar.provider]}</p>
         </div>
       </div>
@@ -71,11 +73,11 @@ function SyncRuleRow({
     <div className="flex items-center gap-4 py-3 border-b border-border-primary last:border-0">
       <div className="flex-1 flex items-center gap-2">
         <span className="text-sm font-medium text-text-primary">
-          {sourceCalendar.accountEmail}
+          {sourceCalendar.provider === 'nudge' ? 'My Nudge Calendar' : sourceCalendar.accountEmail}
         </span>
         <span className="text-text-tertiary">→</span>
         <span className="text-sm font-medium text-text-primary">
-          {targetCalendar.accountEmail}
+          {targetCalendar.provider === 'nudge' ? 'My Nudge Calendar' : targetCalendar.accountEmail}
         </span>
       </div>
       
@@ -128,8 +130,8 @@ function AddRuleModal({
   const [sourceId, setSourceId] = useState('')
   const [targetId, setTargetId] = useState('')
 
-  const externalCalendars = calendars.filter(c => c.provider !== 'nudge')
-  const nudgeCal = calendars.find(c => c.provider === 'nudge')
+  const sourceCalendars = calendars
+  const targetCalendars = calendars.filter(c => c.id !== sourceId)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -144,8 +146,10 @@ function AddRuleModal({
               className="w-full bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary"
             >
               <option value="">Select source calendar</option>
-              {externalCalendars.map(cal => (
-                <option key={cal.id} value={cal.id}>{cal.accountEmail}</option>
+              {sourceCalendars.map(cal => (
+                <option key={cal.id} value={cal.id}>
+                  {cal.provider === 'nudge' ? 'My Nudge Calendar' : cal.accountEmail}
+                </option>
               ))}
             </select>
           </div>
@@ -158,9 +162,11 @@ function AddRuleModal({
               className="w-full bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary"
             >
               <option value="">Select target calendar</option>
-              {nudgeCal && (
-                <option value={nudgeCal.id}>My Nudge Calendar</option>
-              )}
+              {targetCalendars.map(cal => (
+                <option key={cal.id} value={cal.id}>
+                  {cal.provider === 'nudge' ? 'My Nudge Calendar' : cal.accountEmail}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -296,17 +302,17 @@ export default function CalendarSettings() {
         Connect Google Calendar
       </button>
 
-      {externalCalendars.length > 0 && (
+      {calendars.length > 1 && (
         <div className="mt-8">
           <h3 className="text-md font-semibold text-text-primary mb-1">Sync Rules</h3>
           <p className="text-sm text-text-tertiary mb-4">
-            Configure how events from connected calendars sync to your Nudge calendar.
+            Configure how events sync between your calendars.
           </p>
 
           <div className="bg-surface-secondary rounded-apple-lg overflow-hidden">
             <div className="grid grid-cols-[2fr_80px_140px_140px_40px] gap-4 px-4 py-3 bg-background-primary border-b border-border-primary text-sm font-medium text-text-tertiary">
-              <div>Block events from</div>
-              <div>Active</div>
+              <div>Sync from → to</div>
+              <div>On</div>
               <div>Show as</div>
               <div>Direction</div>
               <div></div>
