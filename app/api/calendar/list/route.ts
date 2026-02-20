@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
 
-    console.log('📅 API: calendars result', { count: calendars?.length, error: calendarsError })
+    console.log('📅 API: calendars result', { count: calendars?.length, error: calendarsError, data: calendars })
 
     // Get sync rules
     const { data: rules, error: rulesError } = await supabase

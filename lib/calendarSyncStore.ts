@@ -79,7 +79,7 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
       }
       
       const data = await response.json()
-      console.log('📅 Store: Got data', { calendars: data.calendars?.length, rules: data.rules?.length })
+      console.log('📅 Store: Got data - calendars:', data.calendars, 'rules:', data.rules)
       
       set({
         calendars: data.calendars.map((c: any) => ({
