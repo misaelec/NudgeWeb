@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
-import { Calendar, Plus, X, Globe, Loader2 } from 'lucide-react'
+import { Calendar, X, Globe, Loader2 } from 'lucide-react'
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Google Calendar',
@@ -52,13 +52,15 @@ function SyncRuleRow({
   calendars,
   onToggle,
   onVisibilityChange,
-  onDirectionChange 
+  onDirectionChange,
+  onRemove
 }: { 
   rule: CalendarSyncRule
   calendars: ConnectedCalendar[]
   onToggle: () => void
   onVisibilityChange: (v: VisibilityType) => void
   onDirectionChange: (d: SyncDirection) => void
+  onRemove: () => void
 }) {
   const sourceCalendar = calendars.find(c => c.id === rule.sourceCalendarId)
   const targetCalendar = calendars.find(c => c.id === rule.targetCalendarId)
@@ -106,6 +108,74 @@ function SyncRuleRow({
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
+
+      <button onClick={onRemove} className="text-text-tertiary hover:text-action-danger">
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  )
+}
+
+function AddRuleModal({ 
+  calendars, 
+  onClose, 
+  onSave 
+}: { 
+  calendars: ConnectedCalendar[]
+  onClose: () => void
+  onSave: (sourceId: string, targetId: string) => void 
+}) {
+  const [sourceId, setSourceId] = useState('')
+  const [targetId, setTargetId] = useState('')
+
+  const externalCalendars = calendars.filter(c => c.provider !== 'nudge')
+  const nudgeCal = calendars.find(c => c.provider === 'nudge')
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-surface-primary border border-border-primary rounded-apple-lg p-6 w-full max-w-md">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">Add Sync Rule</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">From Calendar</label>
+            <select 
+              value={sourceId}
+              onChange={(e) => setSourceId(e.target.value)}
+              className="w-full bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary"
+            >
+              <option value="">Select source calendar</option>
+              {externalCalendars.map(cal => (
+                <option key={cal.id} value={cal.id}>{cal.accountEmail}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">To Calendar</label>
+            <select 
+              value={targetId}
+              onChange={(e) => setTargetId(e.target.value)}
+              className="w-full bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary"
+            >
+              <option value="">Select target calendar</option>
+              {nudgeCal && (
+                <option value={nudgeCal.id}>My Nudge Calendar</option>
+              )}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 btn-secondary">Cancel</button>
+          <button 
+            onClick={() => onSave(sourceId, targetId)} 
+            disabled={!sourceId || !targetId}
+            className="flex-1 btn-primary disabled:opacity-50"
+          >
+            Add Rule
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -117,6 +187,7 @@ export default function CalendarSettings() {
     addCalendar, 
     removeCalendar, 
     addSyncRule,
+    removeSyncRule,
     toggleSyncRule,
     updateSyncRule,
     setCalendars,
@@ -128,13 +199,13 @@ export default function CalendarSettings() {
   const { user } = useAuth()
   const searchParams = useSearchParams()
 
-  // Load calendars from Supabase on mount
+  const [showAddRuleModal, setShowAddRuleModal] = useState(false)
+
   useEffect(() => {
     if (!user) return
     fetchConnectedCalendars(user.id)
   }, [user, fetchConnectedCalendars])
 
-  // Check for OAuth redirect params and re-fetch
   useEffect(() => {
     const success = searchParams.get('success')
     if (success === 'calendar_connected') {
@@ -145,7 +216,6 @@ export default function CalendarSettings() {
 
   const handleConnectGoogle = () => {
     if (!user) return
-    // Direct redirect - the API route will redirect to Google
     window.location.href = `/api/calendar/google/connect?user_id=${user.id}`
   }
 
@@ -162,23 +232,9 @@ export default function CalendarSettings() {
     }
   }
 
-  // Get nudge calendar and external calendars
   const nudgeCalendar = calendars.find(c => c.provider === 'nudge')
   const externalCalendars = calendars.filter(c => c.provider !== 'nudge')
   const googleCalendars = calendars.filter(c => c.provider === 'google')
-
-  const handleAddSyncRule = () => {
-    if (googleCalendars.length === 0) return
-    const targetId = nudgeCalendar?.id || 'nudge-local'
-    addSyncRule({
-      userId: user!.id,
-      sourceCalendarId: googleCalendars[0].id,
-      targetCalendarId: targetId,
-      isEnabled: true,
-      visibilityType: 'busy',
-      syncDirection: 'one_way',
-    })
-  }
 
   if (isLoading) {
     return (
@@ -188,7 +244,6 @@ export default function CalendarSettings() {
     )
   }
 
-  // Ensure nudge calendar always exists in display
   const displayCalendars = nudgeCalendar ? calendars : [
     {
       id: 'nudge-local',
@@ -249,11 +304,12 @@ export default function CalendarSettings() {
           </p>
 
           <div className="bg-surface-secondary rounded-apple-lg overflow-hidden">
-            <div className="grid grid-cols-[2fr_80px_140px_140px] gap-4 px-4 py-3 bg-background-primary border-b border-border-primary text-sm font-medium text-text-tertiary">
+            <div className="grid grid-cols-[2fr_80px_140px_140px_40px] gap-4 px-4 py-3 bg-background-primary border-b border-border-primary text-sm font-medium text-text-tertiary">
               <div>Block events from</div>
               <div>Active</div>
               <div>Show as</div>
               <div>Direction</div>
+              <div></div>
             </div>
 
             {syncRules.map(rule => (
@@ -264,11 +320,12 @@ export default function CalendarSettings() {
                 onToggle={() => toggleSyncRule(rule.id)}
                 onVisibilityChange={(v) => updateSyncRule(rule.id, { visibilityType: v })}
                 onDirectionChange={(d) => updateSyncRule(rule.id, { syncDirection: d })}
+                onRemove={() => removeSyncRule(rule.id)}
               />
             ))}
           </div>
 
-          <button onClick={handleAddSyncRule} className="mt-4 text-sm text-accent-primary hover:underline font-medium">
+          <button onClick={() => setShowAddRuleModal(true)} className="mt-4 text-sm text-accent-primary hover:underline font-medium">
             + Add custom rule
           </button>
         </div>
@@ -285,6 +342,25 @@ export default function CalendarSettings() {
             You'll be able to configure which events show up and how they're displayed.
           </p>
         </div>
+      )}
+
+      {showAddRuleModal && (
+        <AddRuleModal
+          calendars={displayCalendars}
+          onClose={() => setShowAddRuleModal(false)}
+          onSave={(sourceId, targetId) => {
+            if (!user) return
+            addSyncRule({
+              userId: user.id,
+              sourceCalendarId: sourceId,
+              targetCalendarId: targetId,
+              isEnabled: true,
+              visibilityType: 'busy',
+              syncDirection: 'one_way',
+            })
+            setShowAddRuleModal(false)
+          }}
+        />
       )}
     </div>
   )
