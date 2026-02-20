@@ -33,7 +33,7 @@ function CalendarCard({ calendar, onRemove }: { calendar: ConnectedCalendar; onR
           style={{ backgroundColor: calendar.color }}
         />
         <div>
-          <p className="font-medium text-text-primary">{calendar.accountName || calendar.accountEmail}</p>
+          <p className="font-medium text-text-primary">{calendar.accountEmail}</p>
           <p className="text-sm text-text-tertiary">{PROVIDER_LABELS[calendar.provider]}</p>
         </div>
       </div>
@@ -69,11 +69,11 @@ function SyncRuleRow({
     <div className="flex items-center gap-4 py-3 border-b border-border-primary last:border-0">
       <div className="flex-1 flex items-center gap-2">
         <span className="text-sm font-medium text-text-primary">
-          {sourceCalendar.accountName || sourceCalendar.accountEmail}
+          {sourceCalendar.accountEmail}
         </span>
         <span className="text-text-tertiary">→</span>
         <span className="text-sm font-medium text-text-primary">
-          {targetCalendar.accountName || targetCalendar.accountEmail}
+          {targetCalendar.accountEmail}
         </span>
       </div>
       
@@ -116,6 +116,7 @@ export default function CalendarSettings() {
     syncRules, 
     addCalendar, 
     removeCalendar, 
+    addSyncRule,
     toggleSyncRule,
     updateSyncRule,
     setCalendars,
@@ -165,6 +166,19 @@ export default function CalendarSettings() {
   const nudgeCalendar = calendars.find(c => c.provider === 'nudge')
   const externalCalendars = calendars.filter(c => c.provider !== 'nudge')
   const googleCalendars = calendars.filter(c => c.provider === 'google')
+
+  const handleAddSyncRule = () => {
+    if (googleCalendars.length === 0) return
+    const targetId = nudgeCalendar?.id || 'nudge-local'
+    addSyncRule({
+      userId: user!.id,
+      sourceCalendarId: googleCalendars[0].id,
+      targetCalendarId: targetId,
+      isEnabled: true,
+      visibilityType: 'busy',
+      syncDirection: 'one_way',
+    })
+  }
 
   if (isLoading) {
     return (
@@ -254,7 +268,7 @@ export default function CalendarSettings() {
             ))}
           </div>
 
-          <button className="mt-4 text-sm text-accent-primary hover:underline font-medium">
+          <button onClick={handleAddSyncRule} className="mt-4 text-sm text-accent-primary hover:underline font-medium">
             + Add custom rule
           </button>
         </div>

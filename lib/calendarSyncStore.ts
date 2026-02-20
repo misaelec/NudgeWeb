@@ -133,30 +133,121 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
 
   setCalendars: (calendars) => set({ calendars }),
 
-  addSyncRule: (rule) => set((state) => ({
-    syncRules: [...state.syncRules, {
-      ...rule,
-      id: uuidv4(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }]
-  })),
+  addSyncRule: async (rule) => {
+    const tempId = uuidv4()
+    set((state) => ({
+      syncRules: [...state.syncRules, {
+        ...rule,
+        id: tempId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }]
+    }))
+    
+    try {
+      const response = await fetch('/api/calendar/sync-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: rule.userId,
+          source_calendar_id: rule.sourceCalendarId,
+          target_calendar_id: rule.targetCalendarId,
+          visibility_type: rule.visibilityType,
+          sync_direction: rule.syncDirection,
+        })
+      })
+      const data = await response.json()
+      if (data.rule) {
+        set((state) => ({
+          syncRules: state.syncRules.map(r => 
+            r.id === tempId ? { ...r, id: data.rule.id } : r
+          )
+        }))
+      }
+    } catch (error) {
+      console.error('Error creating sync rule:', error)
+    }
+  },
 
-  removeSyncRule: (id) => set((state) => ({
-    syncRules: state.syncRules.filter(r => r.id !== id)
-  })),
+  removeSyncRule: async (id) => {
+    const state = get()
+    const rule = state.syncRules.find(r => r.id === id)
+    set((state) => ({
+      syncRules: state.syncRules.filter(r => r.id !== id)
+    }))
+    
+    try {
+      await fetch(`/api/calendar/sync-rules?rule_id=${id}`, { method: 'DELETE' })
+    } catch (error) {
+      console.error('Error deleting sync rule:', error)
+      if (rule) {
+        set((state) => ({ syncRules: [...state.syncRules, rule] }))
+      }
+    }
+  },
 
-  updateSyncRule: (id, updates) => set((state) => ({
-    syncRules: state.syncRules.map(r =>
-      r.id === id ? { ...r, ...updates, updatedAt: new Date() } : r
-    )
-  })),
+  updateSyncRule: async (id, updates) => {
+    const state = get()
+    const oldRule = state.syncRules.find(r => r.id === id)
+    set((state) => ({
+      syncRules: state.syncRules.map(r =>
+        r.id === id ? { ...r, ...updates, updatedAt: new Date() } : r
+      )
+    }))
+    
+    try {
+      await fetch('/api/calendar/sync-rules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rule_id: id,
+          updates: {
+            is_enabled: updates.isEnabled,
+            visibility_type: updates.visibilityType,
+            sync_direction: updates.syncDirection,
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error updating sync rule:', error)
+      if (oldRule) {
+        set((state) => ({
+          syncRules: state.syncRules.map(r => r.id === id ? oldRule : r)
+        }))
+      }
+    }
+  },
 
-  toggleSyncRule: (id) => set((state) => ({
-    syncRules: state.syncRules.map(r =>
-      r.id === id ? { ...r, isEnabled: !r.isEnabled, updatedAt: new Date() } : r
-    )
-  })),
+  toggleSyncRule: async (id) => {
+    const state = get()
+    const rule = state.syncRules.find(r => r.id === id)
+    if (!rule) return
+    
+    const newEnabled = !rule.isEnabled
+    set((state) => ({
+      syncRules: state.syncRules.map(r =>
+        r.id === id ? { ...r, isEnabled: newEnabled, updatedAt: new Date() } : r
+      )
+    }))
+    
+    try {
+      await fetch('/api/calendar/sync-rules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rule_id: id,
+          updates: { is_enabled: newEnabled }
+        })
+      })
+    } catch (error) {
+      console.error('Error toggling sync rule:', error)
+      if (rule) {
+        set((state) => ({
+          syncRules: state.syncRules.map(r => r.id === id ? rule : r)
+        }))
+      }
+    }
+  },
 
   setSyncRules: (rules) => set({ syncRules: rules }),
 
