@@ -51,8 +51,11 @@ export default function LandingPage() {
     setError('')
     setIsLoading(true)
     
+    console.log('Auth: Starting', { authMode, supabaseUrl: !!supabaseUrl, supabaseAnonKey: !!supabaseAnonKey })
+    
     try {
       if (authMode === 'signup') {
+        console.log('Auth: Calling signup endpoint')
         const res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
           method: 'POST',
           headers: {
@@ -61,7 +64,9 @@ export default function LandingPage() {
           },
           body: JSON.stringify({ email, password }),
         })
+        console.log('Auth: Signup response status:', res.status)
         const data = await res.json()
+        console.log('Auth: Signup response data:', data)
         
         if (data.error) {
           setError(data.error.description || data.error.message)
@@ -69,6 +74,7 @@ export default function LandingPage() {
           router.push('/app/reminders')
         }
       } else {
+        console.log('Auth: Calling signin endpoint')
         const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
           method: 'POST',
           headers: {
@@ -77,7 +83,9 @@ export default function LandingPage() {
           },
           body: JSON.stringify({ email, password }),
         })
+        console.log('Auth: Signin response status:', res.status)
         const data = await res.json()
+        console.log('Auth: Signin response data:', data)
         
         if (data.error) {
           setError(data.error.description || data.error.message)
@@ -87,6 +95,7 @@ export default function LandingPage() {
         }
       }
     } catch (err) {
+      console.error('Auth: Exception:', err)
       setError('Authentication failed. Please try again.')
     }
     
