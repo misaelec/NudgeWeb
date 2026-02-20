@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { registerWebhook } from '@/lib/calendar/webhookManager'
+import { syncCalendar } from '@/lib/calendar/syncEngine'
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
@@ -106,9 +108,13 @@ export async function GET(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
+        
+      // Register webhook and trigger sync
+      await registerWebhook(existing.id, tokens.access_token)
+      await syncCalendar(existing.id)
     } else {
       // Insert new
-      await supabase
+      const { data: newCalendar } = await supabase
         .from('connected_calendars')
         .insert({
           user_id: state,
@@ -122,6 +128,14 @@ export async function GET(request: NextRequest) {
           is_primary: false,
           color: '#ea4335',
         })
+        .select()
+        .single()
+      
+      // Register webhook and trigger initial sync
+      if (newCalendar) {
+        await registerWebhook(newCalendar.id, tokens.access_token)
+        await syncCalendar(newCalendar.id)
+      }
     }
 
     return NextResponse.redirect(new URL('/app/settings?success=calendar_connected', request.url))

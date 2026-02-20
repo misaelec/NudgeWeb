@@ -1,0 +1,417 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+interface GoogleCalendarEvent {
+  id: string
+  summary?: string
+  description?: string
+  start: { dateTime?: string; date?: string }
+  end: { dateTime?: string; date?: string }
+  status?: string
+  htmlLink?: string
+  iCalUID?: string
+  recurringEventId?: string
+}
+
+interface SyncResult {
+  success: boolean
+  synced: number
+  errors: string[]
+}
+
+interface FetchEventsResult {
+  events: GoogleCalendarEvent[]
+  nextSyncToken: string
+  deletedIds?: string[]
+  needsFullSync?: boolean
+}
+
+async function getConnectedCalendar(calendarId: string) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  const { data, error } = await supabase
+    .from('connected_calendars')
+    .select('*')
+    .eq('id', calendarId)
+    .single()
+  
+  if (error || !data) {
+    throw new Error(`Calendar not found: ${calendarId}`)
+  }
+  
+  return data
+}
+
+async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; expires_in: number }> {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to refresh access token')
+  }
+  
+  return response.json()
+}
+
+async function updateAccessToken(calendarId: string, accessToken: string, expiresAt: number) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  await supabase
+    .from('connected_calendars')
+    .update({
+      access_token: accessToken,
+      token_expires_at: new Date(expiresAt * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', calendarId)
+}
+
+async function fetchGoogleCalendarEvents(
+  accessToken: string,
+  calendarId: string,
+  syncToken?: string
+): Promise<FetchEventsResult> {
+  const params = new URLSearchParams({
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    showDeleted: 'true',
+  })
+  
+  if (syncToken) {
+    params.set('syncToken', syncToken)
+  } else {
+    params.set('timeMin', new Date().toISOString())
+  }
+  
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
+  
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    console.error('Google Calendar API error:', error)
+    
+    if (error.error?.code === 410) {
+      console.log('Sync token expired, need full sync')
+      return { events: [], nextSyncToken: '', deletedIds: [], needsFullSync: true }
+    }
+    
+    throw new Error(`Google Calendar API error: ${error.error?.message || 'Unknown'}`)
+  }
+  
+  const data = await response.json()
+  
+  return {
+    events: data.items || [],
+    nextSyncToken: data.nextSyncToken || '',
+    deletedIds: data.items?.filter((e: any) => e.status === 'cancelled').map((e: any) => e.id) || [],
+  }
+}
+
+async function getSyncRulesForCalendar(calendarId: string): Promise<any[]> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  const { data, error } = await supabase
+    .from('calendar_sync_rules')
+    .select(`
+      *,
+      source_calendar:connected_calendars!source_calendar_id(*),
+      target_calendar:connected_calendars!target_calendar_id(*)
+    `)
+    .eq('source_calendar_id', calendarId)
+    .eq('is_enabled', true)
+  
+  if (error) {
+    console.error('Error fetching sync rules:', error)
+    return []
+  }
+  
+  return data || []
+}
+
+function transformEvent(event: GoogleCalendarEvent, rule: any): Partial<any> {
+  let summary = event.summary || 'Busy'
+  let description = event.description || ''
+  let visibility = rule.visibility_type || 'busy'
+  
+  if (visibility === 'busy') {
+    summary = 'Busy'
+    description = ''
+  } else if (visibility === 'blocked') {
+    summary = 'Blocked'
+    description = ''
+  }
+  
+  const startDate = event.start?.dateTime || event.start?.date || new Date().toISOString()
+  const endDate = event.end?.dateTime || event.end?.date || new Date().toISOString()
+  
+  return {
+    title: summary,
+    description: description,
+    start_date: startDate,
+    end_date: endDate,
+    is_all_day: !event.start?.dateTime,
+    google_event_id: event.id,
+    source_type: 'google',
+  }
+}
+
+async function getOrCreateNudgeCalendar(userId: string): Promise<string> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  const { data: existing } = await supabase
+    .from('connected_calendars')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('provider', 'nudge')
+    .single()
+  
+  if (existing) {
+    return existing.id
+  }
+  
+  const { data: newCal, error } = await supabase
+    .from('connected_calendars')
+    .insert({
+      user_id: userId,
+      provider: 'nudge',
+      account_email: 'nudge',
+      account_name: 'My Nudge Calendar',
+      color: '#6366f1',
+      is_primary: true,
+    })
+    .select('id')
+    .single()
+  
+  if (error) {
+    throw new Error('Failed to create nudge calendar')
+  }
+  
+  return newCal.id
+}
+
+async function getOrCreateNudgeCalendarEvent(
+  userId: string,
+  externalEventId: string,
+  eventData: Partial<any>
+): Promise<string | null> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  const { data: existing } = await supabase
+    .from('calendar_events')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('google_event_id', externalEventId)
+    .single()
+  
+  if (existing) {
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .update(eventData)
+      .eq('id', existing.id)
+      .select('id')
+      .single()
+    
+    return data?.id
+  }
+  
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .insert({
+      user_id: userId,
+      ...eventData,
+    })
+    .select('id')
+    .single()
+  
+  if (error) {
+    console.error('Error creating event:', error)
+    return null
+  }
+  
+  return data?.id
+}
+
+async function deleteSyncedEvent(userId: string, externalEventId: string) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  await supabase
+    .from('calendar_events')
+    .delete()
+    .eq('user_id', userId)
+    .eq('google_event_id', externalEventId)
+}
+
+async function trackSyncedEvent(
+  sourceCalendarId: string,
+  sourceEventId: string,
+  targetEventId: string,
+  targetCalendarId: string,
+  userId: string
+) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  await supabase
+    .from('synced_events')
+    .upsert({
+      user_id: userId,
+      source_event_id: sourceEventId,
+      target_event_id: targetEventId,
+      source_calendar_id: sourceCalendarId,
+      target_calendar_id: targetCalendarId,
+    }, {
+      onConflict: 'user_id,source_event_id,source_calendar_id',
+    })
+}
+
+async function updateSyncToken(calendarId: string, syncToken: string) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  await supabase
+    .from('connected_calendars')
+    .update({
+      sync_token: syncToken,
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', calendarId)
+}
+
+export async function syncCalendar(calendarId: string): Promise<SyncResult> {
+  const errors: string[] = []
+  let synced = 0
+  
+  console.log(`Starting sync for calendar: ${calendarId}`)
+  
+  try {
+    const calendar = await getConnectedCalendar(calendarId)
+    
+    if (!calendar.access_token || !calendar.refresh_token) {
+      throw new Error('No access token for calendar')
+    }
+    
+    let accessToken = calendar.access_token
+    
+    try {
+      await fetchGoogleCalendarEvents(accessToken, calendar.calendar_id || 'primary', 'test')
+    } catch (e: any) {
+      if (e.message?.includes('401') || e.message?.includes('token')) {
+        console.log('Refreshing access token...')
+        const newTokens = await refreshAccessToken(calendar.refresh_token)
+        accessToken = newTokens.access_token
+        const expiresAt = Math.floor(Date.now() / 1000) + newTokens.expires_in
+        await updateAccessToken(calendarId, accessToken, expiresAt)
+      }
+    }
+    
+    const { events, nextSyncToken, deletedIds } = await fetchGoogleCalendarEvents(
+      accessToken,
+      calendar.calendar_id || 'primary',
+      calendar.sync_token || undefined
+    )
+    
+    console.log(`Fetched ${events.length} events, deleted: ${deletedIds?.length || 0}`)
+    
+    if (events.length === 0 && !deletedIds?.length) {
+      if (nextSyncToken) {
+        await updateSyncToken(calendarId, nextSyncToken)
+      }
+      return { success: true, synced: 0, errors: [] }
+    }
+    
+    const rules = await getSyncRulesForCalendar(calendarId)
+    console.log(`Found ${rules.length} sync rules for calendar`)
+    
+    if (rules.length === 0) {
+      if (nextSyncToken) {
+        await updateSyncToken(calendarId, nextSyncToken)
+      }
+      return { success: true, synced: 0, errors: ['No sync rules configured'] }
+    }
+    
+    for (const event of events) {
+      if (event.status === 'cancelled') {
+        continue
+      }
+      
+      try {
+        for (const rule of rules) {
+          const nudgeCalendarId = await getOrCreateNudgeCalendar(calendar.user_id)
+          
+          const eventData = transformEvent(event, rule)
+          eventData.user_id = calendar.user_id
+          
+          const targetEventId = await getOrCreateNudgeCalendarEvent(
+            calendar.user_id,
+            event.id,
+            eventData
+          )
+          
+          if (targetEventId) {
+            await trackSyncedEvent(
+              calendarId,
+              event.id,
+              targetEventId,
+              nudgeCalendarId,
+              calendar.user_id
+            )
+            synced++
+          }
+        }
+      } catch (e: any) {
+        errors.push(`Error syncing event ${event.id}: ${e.message}`)
+      }
+    }
+    
+    if (deletedIds?.length) {
+      for (const deletedId of deletedIds) {
+        try {
+          await deleteSyncedEvent(calendar.user_id, deletedId)
+        } catch (e: any) {
+          errors.push(`Error deleting event ${deletedId}: ${e.message}`)
+        }
+      }
+    }
+    
+    if (nextSyncToken) {
+      await updateSyncToken(calendarId, nextSyncToken)
+    }
+    
+    console.log(`Sync complete. Synced ${synced} events`)
+    
+    return { success: true, synced, errors }
+  } catch (error: any) {
+    console.error('Sync error:', error)
+    errors.push(error.message)
+    return { success: false, synced, errors }
+  }
+}
+
+export async function triggerSyncForChannel(channelId: string): Promise<SyncResult> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  
+  const { data: calendar, error } = await supabase
+    .from('connected_calendars')
+    .select('*')
+    .eq('webhook_channel_id', channelId)
+    .single()
+  
+  if (error || !calendar) {
+    console.error('Calendar not found for channel:', channelId)
+    return { success: false, synced: 0, errors: ['Calendar not found'] }
+  }
+  
+  return syncCalendar(calendar.id)
+}

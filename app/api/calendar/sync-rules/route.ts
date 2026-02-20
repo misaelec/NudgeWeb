@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { user_id, source_calendar_id, target_calendar_id, visibility_type, sync_direction } = body
 
+  console.log('sync-rules POST:', { user_id, source_calendar_id, target_calendar_id })
+
   if (!user_id || !source_calendar_id || !target_calendar_id) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error creating sync rule:', error)
+      console.error('Supabase error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 

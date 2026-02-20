@@ -156,7 +156,9 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
           sync_direction: rule.syncDirection,
         })
       })
+      console.log('addSyncRule response:', response.status)
       const data = await response.json()
+      console.log('addSyncRule data:', data)
       if (data.rule) {
         set((state) => ({
           syncRules: state.syncRules.map(r => 
