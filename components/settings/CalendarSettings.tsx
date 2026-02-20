@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
 import { Calendar, Plus, X, Globe, Loader2 } from 'lucide-react'
@@ -124,6 +125,8 @@ export default function CalendarSettings() {
   } = useCalendarSyncStore()
   
   const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const [justConnected, setJustConnected] = useState(false)
 
   // Load calendars from Supabase on mount
   useEffect(() => {
@@ -139,6 +142,21 @@ export default function CalendarSettings() {
       console.error('📅 CalendarSettings: Fetch error', err)
     })
   }, [user, fetchConnectedCalendars])
+
+  // Check for OAuth redirect params
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+    if (success === 'calendar_connected' || error) {
+      console.log('📅 CalendarSettings: OAuth redirect detected, re-fetching')
+      setJustConnected(true)
+      fetchConnectedCalendars(user?.id!).then(() => {
+        console.log('📅 CalendarSettings: Re-fetch after OAuth complete')
+      })
+      // Clear URL params
+      window.history.replaceState({}, '', '/app/settings')
+    }
+  }, [searchParams, user, fetchConnectedCalendars])
 
   const handleConnectGoogle = () => {
     if (!user) return

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
@@ -358,7 +358,9 @@ export default function SettingsPage() {
           </section>
 
           <section className="card">
-            <CalendarSettings />
+            <Suspense fallback={<div className="py-8 text-center text-text-tertiary">Loading...</div>}>
+              <CalendarSettings />
+            </Suspense>
           </section>
 
           <section className="card">

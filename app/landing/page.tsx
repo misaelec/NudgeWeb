@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowRight,
-  Play,
   X,
 } from 'lucide-react'
 
@@ -121,10 +120,6 @@ export default function LandingPage() {
           >
             Get Started
           </button>
-          <div className="flex items-center gap-4 text-sm text-text-tertiary">
-            <a href="/privacy" className="hover:text-text-primary transition-colors">Privacy Policy</a>
-            <a href="/terms" className="hover:text-text-primary transition-colors">Terms of Service</a>
-          </div>
         </div>
       </header>
 
@@ -150,10 +145,6 @@ export default function LandingPage() {
               >
                 Try Nudge Free
                 <ArrowRight className="w-5 h-5 ml-2 inline" />
-              </button>
-              <button className="btn-secondary text-lg px-8 py-3">
-                <Play className="w-5 h-5 mr-2 inline" />
-                Watch Demo
               </button>
             </div>
           </div>
@@ -193,6 +184,18 @@ export default function LandingPage() {
           </div>
         </section>
       </main>
+
+      <footer className="border-t border-border-primary py-8">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-text-tertiary">
+            © 2026 Nudge. All rights reserved.
+          </p>
+          <div className="flex items-center gap-6 text-sm">
+            <a href="/privacy" className="text-text-tertiary hover:text-text-primary transition-colors">Privacy Policy</a>
+            <a href="/terms" className="text-text-tertiary hover:text-text-primary transition-colors">Terms of Service</a>
+          </div>
+        </div>
+      </footer>
 
       {showAuth && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
