@@ -65,21 +65,17 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
   error: null,
 
   fetchConnectedCalendars: async (userId) => {
-    console.log('📅 Store: fetchConnectedCalendars called', { userId })
     set({ isLoading: true, error: null })
     try {
       const response = await fetch(`/api/calendar/list?t=${Date.now()}`, {
         headers: { 'x-user-id': userId }
       })
       
-      console.log('📅 Store: Response status', response.status)
-      
       if (!response.ok) {
         throw new Error('Failed to fetch calendars')
       }
       
       const data = await response.json()
-      console.log('📅 Store: Got data - calendars:', data.calendars, 'rules:', data.rules)
       
       set({
         calendars: data.calendars.map((c: any) => ({

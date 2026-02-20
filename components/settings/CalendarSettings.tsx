@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
@@ -126,34 +126,18 @@ export default function CalendarSettings() {
   
   const { user } = useAuth()
   const searchParams = useSearchParams()
-  const [justConnected, setJustConnected] = useState(false)
 
   // Load calendars from Supabase on mount
   useEffect(() => {
-    console.log('📅 CalendarSettings: useEffect triggered', { user: user?.id })
-    if (!user) {
-      console.log('📅 CalendarSettings: No user, skipping fetch')
-      return
-    }
-    console.log('📅 CalendarSettings: Fetching calendars for user:', user.id)
-    fetchConnectedCalendars(user.id).then(() => {
-      console.log('📅 CalendarSettings: Fetch complete')
-    }).catch(err => {
-      console.error('📅 CalendarSettings: Fetch error', err)
-    })
+    if (!user) return
+    fetchConnectedCalendars(user.id)
   }, [user, fetchConnectedCalendars])
 
-  // Check for OAuth redirect params
+  // Check for OAuth redirect params and re-fetch
   useEffect(() => {
     const success = searchParams.get('success')
-    const error = searchParams.get('error')
-    if (success === 'calendar_connected' || error) {
-      console.log('📅 CalendarSettings: OAuth redirect detected, re-fetching')
-      setJustConnected(true)
-      fetchConnectedCalendars(user?.id!).then(() => {
-        console.log('📅 CalendarSettings: Re-fetch after OAuth complete')
-      })
-      // Clear URL params
+    if (success === 'calendar_connected') {
+      fetchConnectedCalendars(user?.id!)
       window.history.replaceState({}, '', '/app/settings')
     }
   }, [searchParams, user, fetchConnectedCalendars])
