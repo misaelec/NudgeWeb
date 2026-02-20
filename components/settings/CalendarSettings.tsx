@@ -118,63 +118,18 @@ export default function CalendarSettings() {
     toggleSyncRule,
     updateSyncRule,
     setCalendars,
-    setSyncRules
+    setSyncRules,
+    fetchConnectedCalendars,
+    isLoading
   } = useCalendarSyncStore()
   
   const { user } = useAuth()
-  const [isLoading, setIsLoading] = useState(true)
 
   // Load calendars from Supabase on mount
   useEffect(() => {
-    async function loadCalendars() {
-      if (!user) return
-      
-      try {
-        const response = await fetch('/api/calendar/list', {
-          headers: {
-            'x-user-id': user.id
-          }
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          if (data.calendars) {
-            setCalendars(data.calendars.map((c: any) => ({
-              id: c.id,
-              userId: c.user_id,
-              provider: c.provider,
-              accountEmail: c.account_email,
-              accountName: c.account_name,
-              calendarId: c.calendar_id,
-              isPrimary: c.is_primary,
-              color: c.color,
-              createdAt: new Date(c.created_at),
-              updatedAt: new Date(c.updated_at),
-            })))
-          }
-          if (data.rules) {
-            setSyncRules(data.rules.map((r: any) => ({
-              id: r.id,
-              userId: r.user_id,
-              sourceCalendarId: r.source_calendar_id,
-              targetCalendarId: r.target_calendar_id,
-              isEnabled: r.is_enabled,
-              visibilityType: r.visibility_type,
-              syncDirection: r.sync_direction,
-              createdAt: new Date(r.created_at),
-              updatedAt: new Date(r.updated_at),
-            })))
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load calendars:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    loadCalendars()
-  }, [user, setCalendars, setSyncRules])
+    if (!user) return
+    fetchConnectedCalendars(user.id).finally(() => {})
+  }, [user, fetchConnectedCalendars])
 
   const handleConnectGoogle = () => {
     if (!user) return

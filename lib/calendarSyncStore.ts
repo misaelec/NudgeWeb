@@ -41,6 +41,7 @@ interface CalendarSyncState {
   removeCalendar: (id: string) => void
   updateCalendar: (id: string, updates: Partial<ConnectedCalendar>) => void
   setCalendars: (calendars: ConnectedCalendar[]) => void
+  fetchConnectedCalendars: (userId: string) => Promise<void>
 
   // Sync rule actions
   addSyncRule: (rule: Omit<CalendarSyncRule, 'id' | 'createdAt' | 'updatedAt'>) => void
@@ -62,6 +63,51 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
   syncRules: [],
   isLoading: false,
   error: null,
+
+  fetchConnectedCalendars: async (userId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const response = await fetch(`/api/calendar/list?t=${Date.now()}`, {
+        headers: { 'x-user-id': userId }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch calendars')
+      }
+      
+      const data = await response.json()
+      
+      set({
+        calendars: data.calendars.map((c: any) => ({
+          id: c.id,
+          userId: c.user_id,
+          provider: c.provider,
+          accountEmail: c.account_email,
+          accountName: c.account_name,
+          calendarId: c.calendar_id,
+          isPrimary: c.is_primary,
+          color: c.color,
+          createdAt: new Date(c.created_at),
+          updatedAt: new Date(c.updated_at),
+        })),
+        syncRules: (data.rules || []).map((r: any) => ({
+          id: r.id,
+          userId: r.user_id,
+          sourceCalendarId: r.source_calendar_id,
+          targetCalendarId: r.target_calendar_id,
+          isEnabled: r.is_enabled,
+          visibilityType: r.visibility_type,
+          syncDirection: r.sync_direction,
+          createdAt: new Date(r.created_at),
+          updatedAt: new Date(r.updated_at),
+        })),
+        isLoading: false
+      })
+    } catch (error) {
+      console.error('Error fetching calendars:', error)
+      set({ isLoading: false, error: 'Failed to fetch calendars' })
+    }
+  },
 
   addCalendar: (calendar) => set((state) => ({
     calendars: [...state.calendars, {
