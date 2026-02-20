@@ -121,6 +121,10 @@ export default function LandingPage() {
           >
             Get Started
           </button>
+          <div className="flex items-center gap-4 text-sm text-text-tertiary">
+            <a href="/privacy" className="hover:text-text-primary transition-colors">Privacy Policy</a>
+            <a href="/terms" className="hover:text-text-primary transition-colors">Terms of Service</a>
+          </div>
         </div>
       </header>
 

@@ -127,8 +127,17 @@ export default function CalendarSettings() {
 
   // Load calendars from Supabase on mount
   useEffect(() => {
-    if (!user) return
-    fetchConnectedCalendars(user.id).finally(() => {})
+    console.log('📅 CalendarSettings: useEffect triggered', { user: user?.id })
+    if (!user) {
+      console.log('📅 CalendarSettings: No user, skipping fetch')
+      return
+    }
+    console.log('📅 CalendarSettings: Fetching calendars for user:', user.id)
+    fetchConnectedCalendars(user.id).then(() => {
+      console.log('📅 CalendarSettings: Fetch complete')
+    }).catch(err => {
+      console.error('📅 CalendarSettings: Fetch error', err)
+    })
   }, [user, fetchConnectedCalendars])
 
   const handleConnectGoogle = () => {

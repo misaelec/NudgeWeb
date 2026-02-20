@@ -10,6 +10,8 @@ export const revalidate = 0
 export async function GET(request: NextRequest) {
   const userId = request.headers.get('x-user-id')
 
+  console.log('📅 API: GET /api/calendar/list', { userId })
+
   if (!userId) {
     return NextResponse.json({ error: 'Missing user_id' }, { status: 400 })
   }
@@ -24,10 +26,7 @@ export async function GET(request: NextRequest) {
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
 
-    if (calendarsError) {
-      console.error('Failed to fetch calendars:', calendarsError)
-      return NextResponse.json({ error: calendarsError.message }, { status: 500 })
-    }
+    console.log('📅 API: calendars result', { count: calendars?.length, error: calendarsError })
 
     // Get sync rules
     const { data: rules, error: rulesError } = await supabase
