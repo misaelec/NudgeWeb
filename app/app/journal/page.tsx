@@ -341,7 +341,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
         <Modal title="Add Objective" onClose={() => setShowAddModal(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">Title</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">Title</label>
               <input
                 type="text"
                 value={newObjective.title}
@@ -351,7 +351,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">Description</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">Description</label>
               <textarea
                 value={newObjective.description}
                 onChange={e => setNewObjective({ ...newObjective, description: e.target.value })}
@@ -362,7 +362,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">Category</label>
+                <label className="block text-sm font-medium text-text-primary mb-1">Category</label>
                 <select
                   value={newObjective.category}
                   onChange={e => setNewObjective({ ...newObjective, category: e.target.value as any })}
@@ -375,7 +375,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">Priority</label>
+                <label className="block text-sm font-medium text-text-primary mb-1">Priority</label>
                 <select
                   value={newObjective.priority}
                   onChange={e => setNewObjective({ ...newObjective, priority: e.target.value as any })}
@@ -602,7 +602,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
         <Modal title="Fear Setting" onClose={() => setShowAddModal(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">What do you fear?</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">What do you fear?</label>
               <input
                 type="text"
                 value={newFear.fear}
@@ -612,7 +612,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">Why does this matter?</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">Why does this matter?</label>
               <textarea
                 value={newFear.why}
                 onChange={e => setNewFear({ ...newFear, why: e.target.value })}
@@ -622,7 +622,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">Prevention (What can you do to prevent this?)</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">Prevention (What can you do to prevent this?)</label>
               <textarea
                 value={newFear.prevention}
                 onChange={e => setNewFear({ ...newFear, prevention: e.target.value })}
@@ -632,7 +632,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">Repair (What will you do if it happens?)</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">Repair (What will you do if it happens?)</label>
               <textarea
                 value={newFear.repair}
                 onChange={e => setNewFear({ ...newFear, repair: e.target.value })}
@@ -710,7 +710,7 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
         <Modal title="Journal Entry" onClose={() => setShowAddModal(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-2">How are you feeling?</label>
+              <label className="block text-sm font-medium text-text-primary mb-2">How are you feeling?</label>
               <div className="flex gap-2">
                 {moods.map(m => (
                   <button
@@ -718,8 +718,8 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
                     onClick={() => setNewEntry({ ...newEntry, mood: m.emoji })}
                     className={`flex-1 py-2 rounded-apple-lg text-2xl transition-all ${
                       newEntry.mood === m.emoji
-                        ? 'bg-apple-blue/10 ring-2 ring-apple-blue'
-                        : 'bg-apple-gray-100 dark:bg-apple-gray-800 hover:bg-apple-gray-200 dark:hover:bg-apple-gray-700'
+                        ? 'bg-accent-primary/10 ring-2 ring-accent-primary'
+                        : 'bg-surface-secondary hover:bg-border-primary'
                     }`}
                   >
                     {m.emoji}
@@ -728,7 +728,7 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-apple-gray-700 dark:text-apple-gray-300 mb-1">What&apos;s on your mind?</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">What&apos;s on your mind?</label>
               <textarea
                 value={newEntry.content}
                 onChange={e => setNewEntry({ ...newEntry, content: e.target.value })}
@@ -751,11 +751,11 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-apple-gray-900 rounded-apple-xl shadow-apple-xl p-6 w-full max-w-md animate-scale-in">
+      <div className="bg-surface-primary border border-border-primary rounded-apple-xl shadow-apple-xl p-6 w-full max-w-md animate-scale-in">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-apple-gray-900 dark:text-white">{title}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-apple-gray-100 dark:hover:bg-apple-gray-800 rounded-apple-lg">
-            <X className="w-5 h-5 text-apple-gray-500" />
+          <h2 className="text-xl font-semibold text-text-primary">{title}</h2>
+          <button onClick={onClose} className="p-2 hover:bg-surface-secondary rounded-apple-lg">
+            <X className="w-5 h-5 text-text-tertiary" />
           </button>
         </div>
         {children}
