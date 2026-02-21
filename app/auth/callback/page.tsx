@@ -18,7 +18,8 @@ export default function AuthCallback() {
         setStatus('Success! Redirecting...')
         window.location.href = '/app/reminders'
       } else {
-        setError(result.error || 'Authentication failed')
+        console.error('Auth callback error:', result.error)
+        window.location.href = '/?error=auth_failed'
       }
     }
 

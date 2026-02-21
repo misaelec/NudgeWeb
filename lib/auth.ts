@@ -178,18 +178,60 @@ class SupabaseAuth {
   async handleCallback(): Promise<{ success: boolean; error?: string }> {
     if (typeof window === 'undefined') return { success: false, error: 'No window' }
 
-    const hash = window.location.hash.substring(1)
-    
-    const accessTokenMatch = hash.match(/access_token=([^&]*)/)
-    const refreshTokenMatch = hash.match(/refresh_token=([^&]*)/)
-    
-    const accessToken = accessTokenMatch ? decodeURIComponent(accessTokenMatch[1]) : null
-    const refreshToken = refreshTokenMatch ? decodeURIComponent(refreshTokenMatch[1]) : null
+    const url = new URL(window.location.href)
+    const code = url.searchParams.get('code')
+    const errorDescription = url.searchParams.get('error_description')
 
-    if (!accessToken || !refreshToken) {
-      return { success: false, error: 'Missing tokens: access_token=' + !!accessToken + ', refresh_token=' + !!refreshToken }
+    if (errorDescription) {
+      console.error('Auth error:', errorDescription)
+      return { success: false, error: errorDescription }
     }
 
+    if (!code) {
+      const hash = window.location.hash.substring(1)
+      const accessTokenMatch = hash.match(/access_token=([^&]*)/)
+      const refreshTokenMatch = hash.match(/refresh_token=([^&]*)/)
+      
+      const accessToken = accessTokenMatch ? decodeURIComponent(accessTokenMatch[1]) : null
+      const refreshToken = refreshTokenMatch ? decodeURIComponent(refreshTokenMatch[1]) : null
+
+      if (!accessToken || !refreshToken) {
+        return { success: false, error: 'Missing tokens: no code or hash tokens found' }
+      }
+
+      return this.processSession(accessToken, refreshToken)
+    }
+
+    try {
+      const response = await fetch(`${supabaseAuthUrl}/token?grant_type=pkce`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseConfig.anonKey,
+        },
+        body: JSON.stringify({ code }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error('Token exchange failed:', data)
+        return { success: false, error: data.error_description || data.msg || 'Token exchange failed' }
+      }
+
+      if (!data.access_token || !data.refresh_token) {
+        console.error('No tokens in response:', data)
+        return { success: false, error: 'No tokens received from server' }
+      }
+
+      return this.processSession(data.access_token, data.refresh_token)
+    } catch (error) {
+      console.error('Callback exception:', error)
+      return { success: false, error: 'Failed to process callback: ' + String(error) }
+    }
+  }
+
+  private async processSession(accessToken: string, refreshToken: string): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch(`${supabaseAuthUrl}/user`, {
         method: 'GET',
@@ -221,7 +263,7 @@ class SupabaseAuth {
       window.history.replaceState({}, document.title, window.location.pathname)
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to process callback: ' + String(error) }
+      return { success: false, error: 'Failed to process session: ' + String(error) }
     }
   }
 }
