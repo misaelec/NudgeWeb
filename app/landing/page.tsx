@@ -75,7 +75,7 @@ export default function LandingPage() {
         }
       } else {
         console.log('Auth: Calling signin endpoint')
-        let res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -83,37 +83,12 @@ export default function LandingPage() {
           },
           body: JSON.stringify({ email, password }),
         })
-        let data = await res.json()
         console.log('Auth: Signin response status:', res.status)
+        const data = await res.json()
         console.log('Auth: Signin response data:', data)
         
-        // If invalid credentials, try to sign up instead
-        if (data.error_code === 'invalid_credentials') {
-          console.log('Auth: Account not found, trying signup')
-          res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseAnonKey,
-            },
-            body: JSON.stringify({ email, password }),
-          })
-          data = await res.json()
-          console.log('Auth: Signup response:', data)
-          
-          if (data.confirmation_sent_at || data.msg?.includes('confirmation')) {
-            setError('Account created! Please check your email to confirm your account, then log in.')
-            setIsLoading(false)
-            return
-          }
-        }
-        
         if (data.error || !data.access_token) {
-          if (data.confirmation_sent_at || data.msg?.includes('confirmation') || data.error_code === 'email_not_confirmed') {
-            setError('Account created! Please check your email to confirm your account, then log in.')
-          } else {
-            setError(data.error_description || data.message || data.msg || 'Authentication failed')
-          }
+          setError(data.msg || 'Invalid email or password. Try "Forgot Password?" if needed.')
         } else {
           localStorage.setItem('supabase_session', JSON.stringify(data))
           router.push('/app/reminders')
@@ -285,6 +260,41 @@ export default function LandingPage() {
                 className="input"
                 placeholder="••••••••"
               />
+              {authMode === 'signin' && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!email) {
+                      setError('Please enter your email address')
+                      return
+                    }
+                    setIsLoading(true)
+                    setError('')
+                    try {
+                      const res = await fetch(`${supabaseUrl}/auth/v1/recover`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'apikey': supabaseAnonKey,
+                        },
+                        body: JSON.stringify({ email }),
+                      })
+                      const data = await res.json()
+                      if (res.ok) {
+                        setError('Password reset email sent! Check your inbox.')
+                      } else {
+                        setError(data.msg || 'Failed to send reset email')
+                      }
+                    } catch (err) {
+                      setError('Failed to send reset email')
+                    }
+                    setIsLoading(false)
+                  }}
+                  className="text-sm text-accent-primary hover:underline mt-2"
+                >
+                  Forgot Password?
+                </button>
+              )}
             </div>
 
             <button 
