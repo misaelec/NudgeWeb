@@ -5,7 +5,11 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 export const supabaseConfig = {
   projectUrl: 'https://tdidckvdawyctcswoppi.supabase.co',
   anonKey: 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
-  redirectUrl: process.env.NEXT_PUBLIC_REDIRECT_URL || 'https://nudgereminds.com/auth/callback',
+  get redirectUrl() {
+    return typeof window !== 'undefined' 
+      ? `${window.location.origin}/auth/callback` 
+      : 'https://nudgereminds.com/auth/callback'
+  },
 }
 
 export const supabaseAuthUrl = `${supabaseConfig.projectUrl}/auth/v1`
