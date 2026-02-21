@@ -64,7 +64,7 @@ export default function LandingPage() {
         body: JSON.stringify({
           email,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         }),
       })
