@@ -75,7 +75,7 @@ export default function LandingPage() {
         }
       } else {
         console.log('Auth: Calling signin endpoint')
-        const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        let res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -84,14 +84,53 @@ export default function LandingPage() {
           body: JSON.stringify({ email, password }),
         })
         console.log('Auth: Signin response status:', res.status)
-        const data = await res.json()
+        let data = await res.json()
         console.log('Auth: Signin response data:', data)
         
-        if (data.error || !data.access_token) {
-          setError(data.msg || 'Invalid email or password. Try "Forgot Password?" if needed.')
+        // If invalid credentials, try signup (user might not exist)
+        if (data.error_code === 'invalid_credentials') {
+          console.log('Auth: Invalid credentials, trying signup')
+          res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseAnonKey,
+            },
+            body: JSON.stringify({ email, password }),
+          })
+          data = await res.json()
+          console.log('Auth: Signup response:', data)
+          
+          // Check signup result
+          if (data.access_token) {
+            // Signed up and logged in immediately
+            localStorage.setItem('supabase_session', JSON.stringify(data))
+            router.push('/app/reminders')
+            setIsLoading(false)
+            return
+          } else if (data.msg?.includes('already been registered') || data.msg?.includes('User already registered')) {
+            // User exists but wrong password
+            setError('Invalid password. Try "Forgot Password?" if needed.')
+            setIsLoading(false)
+            return
+          } else if (data.confirmation_sent_at) {
+            setError('Account created! Check your email to confirm, then log in.')
+            setIsLoading(false)
+            return
+          } else if (data.msg) {
+            setError(data.msg)
+            setIsLoading(false)
+            return
+          }
+        }
+        
+        // Handle other errors
+        if (data.error_code === 'email_not_confirmed') {
+          setError('Email not confirmed. Check your inbox or request a new confirmation.')
+        } else if (data.msg) {
+          setError(data.msg)
         } else {
-          localStorage.setItem('supabase_session', JSON.stringify(data))
-          router.push('/app/reminders')
+          setError('Authentication failed. Please try again.')
         }
       }
     } catch (err) {
