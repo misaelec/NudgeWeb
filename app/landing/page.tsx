@@ -100,10 +100,20 @@ export default function LandingPage() {
           })
           data = await res.json()
           console.log('Auth: Signup response:', data)
+          
+          if (data.confirmation_sent_at || data.msg?.includes('confirmation')) {
+            setError('Account created! Please check your email to confirm your account, then log in.')
+            setIsLoading(false)
+            return
+          }
         }
         
-        if (data.error) {
-          setError(data.error.description || data.error.message)
+        if (data.error || !data.access_token) {
+          if (data.confirmation_sent_at || data.msg?.includes('confirmation') || data.error_code === 'email_not_confirmed') {
+            setError('Account created! Please check your email to confirm your account, then log in.')
+          } else {
+            setError(data.error_description || data.message || data.msg || 'Authentication failed')
+          }
         } else {
           localStorage.setItem('supabase_session', JSON.stringify(data))
           router.push('/app/reminders')
