@@ -75,7 +75,7 @@ export default function LandingPage() {
         }
       } else {
         console.log('Auth: Calling signin endpoint')
-        const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        let res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -83,9 +83,24 @@ export default function LandingPage() {
           },
           body: JSON.stringify({ email, password }),
         })
+        let data = await res.json()
         console.log('Auth: Signin response status:', res.status)
-        const data = await res.json()
         console.log('Auth: Signin response data:', data)
+        
+        // If invalid credentials, try to sign up instead
+        if (data.error_code === 'invalid_credentials') {
+          console.log('Auth: Account not found, trying signup')
+          res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseAnonKey,
+            },
+            body: JSON.stringify({ email, password }),
+          })
+          data = await res.json()
+          console.log('Auth: Signup response:', data)
+        }
         
         if (data.error) {
           setError(data.error.description || data.error.message)
