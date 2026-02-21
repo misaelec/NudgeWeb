@@ -68,14 +68,19 @@ export default function LandingPage() {
         const data = await res.json()
         console.log('Auth: Signup response data:', data)
         
-        if (data.error) {
-          setError(data.error.description || data.error.message)
-        } else {
+        if (data.msg?.includes('already been registered') || data.msg?.includes('User already registered') || data.error_code === 'user_already_exists') {
+          setError('It looks like an account with this email already exists. Try logging in instead!')
+        } else if (data.confirmation_sent_at) {
+          setError('Account created! Please check your inbox to confirm your email.')
+        } else if (data.access_token) {
+          localStorage.setItem('supabase_session', JSON.stringify(data))
           router.push('/app/reminders')
+        } else {
+          setError(data.msg || 'Signup failed. Please try again.')
         }
       } else {
         console.log('Auth: Calling signin endpoint')
-        let res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -84,53 +89,14 @@ export default function LandingPage() {
           body: JSON.stringify({ email, password }),
         })
         console.log('Auth: Signin response status:', res.status)
-        let data = await res.json()
+        const data = await res.json()
         console.log('Auth: Signin response data:', data)
         
-        // If invalid credentials, try signup (user might not exist)
-        if (data.error_code === 'invalid_credentials') {
-          console.log('Auth: Invalid credentials, trying signup')
-          res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseAnonKey,
-            },
-            body: JSON.stringify({ email, password }),
-          })
-          data = await res.json()
-          console.log('Auth: Signup response:', data)
-          
-          // Check signup result
-          if (data.access_token) {
-            // Signed up and logged in immediately
-            localStorage.setItem('supabase_session', JSON.stringify(data))
-            router.push('/app/reminders')
-            setIsLoading(false)
-            return
-          } else if (data.msg?.includes('already been registered') || data.msg?.includes('User already registered')) {
-            // User exists but wrong password
-            setError('Invalid password. Try "Forgot Password?" if needed.')
-            setIsLoading(false)
-            return
-          } else if (data.confirmation_sent_at) {
-            setError('Account created! Check your email to confirm, then log in.')
-            setIsLoading(false)
-            return
-          } else if (data.msg) {
-            setError(data.msg)
-            setIsLoading(false)
-            return
-          }
-        }
-        
-        // Handle other errors
-        if (data.error_code === 'email_not_confirmed') {
-          setError('Email not confirmed. Check your inbox or request a new confirmation.')
-        } else if (data.msg) {
-          setError(data.msg)
+        if (data.access_token) {
+          localStorage.setItem('supabase_session', JSON.stringify(data))
+          router.push('/app/reminders')
         } else {
-          setError('Authentication failed. Please try again.')
+          setError('Hmm, that email and password don\'t match. Please try again.')
         }
       }
     } catch (err) {
