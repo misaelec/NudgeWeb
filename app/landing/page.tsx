@@ -21,12 +21,10 @@ export default function LandingPage() {
   const router = useRouter()
   const [showAuth, setShowAuth] = useState(false)
   const [showLogoutBanner, setShowLogoutBanner] = useState(false)
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
   const { user } = useAuth()
 
   useEffect(() => {
@@ -36,7 +34,7 @@ export default function LandingPage() {
   }, [user, router])
 
   useEffect(() => {
-      const loggedOut = sessionStorage.getItem('logged_out')
+    const loggedOut = sessionStorage.getItem('logged_out')
     if (loggedOut === 'true') {
       setShowLogoutBanner(true)
       sessionStorage.removeItem('logged_out')
@@ -47,63 +45,42 @@ export default function LandingPage() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-  const handleAuth = async () => {
+  const handleMagicLink = async () => {
+    if (!email) {
+      setError('Please enter your email address')
+      return
+    }
+
     setError('')
     setIsLoading(true)
-    
-    console.log('Auth: Starting', { authMode, supabaseUrl: !!supabaseUrl, supabaseAnonKey: !!supabaseAnonKey })
-    
+
     try {
-      if (authMode === 'signup') {
-        console.log('Auth: Calling signup endpoint')
-        const res = await fetch(`${supabaseUrl}/auth/v1/signup`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
+      const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({
+          email,
+          options: {
+            emailRedirectTo: window.location.origin,
           },
-          body: JSON.stringify({ email, password }),
-        })
-        console.log('Auth: Signup response status:', res.status)
-        const data = await res.json()
-        console.log('Auth: Signup response data:', data)
-        
-        if (data.msg?.includes('already been registered') || data.msg?.includes('User already registered') || data.error_code === 'user_already_exists') {
-          setError('It looks like an account with this email already exists. Try logging in instead!')
-        } else if (data.confirmation_sent_at) {
-          setError('Account created! Please check your inbox to confirm your email.')
-        } else if (data.access_token) {
-          localStorage.setItem('supabase_session', JSON.stringify(data))
-          router.push('/app/reminders')
-        } else {
-          setError(data.msg || 'Signup failed. Please try again.')
-        }
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setMagicLinkSent(true)
       } else {
-        console.log('Auth: Calling signin endpoint')
-        const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
-          },
-          body: JSON.stringify({ email, password }),
-        })
-        console.log('Auth: Signin response status:', res.status)
-        const data = await res.json()
-        console.log('Auth: Signin response data:', data)
-        
-        if (data.access_token) {
-          localStorage.setItem('supabase_session', JSON.stringify(data))
-          router.push('/app/reminders')
-        } else {
-          setError('Hmm, that email and password don\'t match. Please try again.')
-        }
+        setError(data.msg || 'Failed to send magic link. Please try again.')
       }
     } catch (err) {
-      console.error('Auth: Exception:', err)
-      setError('Authentication failed. Please try again.')
+      console.error('Magic link error:', err)
+      setError('Something went wrong. Please try again.')
     }
-    
+
     setIsLoading(false)
   }
 
@@ -214,149 +191,95 @@ export default function LandingPage() {
       {showAuth && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-surface-primary rounded-apple-xl shadow-apple-xl p-8 w-full max-w-md animate-scale-in">
-            <div className="text-center mb-8">
-              <div className="w-12 h-12 bg-accent-primary rounded-apple-xl flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <h2 className="text-2xl font-semibold text-text-primary">
-                {authMode === 'signin' ? 'Welcome Back' : 'Create Account'}
-              </h2>
-              <p className="text-text-secondary mt-1">
-                {authMode === 'signin' ? 'Sign in to continue to Nudge' : 'Get started with Nudge'}
-              </p>
-            </div>
+            {!magicLinkSent ? (
+              <>
+                <div className="text-center mb-8">
+                  <div className="w-12 h-12 bg-accent-primary rounded-apple-xl flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-semibold text-text-primary">
+                    Welcome to Nudge
+                  </h2>
+                  <p className="text-text-secondary mt-1">
+                    Enter your email to get started
+                  </p>
+                </div>
 
-            {error && (
-              <div className="mb-4 p-3 bg-action-danger/10 text-action-danger rounded-apple-lg text-sm">
-                {error}
-              </div>
-            )}
+                {error && (
+                  <div className="mb-4 p-3 bg-action-danger/10 text-action-danger rounded-apple-lg text-sm">
+                    {error}
+                  </div>
+                )}
 
-            {authMode === 'signup' && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-text-secondary mb-1">Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input"
-                  placeholder="Your name"
-                />
-              </div>
-            )}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input"
+                    placeholder="you@example.com"
+                    onKeyDown={(e) => e.key === 'Enter' && handleMagicLink()}
+                  />
+                </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-text-secondary mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-text-secondary mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="••••••••"
-              />
-              {authMode === 'signin' && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!email) {
-                      setError('Please enter your email address')
-                      return
-                    }
-                    setIsLoading(true)
-                    setError('')
-                    try {
-                      const res = await fetch(`${supabaseUrl}/auth/v1/recover`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'apikey': supabaseAnonKey,
-                        },
-                        body: JSON.stringify({ email }),
-                      })
-                      const data = await res.json()
-                      if (res.ok) {
-                        setError('Password reset email sent! Check your inbox.')
-                      } else {
-                        setError(data.msg || 'Failed to send reset email')
-                      }
-                    } catch (err) {
-                      setError('Failed to send reset email')
-                    }
-                    setIsLoading(false)
-                  }}
-                  className="text-sm text-accent-primary hover:underline mt-2"
+                <button 
+                  onClick={handleMagicLink} 
+                  className="btn-primary w-full mb-4 disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={isLoading}
                 >
-                  Forgot Password?
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Sending magic link...
+                    </>
+                  ) : 'Continue with Email'}
                 </button>
-              )}
-            </div>
 
-            <button 
-              onClick={handleAuth} 
-              className="btn-primary w-full mb-4 disabled:opacity-50 flex items-center justify-center gap-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {authMode === 'signin' ? 'Signing in...' : 'Creating account...'}
-                </>
-              ) : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
-            </button>
+                <div className="relative mb-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border-primary" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-surface-primary text-text-tertiary">Or continue with</span>
+                  </div>
+                </div>
 
-            <div className="relative mb-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border-primary" />
+                <button
+                  onClick={handleGoogleSignIn}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-border-primary rounded-apple-lg hover:bg-surface-secondary transition-colors"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                  <span className="text-text-primary font-medium">Google</span>
+                </button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="w-8 h-8 text-success" />
+                </div>
+                <h2 className="text-2xl font-semibold text-text-primary mb-3">
+                  ✨ Magic link sent!
+                </h2>
+                <p className="text-text-secondary mb-6">
+                  Check your inbox to sign in or create your account.
+                </p>
+                <button
+                  onClick={() => { setMagicLinkSent(false); setEmail(''); }}
+                  className="text-accent-primary font-medium hover:underline"
+                >
+                  Use a different email
+                </button>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-surface-primary text-text-tertiary">Or continue with</span>
-              </div>
-            </div>
+            )}
 
             <button
-              onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-border-primary rounded-apple-lg hover:bg-surface-secondary transition-colors"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-              </svg>
-              <span className="text-text-primary font-medium">Google</span>
-            </button>
-
-            <p className="text-center text-sm text-text-tertiary mt-6">
-              {authMode === 'signin' ? (
-                <>
-                  Don&apos;t have an account?{' '}
-                  <button onClick={() => { setAuthMode('signup'); setError(''); }} className="text-accent-primary font-medium hover:underline">
-                    Sign up
-                  </button>
-                </>
-              ) : (
-                <>
-                  Already have an account?{' '}
-                  <button onClick={() => { setAuthMode('signin'); setError(''); }} className="text-accent-primary font-medium hover:underline">
-                    Sign in
-                  </button>
-                </>
-              )}
-            </p>
-
-            <button
-              onClick={() => { setShowAuth(false); setError(''); }}
+              onClick={() => { setShowAuth(false); setMagicLinkSent(false); setError(''); setEmail(''); }}
               className="absolute top-4 right-4 text-text-tertiary hover:text-text-primary transition-colors"
             >
               <X className="w-6 h-6" />
