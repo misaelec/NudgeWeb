@@ -11,14 +11,20 @@ export default function AuthCallback() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log('[AuthCallback] Component mounted, URL:', window.location.href)
+    
     const handleCallback = async () => {
+      console.log('[AuthCallback] Starting callback handler')
+      console.log('[AuthCallback] URL:', window.location.href)
+      
       const result = await supabaseAuth.handleCallback()
+      console.log('[AuthCallback] Result:', result)
       
       if (result.success) {
         setStatus('Success! Redirecting...')
         window.location.href = '/app/reminders'
       } else {
-        console.error('Auth callback error:', result.error)
+        console.error('[AuthCallback] Auth failed:', result.error)
         window.location.href = '/?error=auth_failed'
       }
     }
