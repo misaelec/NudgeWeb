@@ -55,6 +55,11 @@ export default function LandingPage() {
     setIsLoading(true)
 
     try {
+      const redirectUrl = `${window.location.origin}/auth/callback`
+      console.log('Sending magic link to:', email)
+      console.log('Supabase URL:', supabaseUrl)
+      console.log('Redirect URL:', redirectUrl)
+
       const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
         method: 'POST',
         headers: {
@@ -64,12 +69,14 @@ export default function LandingPage() {
         body: JSON.stringify({
           email,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: redirectUrl,
           },
         }),
       })
 
+      console.log('OTP response status:', res.status)
       const data = await res.json()
+      console.log('OTP response data:', data)
 
       if (res.ok) {
         setMagicLinkSent(true)
