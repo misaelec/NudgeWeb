@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
+import { getURL } from '@/lib/auth'
 import {
   Focus,
   Calendar,
@@ -55,10 +56,17 @@ export default function LandingPage() {
     setIsLoading(true)
 
     try {
-      const redirectUrl = `${window.location.origin}/auth/callback`
+      const redirectUrl = getURL()
       console.log('Sending magic link to:', email)
-      console.log('Supabase URL:', supabaseUrl)
       console.log('Redirect URL:', redirectUrl)
+
+      const requestBody = {
+        email,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      }
+      console.log('Request body:', JSON.stringify(requestBody))
 
       const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
         method: 'POST',
@@ -66,12 +74,7 @@ export default function LandingPage() {
           'Content-Type': 'application/json',
           'apikey': supabaseAnonKey,
         },
-        body: JSON.stringify({
-          email,
-          options: {
-            emailRedirectTo: redirectUrl,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       console.log('OTP response status:', res.status)
