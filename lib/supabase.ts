@@ -3,13 +3,15 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export const getURL = () => {
-  let url = 
-    process?.env?.NEXT_PUBLIC_SITE_URL ?? 
-    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? 
-    'http://localhost:3000/'
-  url = url.includes('http') ? url : `https://${url}`
-  url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
-  return `${url}auth/callback`
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  
+  if (siteUrl) {
+    let url = siteUrl.includes('http') ? siteUrl : `https://${siteUrl}`
+    url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
+    return `${url}auth/callback`
+  }
+  
+  return 'http://localhost:3000/auth/callback'
 }
 
 export const supabaseConfig = {
