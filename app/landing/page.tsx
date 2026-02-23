@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
-import { getURL } from '@/lib/auth'
+import { getSupabaseClient, getURL } from '@/lib/supabase'
 import {
   Focus,
   Calendar,
@@ -43,9 +43,6 @@ export default function LandingPage() {
     }
   }, [])
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
   const handleMagicLink = async () => {
     if (!email) {
       setError('Please enter your email address')
@@ -56,35 +53,24 @@ export default function LandingPage() {
     setIsLoading(true)
 
     try {
+      const supabase = getSupabaseClient()
       const redirectUrl = getURL()
       console.log('Sending magic link to:', email)
       console.log('Redirect URL:', redirectUrl)
 
-      const requestBody = {
+      const { data, error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: redirectUrl,
         },
-      }
-      console.log('Request body:', JSON.stringify(requestBody))
-
-      const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseAnonKey,
-        },
-        body: JSON.stringify(requestBody),
       })
 
-      console.log('OTP response status:', res.status)
-      const data = await res.json()
-      console.log('OTP response data:', data)
+      console.log('Supabase response:', { data, error })
 
-      if (res.ok) {
-        setMagicLinkSent(true)
+      if (error) {
+        setError(error.message || 'Failed to send magic link')
       } else {
-        setError(data.msg || 'Failed to send magic link. Please try again.')
+        setMagicLinkSent(true)
       }
     } catch (err) {
       console.error('Magic link error:', err)
@@ -95,9 +81,14 @@ export default function LandingPage() {
   }
 
   const handleGoogleSignIn = () => {
-    const redirectTo = `${window.location.origin}/auth/callback`
-    const googleAuthUrl = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`
-    window.location.href = googleAuthUrl
+    const redirectTo = getURL()
+    const supabase = getSupabaseClient()
+    supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+      },
+    })
   }
 
   return (
