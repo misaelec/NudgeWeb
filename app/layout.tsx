@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/components/Providers'
+import { Analytics } from '@vercel/analytics/next'
 
 export const metadata: Metadata = {
   title: 'Nudge - Your Personal Growth Companion',
@@ -21,6 +22,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   )
