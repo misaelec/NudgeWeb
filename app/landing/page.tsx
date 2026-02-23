@@ -22,6 +22,10 @@ export default function LandingPage() {
   const router = useRouter()
   const [showAuth, setShowAuth] = useState(false)
   const [showLogoutBanner, setShowLogoutBanner] = useState(false)
+  const [showWaitlist, setShowWaitlist] = useState(false)
+  const [waitlistEmail, setWaitlistEmail] = useState('')
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false)
+  const [waitlistLoading, setWaitlistLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -91,6 +95,27 @@ export default function LandingPage() {
     })
   }
 
+  const handleWaitlistSubmit = async () => {
+    if (!waitlistEmail) return
+    
+    setWaitlistLoading(true)
+    try {
+      const supabase = getSupabaseClient()
+      const { error } = await supabase
+        .from('mobile_waitlist')
+        .insert({ email: waitlistEmail })
+      
+      if (error) {
+        console.error('Waitlist error:', error)
+      } else {
+        setWaitlistSubmitted(true)
+      }
+    } catch (err) {
+      console.error('Waitlist error:', err)
+    }
+    setWaitlistLoading(false)
+  }
+
   return (
     <div className="min-h-screen bg-background-primary">
       {showLogoutBanner && (
@@ -106,12 +131,20 @@ export default function LandingPage() {
             </div>
             <span className="text-xl font-semibold text-text-primary">Nudge</span>
           </div>
-          <button
-            onClick={() => setShowAuth(true)}
-            className="btn-primary"
-          >
-            Get Started
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowWaitlist(true)}
+              className="btn-primary md:hidden"
+            >
+              Get Mobile App
+            </button>
+            <button
+              onClick={() => setShowAuth(true)}
+              className="btn-primary hidden md:block"
+            >
+              Get Started
+            </button>
+          </div>
         </div>
       </header>
 
@@ -133,9 +166,16 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => setShowAuth(true)}
-                className="btn-primary text-lg px-8 py-3"
+                className="btn-primary text-lg px-8 py-3 hidden md:inline-flex"
               >
                 Try Nudge Free
+                <ArrowRight className="w-5 h-5 ml-2 inline" />
+              </button>
+              <button
+                onClick={() => setShowWaitlist(true)}
+                className="btn-primary text-lg px-8 py-3 md:hidden inline-flex"
+              >
+                Get Mobile App
                 <ArrowRight className="w-5 h-5 ml-2 inline" />
               </button>
             </div>
@@ -281,6 +321,78 @@ export default function LandingPage() {
 
             <button
               onClick={() => { setShowAuth(false); setMagicLinkSent(false); setError(''); setEmail(''); }}
+              className="absolute top-4 right-4 text-text-tertiary hover:text-text-primary transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showWaitlist && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-primary rounded-apple-xl shadow-apple-xl p-8 w-full max-w-md animate-scale-in">
+            {!waitlistSubmitted ? (
+              <>
+                <div className="text-center mb-8">
+                  <div className="w-12 h-12 bg-accent-primary rounded-apple-xl flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-semibold text-text-primary">
+                    The mobile version is coming soon!
+                  </h2>
+                  <p className="text-text-secondary mt-1">
+                    Be the first to know when it's available.
+                  </p>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={waitlistEmail}
+                    onChange={(e) => setWaitlistEmail(e.target.value)}
+                    className="input"
+                    placeholder="you@example.com"
+                    onKeyDown={(e) => e.key === 'Enter' && handleWaitlistSubmit()}
+                  />
+                </div>
+
+                <button 
+                  onClick={handleWaitlistSubmit} 
+                  className="btn-primary w-full disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={waitlistLoading || !waitlistEmail}
+                >
+                  {waitlistLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Submitting...
+                    </>
+                  ) : 'Notify Me'}
+                </button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="w-8 h-8 text-success" />
+                </div>
+                <h2 className="text-2xl font-semibold text-text-primary mb-3">
+                  You're on the list!
+                </h2>
+                <p className="text-text-secondary mb-6">
+                  We'll notify you when the mobile app is ready.
+                </p>
+                <button
+                  onClick={() => { setShowWaitlist(false); setWaitlistSubmitted(false); setWaitlistEmail(''); }}
+                  className="btn-primary"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => { setShowWaitlist(false); setWaitlistSubmitted(false); setWaitlistEmail(''); }}
               className="absolute top-4 right-4 text-text-tertiary hover:text-text-primary transition-colors"
             >
               <X className="w-6 h-6" />
