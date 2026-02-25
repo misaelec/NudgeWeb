@@ -59,14 +59,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const loadSession = async () => {
+      console.log('[AuthProvider] Loading session...')
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         
+        console.log('[AuthProvider] getSession result:', { session: !!session, error: error?.message })
+        
         if (error) {
-          console.error('Session error:', error.message)
+          console.error('[AuthProvider] Session error:', error.message)
           localStorage.removeItem('supabase_session')
           setUser(null)
         } else if (session?.user) {
+          console.log('[AuthProvider] Session found, user:', session.user.id)
           localStorage.setItem('supabase_session', JSON.stringify({
             access_token: session.access_token,
             refresh_token: session.refresh_token,
@@ -74,13 +78,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }))
           setUser(session.user as User)
         } else {
+          console.log('[AuthProvider] No session found')
           localStorage.removeItem('supabase_session')
           setUser(null)
         }
       } catch (err) {
-        console.error('Failed to load session:', err)
+        console.error('[AuthProvider] Failed to load session:', err)
         setUser(null)
       } finally {
+        console.log('[AuthProvider] Setting loading to false')
         setLoading(false)
       }
     }
@@ -91,12 +97,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session ? 'has session' : 'no session')
+      console.log('[AuthProvider] Auth state changed:', event, session ? 'has session' : 'no session')
       
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem('supabase_session')
         setUser(null)
       } else if (session?.user) {
+        console.log('[AuthProvider] Setting user from state change:', session.user.id)
         localStorage.setItem('supabase_session', JSON.stringify({
           access_token: session.access_token,
           refresh_token: session.refresh_token,

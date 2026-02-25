@@ -15,7 +15,9 @@ export default function AuthCallback() {
     
     const handleCallback = async () => {
       console.log('[AuthCallback] Starting callback handler')
-      console.log('[AuthCallback] URL:', window.location.href)
+      console.log('[AuthCallback] Full URL:', window.location.href)
+      console.log('[AuthCallback] Search params:', window.location.search)
+      console.log('[AuthCallback] Hash:', window.location.hash)
       
       const result = await supabaseAuth.handleCallback()
       console.log('[AuthCallback] Result:', result)

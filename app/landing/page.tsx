@@ -61,6 +61,7 @@ export default function LandingPage() {
       const redirectUrl = getURL()
       console.log('Sending magic link to:', email)
       console.log('Redirect URL:', redirectUrl)
+      console.log('Supabase client:', !!supabase)
 
       const { data, error } = await supabase.auth.signInWithOtp({
         email,
@@ -69,7 +70,7 @@ export default function LandingPage() {
         },
       })
 
-      console.log('Supabase response:', { data, error })
+      console.log('Supabase signInWithOtp response:', { data, error })
 
       if (error) {
         setError(error.message || 'Failed to send magic link')
