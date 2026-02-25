@@ -40,22 +40,7 @@ export function useSupabaseSync() {
       try {
         const session = JSON.parse(stored)
         if (session.access_token) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token || session.access_token,
-          })
-          
-          if (error) {
-            console.error('Session refresh error:', error.message)
-            if (error.message.includes('refresh_token') || error.message.includes('expired')) {
-              localStorage.removeItem('supabase_session')
-              window.location.href = '/landing'
-              return null
-            }
-            return session.access_token
-          }
-          
-          return data.session?.access_token || session.access_token
+          return session.access_token
         }
       } catch {
         return null

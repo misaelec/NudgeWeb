@@ -235,16 +235,6 @@ class SupabaseAuth {
 
   private async processSession(accessToken: string, refreshToken: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      })
-
-      if (sessionError) {
-        console.error('Failed to set session:', sessionError)
-        return { success: false, error: sessionError.message }
-      }
-
       const response = await fetch(`${supabaseAuthUrl}/user`, {
         method: 'GET',
         headers: {
