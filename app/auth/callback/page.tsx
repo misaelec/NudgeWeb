@@ -15,16 +15,13 @@ export default function AuthCallback() {
   useEffect(() => {
     console.log('[AuthCallback] Component mounted, URL:', window.location.href)
     
-    const hasHash = window.location.hash.includes('access_token')
-    console.log('[AuthCallback] Has hash with token:', hasHash)
-
     const supabase = getSupabaseClient()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[AuthCallback] Auth state changed:', event, session ? 'has session' : 'no session')
       
       if (event === 'SIGNED_IN' && session) {
-        console.log('[AuthCallback] Signed in, redirecting to dashboard')
+        console.log('[AuthCallback] Signed in via event, redirecting to dashboard')
         window.location.href = '/app/reminders'
       }
     })
@@ -33,30 +30,31 @@ export default function AuthCallback() {
       console.log('[AuthCallback] Starting callback handler')
       console.log('[AuthCallback] Full URL:', window.location.href)
       console.log('[AuthCallback] Search params:', window.location.search)
-      console.log('[AuthCallback] Hash:', window.location.hash)
+      console.log('[AuthCallback] Hash present:', !!window.location.hash)
       
       const result = await supabaseAuth.handleCallback()
-      console.log('[AuthCallback] Result:', result)
+      console.log('[AuthCallback] handleCallback result:', result)
       
       if (result.success) {
         setStatus('Success! Redirecting...')
+        setTimeout(() => {
+          window.location.href = '/app/reminders'
+        }, 1500)
       } else {
         console.error('[AuthCallback] Auth failed:', result.error)
         setError(result.error || 'Authentication failed')
       }
     }
 
-    if (hasHash) {
+    const url = new URL(window.location.href)
+    const code = url.searchParams.get('code')
+    const hasHash = window.location.hash.includes('access_token')
+
+    if (hasHash || code) {
       handleCallback()
     } else {
-      const url = new URL(window.location.href)
-      const code = url.searchParams.get('code')
-      if (code) {
-        handleCallback()
-      } else {
-        console.error('[AuthCallback] No code or hash found, redirecting to landing')
-        window.location.href = '/landing'
-      }
+      console.error('[AuthCallback] No code or hash found, redirecting to landing')
+      window.location.href = '/landing'
     }
 
     return () => {

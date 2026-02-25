@@ -32,7 +32,7 @@ export function getSupabaseClient(): SupabaseClient {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
-          detectSessionInUrl: false,
+          detectSessionInUrl: true,
         },
       }
     )
