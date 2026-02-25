@@ -1,23 +1,62 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { useReminderStore } from '@/lib/reminderStore'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/Providers'
 
 export function useSupabaseSync() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const isConnectedRef = useRef(false)
   const currentUserIdRef = useRef<string | null>(null)
   const isProcessingRef = useRef(false)
+  const [isReady, setIsReady] = useState(false)
 
-  const getAccessToken = (): string | null => {
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    if (loading) {
+      console.log('⏳ Waiting for auth to finish loading...')
+      return
+    }
+
+    if (!user) {
+      console.log('👤 No user, not fetching data')
+      setIsReady(false)
+      cleanupChannel()
+      return
+    }
+
+    console.log('✅ Auth ready, user:', user.id)
+    setIsReady(true)
+  }, [user, loading])
+
+  const getAccessToken = async (): Promise<string | null> => {
     if (typeof window === 'undefined') return null
+    
     const stored = localStorage.getItem('supabase_session')
     if (stored) {
       try {
         const session = JSON.parse(stored)
-        return session.access_token || null
+        if (session.access_token) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token || session.access_token,
+          })
+          
+          if (error) {
+            console.error('Session refresh error:', error.message)
+            if (error.message.includes('refresh_token') || error.message.includes('expired')) {
+              localStorage.removeItem('supabase_session')
+              window.location.href = '/landing'
+              return null
+            }
+            return session.access_token
+          }
+          
+          return data.session?.access_token || session.access_token
+        }
       } catch {
         return null
       }
@@ -37,17 +76,6 @@ export function useSupabaseSync() {
       }
     }
     return null
-  }
-
-  const injectAuth = async () => {
-    const token = getAccessToken()
-    if (token) {
-      console.log('✅ Auth Token injected:', token.substring(0, 20) + '...')
-      await supabase.auth.setSession({
-        access_token: token,
-        refresh_token: token,
-      })
-    }
   }
 
   const handleDatabaseChange = (payload: any, table: string) => {
@@ -294,6 +322,11 @@ export function useSupabaseSync() {
   }
 
   useEffect(() => {
+    if (!isReady) {
+      console.log('⏳ Not ready to fetch data yet')
+      return
+    }
+
     const userId = getUserId()
     if (!userId) {
       cleanupChannel()
@@ -306,14 +339,19 @@ export function useSupabaseSync() {
 
     currentUserIdRef.current = userId
     
-    injectAuth().then(() => {
-      fetchAllData()
+    getAccessToken().then((token) => {
+      if (token) {
+        fetchAllData()
+      } else {
+        console.error('Failed to get access token, redirecting to login')
+        window.location.href = '/landing'
+      }
     })
 
     return () => {
       cleanupChannel()
     }
-  }, [])
+  }, [isReady])
 
   return { fetchAllData }
 }

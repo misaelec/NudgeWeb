@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import { supabaseAuth, User } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { settingsSyncService } from '@/lib/settingsSync'
 import { useSupabaseSync } from '@/hooks/useSupabaseSync'
 
@@ -54,39 +55,59 @@ function RealtimeSyncWrapper() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const initialized = useRef(false)
 
   useEffect(() => {
     const loadSession = async () => {
-      const stored = localStorage.getItem('supabase_session')
-      if (stored) {
-        try {
-          const session = JSON.parse(stored)
-          setUser(session.user)
-        } catch (e) {
-          console.error('Failed to parse session', e)
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Session error:', error.message)
+          localStorage.removeItem('supabase_session')
+          setUser(null)
+        } else if (session?.user) {
+          localStorage.setItem('supabase_session', JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            user: session.user,
+          }))
+          setUser(session.user as User)
+        } else {
+          localStorage.removeItem('supabase_session')
           setUser(null)
         }
-      } else {
+      } catch (err) {
+        console.error('Failed to load session:', err)
         setUser(null)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
-    loadSession()
-
-    const handleStorageChange = async () => {
-      await loadSession()
+    if (!initialized.current) {
+      initialized.current = true
+      loadSession()
     }
 
-    const handleAuthChange = async () => {
-      await loadSession()
-    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session ? 'has session' : 'no session')
+      
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('supabase_session')
+        setUser(null)
+      } else if (session?.user) {
+        localStorage.setItem('supabase_session', JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          user: session.user,
+        }))
+        setUser(session.user as User)
+      }
+    })
 
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('auth-state-change', handleAuthChange)
     return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('auth-state-change', handleAuthChange)
+      subscription.unsubscribe()
     }
   }, [])
 
