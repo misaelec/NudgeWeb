@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseAuth } from '@/lib/auth'
+import { getSupabaseClient } from '@/lib/supabase'
 import { Sparkles, Loader2 } from 'lucide-react'
 
 export default function AuthCallback() {
@@ -14,6 +15,20 @@ export default function AuthCallback() {
   useEffect(() => {
     console.log('[AuthCallback] Component mounted, URL:', window.location.href)
     
+    const hasHash = window.location.hash.includes('access_token')
+    console.log('[AuthCallback] Has hash with token:', hasHash)
+
+    const supabase = getSupabaseClient()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[AuthCallback] Auth state changed:', event, session ? 'has session' : 'no session')
+      
+      if (event === 'SIGNED_IN' && session) {
+        console.log('[AuthCallback] Signed in, redirecting to dashboard')
+        window.location.href = '/app/reminders'
+      }
+    })
+
     const handleCallback = async () => {
       console.log('[AuthCallback] Starting callback handler')
       console.log('[AuthCallback] Full URL:', window.location.href)
@@ -25,14 +40,28 @@ export default function AuthCallback() {
       
       if (result.success) {
         setStatus('Success! Redirecting...')
-        window.location.href = '/app/reminders'
       } else {
         console.error('[AuthCallback] Auth failed:', result.error)
-        window.location.href = '/?error=auth_failed'
+        setError(result.error || 'Authentication failed')
       }
     }
 
-    handleCallback()
+    if (hasHash) {
+      handleCallback()
+    } else {
+      const url = new URL(window.location.href)
+      const code = url.searchParams.get('code')
+      if (code) {
+        handleCallback()
+      } else {
+        console.error('[AuthCallback] No code or hash found, redirecting to landing')
+        window.location.href = '/landing'
+      }
+    }
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   return (
