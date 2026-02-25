@@ -168,21 +168,24 @@ export function useSupabaseSync() {
   }
 
   const fetchAllData = async () => {
-    const token = getAccessToken()
-    const userId = getUserId()
-    if (!token || !userId) return
-
-    console.log('📥 Fetching all data from Supabase...')
-
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'apikey': 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
-    }
-
-    const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
-
     try {
+      const token = await getAccessToken()
+      const userId = getUserId()
+      if (!token || !userId) {
+        console.log('⚠️ No token or userId, skipping fetch')
+        return
+      }
+
+      console.log('📥 Fetching all data from Supabase...')
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
+      }
+
+      const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
+
       const [remindersRes, calendarRes, journalRes, objectivesRes] = await Promise.all([
         fetch(`${API_URL}/rest/v1/reminders?user_id=eq.${userId}&order=created_at.desc`, { headers }),
         fetch(`${API_URL}/rest/v1/calendar_events?user_id=eq.${userId}&order=start_date.asc`, { headers }),
@@ -242,12 +245,12 @@ export function useSupabaseSync() {
 
       setupRealtime()
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.warn('⚠️ Error fetching data (caught):', error)
     }
   }
 
-  const setupRealtime = () => {
-    const token = getAccessToken()
+  const setupRealtime = async () => {
+    const token = await getAccessToken()
     const userId = getUserId()
 
     if (!token || !userId) {
@@ -312,6 +315,11 @@ export function useSupabaseSync() {
       return
     }
 
+    if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+      console.log('⏳ OAuth callback in progress, skipping data fetch')
+      return
+    }
+
     const userId = getUserId()
     if (!userId) {
       cleanupChannel()
@@ -326,10 +334,13 @@ export function useSupabaseSync() {
     
     getAccessToken().then((token) => {
       if (token) {
-        fetchAllData()
+        try {
+          fetchAllData()
+        } catch (error) {
+          console.warn('⚠️ Data fetch error (caught):', error)
+        }
       } else {
-        console.error('Failed to get access token, redirecting to login')
-        window.location.href = '/landing'
+        console.warn('⚠️ No access token, skipping data fetch')
       }
     })
 
