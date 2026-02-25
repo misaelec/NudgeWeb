@@ -6,6 +6,7 @@ import { supabaseAuth } from '@/lib/auth'
 import { Sparkles, Loader2 } from 'lucide-react'
 
 export default function AuthCallback() {
+  console.log('[AuthCallback] ===== PAGE RENDERING =====')
   const router = useRouter()
   const [status, setStatus] = useState('Processing your sign in...')
   const [error, setError] = useState<string | null>(null)
