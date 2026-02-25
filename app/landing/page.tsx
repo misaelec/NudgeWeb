@@ -86,9 +86,9 @@ export default function LandingPage() {
   }
 
   const handleGoogleSignIn = () => {
-    const redirectTo = getURL()
+    const redirectTo = `${window.location.origin}/auth/callback`
+    console.log('[Landing] Google sign-in, redirectTo:', redirectTo)
     const supabase = getSupabaseClient()
-    console.log('[Landing] Google sign-in clicked, redirectTo:', redirectTo)
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
