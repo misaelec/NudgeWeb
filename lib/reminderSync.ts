@@ -59,7 +59,6 @@ class ReminderSyncService {
     const userId = this.getUserId()
     
     if (!this.accessToken || !userId) {
-      console.log('No access token or userId, using local storage only')
       return null
     }
 
@@ -85,15 +84,12 @@ class ReminderSyncService {
 
       const text = await response.text()
       if (!text) {
-        console.log('Reminder created (no response body)')
         return null
       }
       
       const data = JSON.parse(text)
-      console.log('Reminder created in Supabase:', data)
       return data
     } catch (error) {
-      console.error('Error creating reminder in Supabase:', error)
       return null
     }
   }
@@ -103,7 +99,6 @@ class ReminderSyncService {
     const userId = this.getUserId()
     
     if (!this.accessToken || !userId) {
-      console.log('No access token or userId, using local storage only')
       return false
     }
 
@@ -137,14 +132,11 @@ class ReminderSyncService {
         try {
           JSON.parse(text)
         } catch {
-          console.log('Reminder updated in Supabase (non-JSON response)')
+          // ignore
         }
-      } else {
-        console.log('Reminder updated in Supabase:', id)
       }
       return true
     } catch (error) {
-      console.error('Error updating reminder in Supabase:', error)
       return false
     }
   }
@@ -154,7 +146,6 @@ class ReminderSyncService {
     const userId = this.getUserId()
     
     if (!this.accessToken || !userId) {
-      console.log('No access token or userId, using local storage only')
       return false
     }
 
@@ -165,14 +156,11 @@ class ReminderSyncService {
       })
 
       if (!response.ok) {
-        console.error('Failed to delete reminder in Supabase:', response.status)
         return false
       }
 
-      console.log('Reminder deleted from Supabase:', id)
       return true
     } catch (error) {
-      console.error('Error deleting reminder from Supabase:', error)
       return false
     }
   }
@@ -182,7 +170,6 @@ class ReminderSyncService {
     const userId = this.getUserId()
     
     if (!this.accessToken || !userId) {
-      console.log('No access token or userId, returning empty array')
       return []
     }
 
@@ -196,15 +183,12 @@ class ReminderSyncService {
       )
 
       if (!response.ok) {
-        console.error('Failed to fetch reminders from Supabase:', response.status)
         return []
       }
 
       const data = await response.json()
-      console.log('Fetched reminders from Supabase:', data.length)
       return data
     } catch (error) {
-      console.error('Error fetching reminders from Supabase:', error)
       return []
     }
   }

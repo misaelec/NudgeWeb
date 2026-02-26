@@ -57,8 +57,6 @@ export const useReminderStore = create<ReminderStore>()(
       lastSynced: null,
 
       addReminder: (rem) => {
-        console.log('useReminderStore.addReminder called:', rem)
-        
         const newReminder: Reminder = {
           ...rem,
           id: rem.id || generateId(),
@@ -71,8 +69,6 @@ export const useReminderStore = create<ReminderStore>()(
         set((state) => ({
           reminders: [...state.reminders, newReminder]
         }))
-        
-        console.log('Reminders after add:', get().reminders)
         
         // Sync to Supabase in background (only if no ID - meaning it's a new local reminder)
         if (!rem.id) {
@@ -125,7 +121,7 @@ export const useReminderStore = create<ReminderStore>()(
       setReminders: (reminders) => set({ reminders }),
 
       syncFromRealtime: (reminder, updates?) => {
-        console.log('🔄 syncFromRealtime called:', reminder.id)
+        // skip
         set((state) => {
           const existing = state.reminders.find(r => r.id === reminder.id)
           
@@ -142,7 +138,7 @@ export const useReminderStore = create<ReminderStore>()(
             (existing.dueDate?.getTime() === reminder.dueDate?.getTime())
           
           if (isSameExceptCompletion) {
-            console.log('⏭️ Only completion changed, skipping to preserve user toggle')
+            // skip
             return state
           }
           
@@ -154,14 +150,12 @@ export const useReminderStore = create<ReminderStore>()(
 
       syncFromSupabase: async () => {
         set({ isLoading: true })
-        console.log('Syncing from Supabase...')
         
         const supabaseReminders = await reminderSyncService.fetchReminders()
         
         if (supabaseReminders.length > 0) {
           const localReminders = supabaseReminders.map(convertToLocal)
           set({ reminders: localReminders, lastSynced: new Date().toISOString() })
-          console.log('Synced from Supabase:', localReminders.length, 'reminders')
         }
         
         set({ isLoading: false })
@@ -169,14 +163,12 @@ export const useReminderStore = create<ReminderStore>()(
 
       syncToSupabase: async () => {
         set({ isLoading: true })
-        console.log('Syncing to Supabase...')
         
         const result = await reminderSyncService.syncReminders(
           get().reminders.map(convertToInput)
         )
         
         if (result.success) {
-          console.log('Synced to Supabase:', result.synced, 'reminders')
           set({ lastSynced: new Date().toISOString() })
         } else {
           console.error('Failed to sync to Supabase:', result)

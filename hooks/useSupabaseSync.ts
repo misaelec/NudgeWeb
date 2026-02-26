@@ -19,23 +19,19 @@ export function useSupabaseSync() {
 
   useEffect(() => {
     if (isAuthCallback) {
-      console.log('⏭️ On auth callback page, skipping data fetch')
       return
     }
 
     if (loading) {
-      console.log('⏳ Waiting for auth to finish loading...')
       return
     }
 
     if (!user) {
-      console.log('👤 No user, not fetching data')
       setIsReady(false)
       cleanupChannel()
       return
     }
 
-    console.log('✅ Auth ready, user:', user.id)
     setIsReady(true)
   }, [user, loading, isAuthCallback])
 
@@ -75,7 +71,6 @@ export function useSupabaseSync() {
       return
     }
 
-    console.log(`📡 Realtime change on ${table}:`, payload)
     const { eventType, new: newRecord, old: oldRecord } = payload
     
     isProcessingRef.current = true
@@ -165,7 +160,6 @@ export function useSupabaseSync() {
 
   const cleanupChannel = () => {
     if (channelRef.current) {
-      console.log('🧹 Cleaning up WebSocket channel...')
       channelRef.current.unsubscribe()
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
@@ -179,11 +173,8 @@ export function useSupabaseSync() {
       const token = await getAccessToken()
       const userId = getUserId()
       if (!token || !userId) {
-        console.log('⚠️ No token or userId, skipping fetch')
         return
       }
-
-      console.log('📥 Fetching all data from Supabase...')
 
       const headers = {
         'Content-Type': 'application/json',
@@ -204,13 +195,6 @@ export function useSupabaseSync() {
       const calendar = await calendarRes.json()
       const journal = await journalRes.json()
       const objectives = await objectivesRes.json()
-
-      console.log('📊 Fetch results:', {
-        reminders: reminders?.length || 0,
-        calendar: calendar?.length || 0,
-        journal: journal?.length || 0,
-        objectives: objectives?.length || 0,
-      })
 
       const reminderStore = useReminderStore.getState()
       const store = useStore.getState()
@@ -261,20 +245,16 @@ export function useSupabaseSync() {
     const userId = getUserId()
 
     if (!token || !userId) {
-      console.log('⚠️ No token or userId, skipping realtime setup')
       return
     }
 
     if (channelRef.current && isConnectedRef.current && currentUserIdRef.current === userId) {
-      console.log('⏭️ Already connected for user:', userId)
       return
     }
 
     if (channelRef.current) {
       cleanupChannel()
     }
-
-    console.log('🔌 Setting up WebSocket realtime...')
 
     const channel = supabase
       .channel('db-changes')
@@ -299,16 +279,12 @@ export function useSupabaseSync() {
         (payload) => handleDatabaseChange(payload, 'objectives')
       )
       .subscribe(async (status) => {
-        console.log('📡 WebSocket status:', status)
         if (status === 'SUBSCRIBED') {
-          console.log('✅ WebSocket connected and subscribed to all tables!')
           isConnectedRef.current = true
           currentUserIdRef.current = userId
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ WebSocket CHANNEL_ERROR')
           isConnectedRef.current = false
         } else if (status === 'CLOSED') {
-          console.log('📡 WebSocket closed')
           isConnectedRef.current = false
         }
       })
@@ -318,12 +294,10 @@ export function useSupabaseSync() {
 
   useEffect(() => {
     if (!isReady) {
-      console.log('⏳ Not ready to fetch data yet')
       return
     }
 
     if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
-      console.log('⏳ OAuth callback in progress, skipping data fetch')
       return
     }
 
@@ -344,10 +318,8 @@ export function useSupabaseSync() {
         try {
           fetchAllData()
         } catch (error) {
-          console.warn('⚠️ Data fetch error (caught):', error)
+          console.warn('Data fetch error:', error)
         }
-      } else {
-        console.warn('⚠️ No access token, skipping data fetch')
       }
     })
 
