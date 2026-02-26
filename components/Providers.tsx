@@ -69,6 +69,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadSession = async () => {
       console.log('[AuthProvider] Loading session...')
       try {
+        // First check localStorage (client-side session)
+        const stored = localStorage.getItem('supabase_session')
+        let clientSession = null
+        
+        if (stored) {
+          try {
+            clientSession = JSON.parse(stored)
+          } catch (e) {
+            console.error('Failed to parse session', e)
+          }
+        }
+
+        // Get session from Supabase (will use cookies if available)
         const { data: { session }, error } = await supabase.auth.getSession()
         
         console.log('[AuthProvider] getSession result:', { session: !!session, error: error?.message })
@@ -85,6 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user: session.user,
           }))
           setUser(session.user as User)
+        } else if (clientSession?.user) {
+          // Fallback to stored session
+          console.log('[AuthProvider] Using stored session')
+          setUser(clientSession.user)
         } else {
           console.log('[AuthProvider] No session found')
           localStorage.removeItem('supabase_session')
@@ -144,6 +161,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabaseAuth.signOut()
     sessionStorage.setItem('logged_out', 'true')
     setUser(null)
+    
+    // Clear server-side cookies
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch (e) {
+      // Ignore errors
+    }
+    
     window.location.href = '/landing'
   }
 

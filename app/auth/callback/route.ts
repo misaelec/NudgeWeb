@@ -14,7 +14,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/?error=no_code', request.url))
   }
 
-  // Simple fetch to Supabase directly, skip the SSR client
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -35,10 +34,31 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/?error=auth_failed', request.url))
     }
 
-    console.log('[Callback] Success! User ID from token:', tokenData.user?.id)
+    console.log('[Callback] Success! User ID:', tokenData.user?.id)
 
-    // Redirect with success
-    return NextResponse.redirect(new URL('/app/reminders', request.url))
+    // Create response with redirect
+    const response = NextResponse.redirect(new URL('/app/reminders', request.url))
+
+    // Set server-side cookies (HttpOnly, secure)
+    response.cookies.set('sb-access-token', tokenData.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: tokenData.expires_in,
+      path: '/',
+    })
+
+    if (tokenData.refresh_token) {
+      response.cookies.set('sb-refresh-token', tokenData.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+      })
+    }
+
+    return response
   } catch (err) {
     console.log('[Callback] Exception:', err)
     return NextResponse.redirect(new URL('/?error=auth_failed', request.url))
