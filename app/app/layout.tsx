@@ -1,22 +1,29 @@
 'use client'
 
 import { ReactNode, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import { useAuth } from '@/components/Providers'
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { user, loading } = useAuth()
 
+  const isAuthRoute = pathname?.startsWith('/auth')
+
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !isAuthRoute) {
       router.replace('/landing')
     }
-  }, [user, loading, router])
+  }, [user, loading, router, isAuthRoute])
 
-  if (!loading && !user) {
+  if (!loading && !user && !isAuthRoute) {
     return null
+  }
+
+  if (isAuthRoute) {
+    return <>{children}</>
   }
 
   return (
