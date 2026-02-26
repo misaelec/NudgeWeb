@@ -1,43 +1,45 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const errorDescription = requestUrl.searchParams.get('error_description')
   const errorCode = requestUrl.searchParams.get('error_code')
 
-  console.log('[Auth Callback] Request URL:', request.url)
+  console.log('[Auth Callback] Full URL:', request.url)
   console.log('[Auth Callback] Code present:', !!code)
-  console.log('[Auth Callback] Error description:', errorDescription)
-  console.log('[Auth Callback] Error code:', errorCode)
+  console.log('[Auth Callback] Error:', errorDescription || errorCode)
 
   if (errorDescription || errorCode) {
-    console.error('[Auth Callback] OAuth error:', errorDescription || errorCode)
+    console.log('[Auth Callback] Redirecting to /?error=auth_failed')
     return NextResponse.redirect(new URL('/?error=auth_failed', request.url))
   }
 
   if (!code) {
-    console.error('[Auth Callback] No code found in URL')
+    console.log('[Auth Callback] No code - redirecting to /?error=no_code')
     return NextResponse.redirect(new URL('/?error=no_code', request.url))
   }
 
   try {
+    console.log('[Auth Callback] Creating supabase client...')
     const supabase = createSupabaseServerClient()
-    console.log('[Auth Callback] Exchanging code for session...')
+    console.log('[Auth Callback] Calling exchangeCodeForSession...')
     
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (error) {
-      console.error('[Auth Callback] Exchange error:', error.message)
+      console.log('[Auth Callback] Error:', error.message)
       return NextResponse.redirect(new URL('/?error=auth_failed', request.url))
     }
 
-    console.log('[Auth Callback] Session established for user:', data.user?.id)
+    console.log('[Auth Callback] SUCCESS! User:', data.user?.id)
     console.log('[Auth Callback] Redirecting to /app/reminders')
     return NextResponse.redirect(new URL('/app/reminders', request.url))
   } catch (err) {
-    console.error('[Auth Callback] Unexpected error:', err)
+    console.log('[Auth Callback] Exception:', err)
     return NextResponse.redirect(new URL('/?error=auth_failed', request.url))
   }
 }
