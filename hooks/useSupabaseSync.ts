@@ -15,7 +15,14 @@ export function useSupabaseSync() {
 
   const { user, loading } = useAuth()
 
+  const isAuthCallback = typeof window !== 'undefined' && window.location.pathname === '/auth/callback'
+
   useEffect(() => {
+    if (isAuthCallback) {
+      console.log('⏭️ On auth callback page, skipping data fetch')
+      return
+    }
+
     if (loading) {
       console.log('⏳ Waiting for auth to finish loading...')
       return
@@ -30,7 +37,7 @@ export function useSupabaseSync() {
 
     console.log('✅ Auth ready, user:', user.id)
     setIsReady(true)
-  }, [user, loading])
+  }, [user, loading, isAuthCallback])
 
   const getAccessToken = async (): Promise<string | null> => {
     if (typeof window === 'undefined') return null
