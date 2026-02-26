@@ -58,6 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialized = useRef(false)
 
   useEffect(() => {
+    const isAuthRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')
+    
+    if (isAuthRoute) {
+      console.log('[AuthProvider] On auth route, skipping session load')
+      setLoading(false)
+      return
+    }
+
     const loadSession = async () => {
       console.log('[AuthProvider] Loading session...')
       try {
