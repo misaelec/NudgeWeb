@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
 import { getSupabaseClient, getURL } from '@/lib/supabase'
@@ -29,7 +29,10 @@ export default function LandingPage() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState(['', '', '', '', '', ''])
+  const [isVerifying, setIsVerifying] = useState(false)
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([])
   const { user } = useAuth()
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export default function LandingPage() {
     }
   }, [])
 
-  const handleMagicLink = async () => {
+  const handleSendOtp = async () => {
     if (!email) {
       setError('Please enter your email address')
       return
@@ -57,26 +60,99 @@ export default function LandingPage() {
     setIsLoading(true)
 
     try {
-      const redirectUrl = getURL()
       const supabase = getSupabaseClient()
-      const { data, error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: {
-          emailRedirectTo: redirectUrl,
-        },
       })
 
       if (error) {
-        setError(error.message || 'Failed to send magic link')
+        setError(error.message || 'Failed to send code')
       } else {
-        setMagicLinkSent(true)
+        setOtpSent(true)
+        setOtpCode(['', '', '', '', '', ''])
+        setTimeout(() => otpRefs.current[0]?.focus(), 100)
       }
     } catch (err) {
-      console.error('Magic link error:', err)
+      console.error('OTP send error:', err)
       setError('Something went wrong. Please try again.')
     }
 
     setIsLoading(false)
+  }
+
+  const handleVerifyOtp = async (code?: string[]) => {
+    const digits = code || otpCode
+    const token = digits.join('')
+    if (token.length !== 6) {
+      setError('Please enter the full 6-digit code')
+      return
+    }
+
+    setError('')
+    setIsVerifying(true)
+
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      })
+
+      if (error) {
+        setError(error.message || 'Invalid code. Please try again.')
+      } else if (data.session) {
+        localStorage.setItem('supabase_session', JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          user: data.session.user,
+        }))
+        window.dispatchEvent(new Event('auth-state-change'))
+        router.replace('/app/reminders')
+      }
+    } catch (err) {
+      console.error('OTP verify error:', err)
+      setError('Something went wrong. Please try again.')
+    }
+
+    setIsVerifying(false)
+  }
+
+  const handleOtpInput = (index: number, value: string) => {
+    if (value.length > 1) {
+      // Handle paste: distribute digits across inputs
+      const digits = value.replace(/\D/g, '').slice(0, 6).split('')
+      const newCode = [...otpCode]
+      digits.forEach((d, i) => {
+        if (index + i < 6) newCode[index + i] = d
+      })
+      setOtpCode(newCode)
+      const nextIndex = Math.min(index + digits.length, 5)
+      otpRefs.current[nextIndex]?.focus()
+      if (newCode.every(d => d !== '')) {
+        handleVerifyOtp(newCode)
+      }
+      return
+    }
+
+    const digit = value.replace(/\D/g, '')
+    const newCode = [...otpCode]
+    newCode[index] = digit
+    setOtpCode(newCode)
+
+    if (digit && index < 5) {
+      otpRefs.current[index + 1]?.focus()
+    }
+
+    if (newCode.every(d => d !== '')) {
+      handleVerifyOtp(newCode)
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus()
+    }
   }
 
   const handleGoogleSignIn = () => {
@@ -228,7 +304,7 @@ export default function LandingPage() {
       {showAuth && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-surface-primary rounded-apple-xl shadow-apple-xl p-8 w-full max-w-md animate-scale-in">
-            {!magicLinkSent ? (
+            {!otpSent ? (
               <>
                 <div className="text-center mb-8">
                   <div className="w-12 h-12 bg-accent-primary rounded-apple-xl flex items-center justify-center mx-auto mb-4">
@@ -256,19 +332,19 @@ export default function LandingPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="input"
                     placeholder="you@example.com"
-                    onKeyDown={(e) => e.key === 'Enter' && handleMagicLink()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
                   />
                 </div>
 
-                <button 
-                  onClick={handleMagicLink} 
+                <button
+                  onClick={handleSendOtp}
                   className="btn-primary w-full mb-4 disabled:opacity-50 flex items-center justify-center gap-2"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Sending magic link...
+                      Sending code...
                     </>
                   ) : 'Continue with Email'}
                 </button>
@@ -296,27 +372,73 @@ export default function LandingPage() {
                 </button>
               </>
             ) : (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Sparkles className="w-8 h-8 text-success" />
+              <div className="text-center py-4">
+                <div className="w-12 h-12 bg-accent-primary rounded-apple-xl flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-6 h-6 text-white" />
                 </div>
-                <h2 className="text-2xl font-semibold text-text-primary mb-3">
-                  ✨ Magic link sent!
+                <h2 className="text-2xl font-semibold text-text-primary mb-2">
+                  Check your email
                 </h2>
                 <p className="text-text-secondary mb-6">
-                  Check your inbox to sign in or create your account.
+                  Enter the 6-digit code sent to <span className="font-medium text-text-primary">{email}</span>
                 </p>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-action-danger/10 text-action-danger rounded-apple-lg text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex justify-center gap-2 mb-6">
+                  {otpCode.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { otpRefs.current[i] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={digit}
+                      onChange={(e) => handleOtpInput(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      className="w-11 h-13 text-center text-xl font-semibold border border-border-primary rounded-apple-lg focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 outline-none bg-surface-primary text-text-primary transition-colors"
+                    />
+                  ))}
+                </div>
+
                 <button
-                  onClick={() => { setMagicLinkSent(false); setEmail(''); }}
-                  className="text-accent-primary font-medium hover:underline"
+                  onClick={() => handleVerifyOtp()}
+                  className="btn-primary w-full mb-4 disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={isVerifying}
                 >
-                  Use a different email
+                  {isVerifying ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Verifying...
+                    </>
+                  ) : 'Verify Code'}
                 </button>
+
+                <div className="flex items-center justify-center gap-4 text-sm">
+                  <button
+                    onClick={() => { setError(''); handleSendOtp(); }}
+                    className="text-accent-primary font-medium hover:underline"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Sending...' : 'Resend code'}
+                  </button>
+                  <span className="text-text-tertiary">|</span>
+                  <button
+                    onClick={() => { setOtpSent(false); setOtpCode(['', '', '', '', '', '']); setError(''); }}
+                    className="text-accent-primary font-medium hover:underline"
+                  >
+                    Use different email
+                  </button>
+                </div>
               </div>
             )}
 
             <button
-              onClick={() => { setShowAuth(false); setMagicLinkSent(false); setError(''); setEmail(''); }}
+              onClick={() => { setShowAuth(false); setOtpSent(false); setOtpCode(['', '', '', '', '', '']); setError(''); setEmail(''); }}
               className="absolute top-4 right-4 text-text-tertiary hover:text-text-primary transition-colors"
             >
               <X className="w-6 h-6" />
