@@ -58,11 +58,6 @@ export default function LandingPage() {
 
     try {
       const redirectUrl = getURL()
-      console.log('[Landing] Sending magic link to:', email)
-      console.log('[Landing] Redirect URL:', redirectUrl)
-      console.log('[Landing] Supabase client:', !!getSupabaseClient())
-      console.log('[Landing] SITE_URL env:', process.env.NEXT_PUBLIC_SITE_URL)
-
       const supabase = getSupabaseClient()
       const { data, error } = await supabase.auth.signInWithOtp({
         email,
@@ -70,8 +65,6 @@ export default function LandingPage() {
           emailRedirectTo: redirectUrl,
         },
       })
-
-      console.log('[Landing] Sign in response:', { data, error })
 
       if (error) {
         setError(error.message || 'Failed to send magic link')
@@ -88,7 +81,6 @@ export default function LandingPage() {
 
   const handleGoogleSignIn = () => {
     const redirectTo = getURL()
-    console.log('[Landing] Google sign-in, redirectTo:', redirectTo)
     const supabase = getSupabaseClient()
     supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -96,10 +88,6 @@ export default function LandingPage() {
         redirectTo,
         scopes: 'email profile',
       },
-    }).then((result) => {
-      console.log('[Landing] OAuth result:', result)
-    }).catch((err) => {
-      console.error('[Landing] OAuth error:', err)
     })
   }
 

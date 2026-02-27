@@ -71,59 +71,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const isAuthRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')
-    
-    if (isAuthRoute) {
-      console.log('[AuthProvider] On auth route, will check localStorage')
-      // Don't skip - we need to load session when auth completes
-    }
 
     const loadSession = async () => {
-      console.log('[AuthProvider] Loading session...')
+      console.log('[AuthProvider] loadSession — checking localStorage...')
       try {
-        // First check localStorage (client-side session) - this is the source of truth
         const stored = localStorage.getItem('supabase_session')
         let clientSession = null
-        
+
         if (stored) {
           try {
             clientSession = JSON.parse(stored)
-            console.log('[AuthProvider] Found session in localStorage:', !!clientSession?.user)
           } catch (e) {
-            console.error('Failed to parse session', e)
+            console.error('[AuthProvider] Failed to parse stored session', e)
           }
         }
 
-        // Only try Supabase getSession if we have a local session (as backup verification)
         if (clientSession?.user) {
-          console.log('[AuthProvider] Using localStorage session')
+          console.log('[AuthProvider] Restored user from localStorage:', clientSession.user.email)
           setUser(clientSession.user)
         } else {
-          // Try Supabase as fallback
-          const { data: { session }, error } = await supabase.auth.getSession()
-          
-          console.log('[AuthProvider] Supabase getSession result:', { session: !!session, error: error?.message })
-          
+          // Fallback: check if the Supabase client has a session (e.g. from auto-refresh)
+          const { data: { session } } = await supabase.auth.getSession()
+
           if (session?.user) {
+            const supaUser = session.user
+            const mappedUser: User = {
+              id: supaUser.id,
+              email: supaUser.email || '',
+              name: supaUser.user_metadata?.display_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0],
+              avatar_url: supaUser.user_metadata?.avatar_url || supaUser.user_metadata?.picture,
+            }
             localStorage.setItem('supabase_session', JSON.stringify({
               access_token: session.access_token,
               refresh_token: session.refresh_token,
-              user: session.user,
+              user: mappedUser,
             }))
-            setUser(session.user as User)
-          } else if (clientSession?.user) {
-            // Fallback to localStorage if Supabase returns nothing
-            setUser(clientSession.user)
+            console.log('[AuthProvider] Restored user from Supabase client:', mappedUser.email)
+            setUser(mappedUser)
           } else {
-            console.log('[AuthProvider] No session found')
+            console.log('[AuthProvider] No session found anywhere')
             localStorage.removeItem('supabase_session')
             setUser(null)
           }
         }
       } catch (err) {
-        console.error('[AuthProvider] Failed to load session:', err)
+        console.error('[AuthProvider] loadSession error:', err)
         setUser(null)
       } finally {
-        console.log('[AuthProvider] Setting loading to false')
         setLoading(false)
       }
     }
@@ -134,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthProvider] Auth state changed:', event, session ? 'has session' : 'no session')
+      console.log('[AuthProvider] onAuthStateChange:', event)
 
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem('supabase_session')
@@ -147,7 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: supaUser.user_metadata?.display_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0],
           avatar_url: supaUser.user_metadata?.avatar_url || supaUser.user_metadata?.picture,
         }
-        console.log('[AuthProvider] Setting user from state change:', mappedUser.id)
         localStorage.setItem('supabase_session', JSON.stringify({
           access_token: session.access_token,
           refresh_token: session.refresh_token,
@@ -155,27 +148,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }))
         setUser(mappedUser)
 
-        // Load user settings/preferences after sign-in
         if (event === 'SIGNED_IN') {
+          console.log('[AuthProvider] SIGNED_IN — loading user settings...')
           loadUserSettings()
         }
       }
     })
 
-    // Listen for custom auth-state-change event from /auth/complete
+    // Listen for custom auth-state-change event dispatched from /auth/callback
     const handleAuthEvent = () => {
-      console.log('[AuthProvider] Custom auth event received, reloading session...')
+      console.log('[AuthProvider] Custom auth-state-change event received, reloading...')
       loadSession()
     }
     window.addEventListener('auth-state-change', handleAuthEvent)
 
-    // Also try loading immediately on auth routes since page may have set session already
+    // On auth routes, retry after a short delay to pick up session stored by callback page
     if (isAuthRoute) {
-      console.log('[AuthProvider] Auth route detected, waiting a moment then loading...')
-      setTimeout(() => {
-        console.log('[AuthProvider] Delayed session load for auth route')
-        loadSession()
-      }, 500)
+      setTimeout(loadSession, 500)
     }
 
     return () => {
@@ -199,17 +188,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabaseAuth.signOut()
-    sessionStorage.setItem('logged_out', 'true')
-    setUser(null)
-    
-    // Clear server-side cookies
+    console.log('[SignOut] Starting sign out...')
+
+    // 1. Sign out from the Supabase JS client (clears its persisted session)
+    try {
+      await supabase.auth.signOut()
+      console.log('[SignOut] Supabase client signed out')
+    } catch (e) {
+      console.error('[SignOut] Supabase client signOut error:', e)
+    }
+
+    // 2. Clear custom localStorage session
+    localStorage.removeItem('supabase_session')
+    console.log('[SignOut] Cleared supabase_session from localStorage')
+
+    // 3. Clear server-side cookies
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch (e) {
       // Ignore errors
     }
-    
+
+    sessionStorage.setItem('logged_out', 'true')
+    setUser(null)
+    console.log('[SignOut] Redirecting to /landing')
     window.location.href = '/landing'
   }
 
