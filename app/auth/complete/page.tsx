@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function AuthComplete() {
+function AuthCompleteContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState('Processing...')
@@ -28,14 +28,12 @@ export default function AuthComplete() {
 
     setStatus('Setting up your session...')
 
-    // Store session in localStorage
     const session = {
       access_token: accessToken,
       refresh_token: refreshToken || '',
     }
     localStorage.setItem('supabase_session', JSON.stringify(session))
 
-    // Fetch user info and store
     fetch('https://tdidckvdawyctcswoppi.supabase.co/auth/v1/user', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -57,29 +55,37 @@ export default function AuthComplete() {
           localStorage.setItem('supabase_session', JSON.stringify(fullSession))
         }
         
-        // Dispatch event to notify AuthProvider
         window.dispatchEvent(new Event('auth-state-change'))
-        
-        // Redirect to app
         router.push('/app/reminders')
       })
       .catch(err => {
         console.error('Failed to get user:', err)
-        // Still redirect even if user fetch fails
         window.dispatchEvent(new Event('auth-state-change'))
         router.push('/app/reminders')
       })
   }, [searchParams, router])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background-primary">
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background-primary)' }}>
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-accent-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-text-primary text-lg">{status}</p>
+        <div className="w-12 h-12 border-4 rounded-full animate-spin mx-auto mb-4" style={{ borderColor: 'var(--accent-primary)', borderTopColor: 'transparent' }} />
+        <p style={{ color: 'var(--text-primary)' }}>{status}</p>
         {error && (
-          <p className="text-action-danger mt-2">{error}</p>
+          <p className="mt-2" style={{ color: 'var(--action-danger)' }}>{error}</p>
         )}
       </div>
     </div>
+  )
+}
+
+export default function AuthComplete() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background-primary)' }}>
+        <div className="w-12 h-12 border-4 rounded-full animate-spin" style={{ borderColor: 'var(--accent-primary)', borderTopColor: 'transparent' }} />
+      </div>
+    }>
+      <AuthCompleteContent />
+    </Suspense>
   )
 }
