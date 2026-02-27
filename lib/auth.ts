@@ -1,4 +1,5 @@
-import { supabaseConfig, supabaseAuthUrl, getURL, supabase } from './supabase'
+import { supabaseConfig, supabaseAuthUrl, getURL } from './supabase'
+import { getAuthClient } from './supabase-auth'
 
 export { getURL }
 
@@ -165,7 +166,8 @@ class SupabaseAuth {
 
   async signInWithGoogle(): Promise<void> {
     const redirectUrl = getURL()
-    await supabase.auth.signInWithOAuth({
+    const authClient = getAuthClient()
+    await authClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
