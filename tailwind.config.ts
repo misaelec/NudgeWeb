@@ -11,39 +11,39 @@ const config: Config = {
     extend: {
       colors: {
         background: {
-          primary: '#252523',
-          secondary: '#252523',
+          primary: 'var(--background-primary)',
+          secondary: 'var(--background-secondary)',
         },
         surface: {
-          primary: '#252523',
-          secondary: '#30363D',
+          primary: 'var(--surface-primary)',
+          secondary: 'var(--surface-secondary)',
         },
         border: {
-          primary: '#363532',
+          primary: 'var(--border-primary)',
         },
         text: {
-          primary: '#FFFFFF',
-          secondary: '#C0BEB3',
-          tertiary: '#999999',
-          placeholder: '#666666',
-          disabled: '#555555',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          tertiary: 'var(--text-tertiary)',
+          placeholder: 'var(--text-placeholder)',
+          disabled: 'var(--text-disabled)',
         },
         action: {
-          primary: '#E8704E',
-          warning: '#E8704E',
-          danger: '#E8704E',
-          disabled: '#844632',
+          primary: 'var(--action-primary)',
+          warning: 'var(--action-warning)',
+          danger: 'var(--action-danger)',
+          disabled: 'var(--action-disabled)',
         },
         accent: {
-          primary: '#E8704E',
-          secondary: '#0086E3',
+          primary: 'var(--accent-primary)',
+          secondary: 'var(--accent-secondary)',
         },
         icon: {
-          primary: '#0086E3',
-          background: '#30363D',
+          primary: 'var(--icon-primary)',
+          background: 'var(--icon-background)',
         },
-        success: '#34C759',
-        gem: '#00A3FF',
+        success: 'var(--success)',
+        gem: 'var(--gem)',
       },
       fontFamily: {
         sans: [

@@ -116,6 +116,7 @@ export default function SettingsPage() {
     const settings = JSON.parse(localStorage.getItem('nudge-settings') || '{}')
     localStorage.setItem('nudge-settings', JSON.stringify({ ...settings, darkMode: newValue }))
     document.documentElement.classList.toggle('dark', newValue === 'dark')
+    window.dispatchEvent(new Event('settings-updated'))
     await settingsSyncService.updatePreferences({ dark_mode: newValue })
   }
 

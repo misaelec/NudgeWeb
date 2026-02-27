@@ -17,6 +17,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function applyTheme(darkMode: string) {
+  if (typeof document !== 'undefined') {
+    if (darkMode === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }
+}
+
 async function loadUserSettings() {
   try {
     const prefs = await settingsSyncService.fetchPreferences()
@@ -30,6 +40,8 @@ async function loadUserSettings() {
         visualEffectsEnabled: prefs.visual_effects_enabled,
       }
       localStorage.setItem('nudge-settings', JSON.stringify(settings))
+      
+      applyTheme(settings.darkMode)
       
       const featureFlags = {
         reminders: prefs.reminders_enabled,

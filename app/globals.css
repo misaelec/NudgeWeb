@@ -3,31 +3,74 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 255, 255, 255;
-  --background-rgb: 37, 37, 35;
+  /* Light mode (default) */
+  --background-primary: 255, 255, 255;
+  --background-secondary: 249, 250, 251;
+  --surface-primary: 255, 255, 255;
+  --surface-secondary: 243, 244, 246;
+  --border-primary: 229, 231, 235;
+  --text-primary: 17, 24, 39;
+  --text-secondary: 75, 85, 99;
+  --text-tertiary: 156, 163, 175;
+  --text-placeholder: 156, 163, 175;
+  --text-disabled: 209, 213, 219;
+  --action-primary: 232, 112, 78;
+  --action-warning: 232, 112, 78;
+  --action-danger: 239, 68, 68;
+  --action-disabled: 252, 129, 103;
+  --accent-primary: 232, 112, 78;
+  --accent-secondary: 0, 134, 227;
+  --icon-primary: 0, 134, 227;
+  --icon-background: 243, 244, 246;
+  --success: 52, 199, 89;
+  --gem: 0, 163, 255;
+}
+
+.dark {
+  /* Dark mode */
+  --background-primary: 37, 37, 35;
+  --background-secondary: 30, 30, 28;
+  --surface-primary: 37, 37, 35;
+  --surface-secondary: 48, 54, 61;
+  --border-primary: 54, 53, 50;
+  --text-primary: 255, 255, 255;
+  --text-secondary: 192, 190, 179;
+  --text-tertiary: 153, 153, 153;
+  --text-placeholder: 102, 102, 102;
+  --text-disabled: 85, 85, 85;
+  --action-primary: 232, 112, 78;
+  --action-warning: 232, 112, 78;
+  --action-danger: 232, 112, 78;
+  --action-disabled: 132, 70, 50;
+  --accent-primary: 232, 112, 78;
+  --accent-secondary: 0, 134, 227;
+  --icon-primary: 0, 134, 227;
+  --icon-background: 48, 54, 61;
+  --success: 52, 199, 89;
+  --gem: 0, 163, 255;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  color: rgb(var(--text-primary));
+  background: rgb(var(--background-primary));
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 @layer components {
   .btn-primary {
     @apply bg-action-primary text-white px-6 py-2.5 rounded-apple font-medium
-           hover:bg-orange-600 active:scale-95 transition-all duration-200
+           hover:opacity-90 active:scale-95 transition-all duration-200
            shadow-apple-sm hover:shadow-apple;
   }
 
   .btn-secondary {
     @apply bg-surface-secondary text-text-primary px-6 py-2.5 rounded-apple font-medium
-           hover:bg-border-primary active:scale-95 transition-all duration-200 border border-border-primary;
+           hover:opacity-80 active:scale-95 transition-all duration-200 border border-border-primary;
   }
 
   .btn-danger {
     @apply bg-action-danger text-white px-6 py-2.5 rounded-apple font-medium
-           hover:bg-red-600 active:scale-95 transition-all duration-200;
+           hover:opacity-90 active:scale-95 transition-all duration-200;
   }
 
   .card {
