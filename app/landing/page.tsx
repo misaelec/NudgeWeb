@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
 import { getSupabaseClient, getURL } from '@/lib/supabase'
-import { getAuthClient } from '@/lib/supabase-auth'
 import {
   Focus,
   Calendar,
@@ -59,7 +58,7 @@ export default function LandingPage() {
 
     try {
       const redirectUrl = getURL()
-      const supabase = getAuthClient()
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -82,7 +81,7 @@ export default function LandingPage() {
 
   const handleGoogleSignIn = () => {
     const redirectTo = getURL()
-    const supabase = getAuthClient()
+    const supabase = getSupabaseClient()
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

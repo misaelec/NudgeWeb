@@ -1,16 +1,17 @@
 'use client'
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const getURL = () => {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-  
+
   if (siteUrl) {
     let url = siteUrl.includes('http') ? siteUrl : `https://${siteUrl}`
     url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
     return `${url}auth/callback`
   }
-  
+
   return 'http://localhost:3000/auth/callback'
 }
 
@@ -25,10 +26,11 @@ let supabaseInstance: SupabaseClient | null = null
 
 export function getSupabaseClient(): SupabaseClient {
   if (!supabaseInstance) {
-    supabaseInstance = createClient(
+    supabaseInstance = createBrowserClient(
       supabaseConfig.projectUrl,
       supabaseConfig.anonKey,
       {
+        isSingleton: true,
         auth: {
           persistSession: true,
           autoRefreshToken: true,
@@ -51,8 +53,6 @@ export function syncSupabaseSession(accessToken: string, refreshToken: string) {
     }).then(({ data, error }) => {
       if (error) {
         console.error('Error setting session:', error)
-      } else {
-        console.log('Session set successfully')
       }
     })
   }
