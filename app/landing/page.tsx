@@ -87,13 +87,14 @@ export default function LandingPage() {
   }
 
   const handleGoogleSignIn = () => {
-    const redirectTo = `${window.location.origin}/auth/callback`
+    const redirectTo = getURL()
     console.log('[Landing] Google sign-in, redirectTo:', redirectTo)
     const supabase = getSupabaseClient()
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
+        scopes: 'email profile',
       },
     }).then((result) => {
       console.log('[Landing] OAuth result:', result)

@@ -30,9 +30,10 @@ export function getSupabaseClient(): SupabaseClient {
       supabaseConfig.anonKey,
       {
         auth: {
-          persistSession: false,
-          autoRefreshToken: false,
+          persistSession: true,
+          autoRefreshToken: true,
           detectSessionInUrl: true,
+          flowType: 'pkce',
         },
       }
     )

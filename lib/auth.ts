@@ -165,16 +165,13 @@ class SupabaseAuth {
 
   async signInWithGoogle(): Promise<void> {
     const redirectUrl = getURL()
-    
-    const scopes = 'email profile'
-    const encodedRedirect = encodeURIComponent(redirectUrl)
-    const encodedScopes = encodeURIComponent(scopes)
-
-    const authUrl = `${supabaseAuthUrl}/authorize?provider=google&redirect_to=${encodedRedirect}&scopes=${encodedScopes}`
-    
-    if (typeof window !== 'undefined') {
-      window.location.href = authUrl
-    }
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        scopes: 'email profile',
+      },
+    })
   }
 
   async handleCallback(): Promise<{ success: boolean; error?: string }> {

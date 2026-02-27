@@ -135,18 +135,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[AuthProvider] Auth state changed:', event, session ? 'has session' : 'no session')
-      
+
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem('supabase_session')
         setUser(null)
       } else if (session?.user) {
-        console.log('[AuthProvider] Setting user from state change:', session.user.id)
+        const supaUser = session.user
+        const mappedUser: User = {
+          id: supaUser.id,
+          email: supaUser.email || '',
+          name: supaUser.user_metadata?.display_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0],
+          avatar_url: supaUser.user_metadata?.avatar_url || supaUser.user_metadata?.picture,
+        }
+        console.log('[AuthProvider] Setting user from state change:', mappedUser.id)
         localStorage.setItem('supabase_session', JSON.stringify({
           access_token: session.access_token,
           refresh_token: session.refresh_token,
-          user: session.user,
+          user: mappedUser,
         }))
-        setUser(session.user as User)
+        setUser(mappedUser)
+
+        // Load user settings/preferences after sign-in
+        if (event === 'SIGNED_IN') {
+          loadUserSettings()
+        }
       }
     })
 
