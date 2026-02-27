@@ -4,96 +4,117 @@
 
 :root {
   /* Light mode (default) */
-  --background-primary: 255, 255, 255;
-  --background-secondary: 249, 250, 251;
-  --surface-primary: 255, 255, 255;
-  --surface-secondary: 243, 244, 246;
-  --border-primary: 229, 231, 235;
-  --text-primary: 17, 24, 39;
-  --text-secondary: 75, 85, 99;
-  --text-tertiary: 156, 163, 175;
-  --text-placeholder: 156, 163, 175;
-  --text-disabled: 209, 213, 219;
-  --action-primary: 232, 112, 78;
-  --action-warning: 232, 112, 78;
-  --action-danger: 239, 68, 68;
-  --action-disabled: 252, 129, 103;
-  --accent-primary: 232, 112, 78;
-  --accent-secondary: 0, 134, 227;
-  --icon-primary: 0, 134, 227;
-  --icon-background: 243, 244, 246;
-  --success: 52, 199, 89;
-  --gem: 0, 163, 255;
+  --background-primary: #ffffff;
+  --background-secondary: #f9fafb;
+  --surface-primary: #ffffff;
+  --surface-secondary: #f3f4f6;
+  --border-primary: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-tertiary: #9ca3af;
+  --text-placeholder: #9ca3af;
+  --text-disabled: #d1d5db;
+  --action-primary: #e8704e;
+  --action-warning: #e8704e;
+  --action-danger: #ef4444;
+  --action-disabled: #fc8167;
+  --accent-primary: #e8704e;
+  --accent-secondary: #0086e3;
+  --icon-primary: #0086e3;
+  --icon-background: #f3f4f6;
+  --success: #34c759;
+  --gem: #00a3ff;
 }
 
 .dark {
   /* Dark mode */
-  --background-primary: 37, 37, 35;
-  --background-secondary: 30, 30, 28;
-  --surface-primary: 37, 37, 35;
-  --surface-secondary: 48, 54, 61;
-  --border-primary: 54, 53, 50;
-  --text-primary: 255, 255, 255;
-  --text-secondary: 192, 190, 179;
-  --text-tertiary: 153, 153, 153;
-  --text-placeholder: 102, 102, 102;
-  --text-disabled: 85, 85, 85;
-  --action-primary: 232, 112, 78;
-  --action-warning: 232, 112, 78;
-  --action-danger: 232, 112, 78;
-  --action-disabled: 132, 70, 50;
-  --accent-primary: 232, 112, 78;
-  --accent-secondary: 0, 134, 227;
-  --icon-primary: 0, 134, 227;
-  --icon-background: 48, 54, 61;
-  --success: 52, 199, 89;
-  --gem: 0, 163, 255;
+  --background-primary: #252523;
+  --background-secondary: #1e1e1c;
+  --surface-primary: #252523;
+  --surface-secondary: #30363d;
+  --border-primary: #363532;
+  --text-primary: #ffffff;
+  --text-secondary: #c0beb3;
+  --text-tertiary: #999999;
+  --text-placeholder: #666666;
+  --text-disabled: #555555;
+  --action-primary: #e8704e;
+  --action-warning: #e8704e;
+  --action-danger: #e8704e;
+  --action-disabled: #844632;
+  --accent-primary: #e8704e;
+  --accent-secondary: #0086e3;
+  --icon-primary: #0086e3;
+  --icon-background: #30363d;
+  --success: #34c759;
+  --gem: #00a3ff;
 }
 
 body {
-  color: rgb(var(--text-primary));
-  background: rgb(var(--background-primary));
+  color: var(--text-primary);
+  background: var(--background-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-action-primary text-white px-6 py-2.5 rounded-apple font-medium
+    @apply px-6 py-2.5 rounded-apple font-medium
            hover:opacity-90 active:scale-95 transition-all duration-200
            shadow-apple-sm hover:shadow-apple;
+    background-color: var(--action-primary);
+    color: white;
   }
 
   .btn-secondary {
-    @apply bg-surface-secondary text-text-primary px-6 py-2.5 rounded-apple font-medium
-           hover:opacity-80 active:scale-95 transition-all duration-200 border border-border-primary;
+    @apply px-6 py-2.5 rounded-apple font-medium
+           hover:opacity-80 active:scale-95 transition-all duration-200
+           border;
+    background-color: var(--surface-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
   }
 
   .btn-danger {
-    @apply bg-action-danger text-white px-6 py-2.5 rounded-apple font-medium
+    @apply px-6 py-2.5 rounded-apple font-medium
            hover:opacity-90 active:scale-95 transition-all duration-200;
+    background-color: var(--action-danger);
+    color: white;
   }
 
   .card {
-    @apply bg-surface-primary rounded-apple-xl shadow-apple p-6
-           border border-border-primary;
+    @apply rounded-apple-xl shadow-apple p-6 border;
+    background-color: var(--surface-primary);
+    border-color: var(--border-primary);
   }
 
   .input {
-    @apply w-full px-4 py-3 rounded-apple border border-border-primary
-           bg-surface-primary text-text-primary
-           placeholder-text-placeholder
+    @apply w-full px-4 py-3 rounded-apple border
            focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent
            transition-all duration-200;
+    background-color: var(--surface-primary);
+    color: var(--text-primary);
+    border-color: var(--border-primary);
+  }
+
+  .input::placeholder {
+    color: var(--text-placeholder);
   }
 
   .sidebar-link {
     @apply flex items-center gap-3 px-4 py-3 rounded-apple-lg
-           text-text-secondary hover:text-text-primary
-           hover:bg-surface-secondary transition-all duration-200;
+           hover:opacity-80 transition-all duration-200;
+    color: var(--text-secondary);
+  }
+
+  .sidebar-link:hover {
+    color: var(--text-primary);
+    background-color: var(--surface-secondary);
   }
 
   .sidebar-link-active {
-    @apply bg-accent-primary/10 text-accent-primary font-medium;
+    background-color: rgba(232, 112, 78, 0.1);
+    color: var(--accent-primary);
+    font-weight: 500;
   }
 
   .badge {
@@ -101,23 +122,28 @@ body {
   }
 
   .badge-blue {
-    @apply bg-icon-primary/10 text-icon-primary;
+    background-color: rgba(0, 134, 227, 0.1);
+    color: var(--icon-primary);
   }
 
   .badge-green {
-    @apply bg-success/10 text-success;
+    background-color: rgba(52, 199, 89, 0.1);
+    color: var(--success);
   }
 
   .badge-red {
-    @apply bg-action-danger/10 text-action-danger;
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--action-danger);
   }
 
   .badge-orange {
-    @apply bg-action-warning/10 text-action-warning;
+    background-color: rgba(232, 112, 78, 0.1);
+    color: var(--action-warning);
   }
 
   .badge-purple {
-    @apply bg-purple-500/10 text-purple-500;
+    background-color: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
   }
 }
 
