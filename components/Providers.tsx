@@ -73,51 +73,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isAuthRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')
     
     if (isAuthRoute) {
-      console.log('[AuthProvider] On auth route, skipping session load')
-      setLoading(false)
-      return
+      console.log('[AuthProvider] On auth route, will check localStorage')
+      // Don't skip - we need to load session when auth completes
     }
 
     const loadSession = async () => {
       console.log('[AuthProvider] Loading session...')
       try {
-        // First check localStorage (client-side session)
+        // First check localStorage (client-side session) - this is the source of truth
         const stored = localStorage.getItem('supabase_session')
         let clientSession = null
         
         if (stored) {
           try {
             clientSession = JSON.parse(stored)
+            console.log('[AuthProvider] Found session in localStorage:', !!clientSession?.user)
           } catch (e) {
             console.error('Failed to parse session', e)
           }
         }
 
-        // Get session from Supabase (will use cookies if available)
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        console.log('[AuthProvider] getSession result:', { session: !!session, error: error?.message })
-        
-        if (error) {
-          console.error('[AuthProvider] Session error:', error.message)
-          localStorage.removeItem('supabase_session')
-          setUser(null)
-        } else if (session?.user) {
-          console.log('[AuthProvider] Session found, user:', session.user.id)
-          localStorage.setItem('supabase_session', JSON.stringify({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            user: session.user,
-          }))
-          setUser(session.user as User)
-        } else if (clientSession?.user) {
-          // Fallback to stored session
-          console.log('[AuthProvider] Using stored session')
+        // Only try Supabase getSession if we have a local session (as backup verification)
+        if (clientSession?.user) {
+          console.log('[AuthProvider] Using localStorage session')
           setUser(clientSession.user)
         } else {
-          console.log('[AuthProvider] No session found')
-          localStorage.removeItem('supabase_session')
-          setUser(null)
+          // Try Supabase as fallback
+          const { data: { session }, error } = await supabase.auth.getSession()
+          
+          console.log('[AuthProvider] Supabase getSession result:', { session: !!session, error: error?.message })
+          
+          if (session?.user) {
+            localStorage.setItem('supabase_session', JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              user: session.user,
+            }))
+            setUser(session.user as User)
+          } else if (clientSession?.user) {
+            // Fallback to localStorage if Supabase returns nothing
+            setUser(clientSession.user)
+          } else {
+            console.log('[AuthProvider] No session found')
+            localStorage.removeItem('supabase_session')
+            setUser(null)
+          }
         }
       } catch (err) {
         console.error('[AuthProvider] Failed to load session:', err)
@@ -150,8 +150,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
+    // Listen for custom auth-state-change event from /auth/complete
+    const handleAuthEvent = () => {
+      console.log('[AuthProvider] Custom auth event received, reloading session...')
+      loadSession()
+    }
+    window.addEventListener('auth-state-change', handleAuthEvent)
+
+    // Also try loading immediately on auth routes since page may have set session already
+    if (isAuthRoute) {
+      console.log('[AuthProvider] Auth route detected, waiting a moment then loading...')
+      setTimeout(() => {
+        console.log('[AuthProvider] Delayed session load for auth route')
+        loadSession()
+      }, 500)
+    }
+
     return () => {
       subscription.unsubscribe()
+      window.removeEventListener('auth-state-change', handleAuthEvent)
     }
   }, [])
 

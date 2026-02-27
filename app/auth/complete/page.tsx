@@ -10,9 +10,13 @@ function AuthCompleteContent() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log('[AuthComplete] Component mounted, searchParams:', searchParams.toString())
+    
     const accessToken = searchParams.get('access_token')
     const refreshToken = searchParams.get('refresh_token')
     const errorDescription = searchParams.get('error_description')
+
+    console.log('[AuthComplete] accessToken:', !!accessToken, 'refreshToken:', !!refreshToken)
 
     if (errorDescription) {
       setError(errorDescription)
@@ -32,6 +36,7 @@ function AuthCompleteContent() {
       access_token: accessToken,
       refresh_token: refreshToken || '',
     }
+    console.log('[AuthComplete] Storing session to localStorage')
     localStorage.setItem('supabase_session', JSON.stringify(session))
 
     fetch('https://tdidckvdawyctcswoppi.supabase.co/auth/v1/user', {
@@ -42,6 +47,7 @@ function AuthCompleteContent() {
     })
       .then(res => res.json())
       .then(user => {
+        console.log('[AuthComplete] User fetched:', user?.id)
         if (user.id) {
           const fullSession = {
             ...session,
@@ -55,13 +61,19 @@ function AuthCompleteContent() {
           localStorage.setItem('supabase_session', JSON.stringify(fullSession))
         }
         
+        console.log('[AuthComplete] Dispatching auth event')
         window.dispatchEvent(new Event('auth-state-change'))
-        router.push('/app/reminders')
+        
+        // Use hard navigation to force fresh state
+        window.location.href = '/app/reminders'
       })
       .catch(err => {
-        console.error('Failed to get user:', err)
+        console.error('[AuthComplete] Failed to get user:', err)
+        console.log('[AuthComplete] Dispatching auth event anyway')
         window.dispatchEvent(new Event('auth-state-change'))
-        router.push('/app/reminders')
+        
+        // Use hard navigation to force fresh state  
+        window.location.href = '/app/reminders'
       })
   }, [searchParams, router])
 

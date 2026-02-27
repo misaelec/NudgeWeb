@@ -5,6 +5,10 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   
+  console.log('[Callback Route] Request received, URL:', requestUrl.toString())
+  console.log('[Callback Route] Hash:', requestUrl.hash)
+  console.log('[Callback Route] Search:', requestUrl.search)
+  
   // Check for error params
   const errorDescription = requestUrl.searchParams.get('error_description')
   const errorCode = requestUrl.searchParams.get('error_code')

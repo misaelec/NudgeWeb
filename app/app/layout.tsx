@@ -10,19 +10,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const { user, loading } = useAuth()
 
-  const isAuthRoute = pathname?.startsWith('/auth')
+  const isAuthRoute = pathname ? (pathname.startsWith('/auth') || pathname.startsWith('auth')) : false
+  console.log('[AppLayout] pathname:', pathname, 'isAuthRoute:', isAuthRoute, 'loading:', loading, 'user:', !!user)
 
   useEffect(() => {
+    // Only redirect after loading is complete AND no user found AND not an auth route
     if (!loading && !user && !isAuthRoute) {
+      console.log('[AppLayout] No user after loading, redirecting to landing')
       router.replace('/landing')
     }
   }, [user, loading, router, isAuthRoute])
 
+  // Show nothing while loading auth state on auth routes, or while determining session
   if (!loading && !user && !isAuthRoute) {
     return null
   }
 
   if (isAuthRoute) {
+    console.log('[AppLayout] Rendering auth route children')
     return <>{children}</>
   }
 
