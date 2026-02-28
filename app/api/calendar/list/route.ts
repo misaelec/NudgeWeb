@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Get calendars
+    // Get calendars (include webhook status for JIT renewal)
     const { data: calendars, error: calendarsError } = await supabase
       .from('connected_calendars')
-      .select('*')
+      .select('*, webhook_channel_id, webhook_expiration')
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
 

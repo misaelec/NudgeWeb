@@ -14,6 +14,8 @@ export interface ConnectedCalendar {
   calendarId?: string
   isPrimary: boolean
   color: string
+  webhookChannelId?: string | null
+  webhookExpiration?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -70,26 +72,30 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
       const response = await fetch(`/api/calendar/list?t=${Date.now()}`, {
         headers: { 'x-user-id': userId }
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch calendars')
       }
-      
+
       const data = await response.json()
-      
+
+      const mappedCalendars = data.calendars.map((c: any) => ({
+        id: c.id,
+        userId: c.user_id,
+        provider: c.provider,
+        accountEmail: c.account_email,
+        accountName: c.account_name,
+        calendarId: c.calendar_id,
+        isPrimary: c.is_primary,
+        color: c.color,
+        webhookChannelId: c.webhook_channel_id,
+        webhookExpiration: c.webhook_expiration,
+        createdAt: new Date(c.created_at),
+        updatedAt: new Date(c.updated_at),
+      }))
+
       set({
-        calendars: data.calendars.map((c: any) => ({
-          id: c.id,
-          userId: c.user_id,
-          provider: c.provider,
-          accountEmail: c.account_email,
-          accountName: c.account_name,
-          calendarId: c.calendar_id,
-          isPrimary: c.is_primary,
-          color: c.color,
-          createdAt: new Date(c.created_at),
-          updatedAt: new Date(c.updated_at),
-        })),
+        calendars: mappedCalendars,
         syncRules: (data.rules || []).map((r: any) => ({
           id: r.id,
           userId: r.user_id,
@@ -103,6 +109,23 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
         })),
         isLoading: false
       })
+
+      // JIT webhook renewal: silently renew webhooks expiring within 48 hours
+      const fortyEightHoursFromNow = Date.now() + 48 * 60 * 60 * 1000
+      for (const cal of mappedCalendars) {
+        if (cal.provider !== 'google') continue
+        const needsRenewal = !cal.webhookChannelId ||
+          !cal.webhookExpiration ||
+          new Date(cal.webhookExpiration).getTime() < fortyEightHoursFromNow
+
+        if (needsRenewal) {
+          fetch('/api/calendar/renew-webhook', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ calendar_id: cal.id }),
+          }).catch((e) => console.error('JIT webhook renewal failed:', e))
+        }
+      }
     } catch (error) {
       console.error('Error fetching calendars:', error)
       set({ isLoading: false, error: 'Failed to fetch calendars' })
