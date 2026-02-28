@@ -41,7 +41,13 @@ export async function registerWebhook(calendarDbId: string, accessToken: string,
     
     if (!response.ok) {
       const error = await response.json()
-      console.error('Failed to register webhook with Google:', error)
+      console.error('Failed to register webhook with Google:', {
+        status: response.status,
+        webhookUrl,
+        calendarDbId,
+        googleCalendarId,
+        error,
+      })
       return false
     }
     
@@ -63,7 +69,7 @@ export async function registerWebhook(calendarDbId: string, accessToken: string,
     console.log('Webhook info saved to database')
     return true
   } catch (error) {
-    console.error('Error registering webhook:', error)
+    console.error('Error registering webhook:', { calendarDbId, googleCalendarId, webhookUrl, error })
     return false
   }
 }

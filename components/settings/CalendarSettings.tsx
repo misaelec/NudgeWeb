@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
-import { Calendar, X, Globe, Loader2 } from 'lucide-react'
+import { Calendar, X, Globe, Loader2, RefreshCw } from 'lucide-react'
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Google Calendar',
@@ -24,12 +24,17 @@ const DIRECTION_OPTIONS: { value: SyncDirection; label: string }[] = [
   { value: 'bidirectional', label: 'Bidirectional' },
 ]
 
-function CalendarCard({ calendar, onRemove }: { calendar: ConnectedCalendar; onRemove: () => void }) {
+function CalendarCard({ calendar, onRemove, onSync, isSyncing }: {
+  calendar: ConnectedCalendar
+  onRemove: () => void
+  onSync?: () => void
+  isSyncing?: boolean
+}) {
   return (
     <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
       <div className="flex items-center gap-3">
-        <div 
-          className="w-4 h-4 rounded-full" 
+        <div
+          className="w-4 h-4 rounded-full"
           style={{ backgroundColor: calendar.color }}
         />
         <div>
@@ -39,12 +44,24 @@ function CalendarCard({ calendar, onRemove }: { calendar: ConnectedCalendar; onR
           <p className="text-sm text-text-tertiary">{PROVIDER_LABELS[calendar.provider]}</p>
         </div>
       </div>
-      <button
-        onClick={onRemove}
-        className="text-text-tertiary hover:text-action-danger transition-colors"
-      >
-        <X className="w-5 h-5" />
-      </button>
+      <div className="flex items-center gap-2">
+        {onSync && (
+          <button
+            onClick={onSync}
+            disabled={isSyncing}
+            className="text-text-tertiary hover:text-accent-primary transition-colors disabled:opacity-50"
+            title="Sync Now"
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+        )}
+        <button
+          onClick={onRemove}
+          className="text-text-tertiary hover:text-action-danger transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -206,6 +223,7 @@ export default function CalendarSettings() {
   const searchParams = useSearchParams()
 
   const [showAddRuleModal, setShowAddRuleModal] = useState(false)
+  const [syncingCalendarId, setSyncingCalendarId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -235,6 +253,21 @@ export default function CalendarSettings() {
       removeCalendar(calendarId)
     } catch (error) {
       console.error('Failed to remove calendar:', error)
+    }
+  }
+
+  const handleSyncCalendar = async (calendarId: string) => {
+    setSyncingCalendarId(calendarId)
+    try {
+      await fetch('/api/calendar/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendar_id: calendarId }),
+      })
+    } catch (error) {
+      console.error('Failed to sync calendar:', error)
+    } finally {
+      setSyncingCalendarId(null)
     }
   }
 
@@ -285,6 +318,8 @@ export default function CalendarSettings() {
             key={calendar.id}
             calendar={calendar}
             onRemove={() => handleRemoveCalendar(calendar.id)}
+            onSync={calendar.provider !== 'nudge' ? () => handleSyncCalendar(calendar.id) : undefined}
+            isSyncing={syncingCalendarId === calendar.id}
           />
         ))}
       </div>

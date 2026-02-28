@@ -95,6 +95,8 @@ export async function GET(request: NextRequest) {
       .eq('calendar_id', calendarId)
       .single()
 
+    let connectedCalendarId: string | null = null
+
     if (existing) {
       // Update existing
       await supabase
@@ -108,10 +110,8 @@ export async function GET(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
-        
-      // Register webhook and trigger sync
-      await registerWebhook(existing.id, tokens.access_token, calendarId)
-      await syncCalendar(existing.id)
+
+      connectedCalendarId = existing.id
     } else {
       // Insert new
       const { data: newCalendar } = await supabase
@@ -130,12 +130,27 @@ export async function GET(request: NextRequest) {
         })
         .select()
         .single()
-      
-      // Register webhook and trigger initial sync
-      if (newCalendar) {
-        await registerWebhook(newCalendar.id, tokens.access_token, calendarId)
-        await syncCalendar(newCalendar.id)
-      }
+
+      connectedCalendarId = newCalendar?.id || null
+    }
+
+    // Fire-and-forget: register webhook and sync in background
+    // This ensures calendar connection succeeds even if webhook registration fails
+    if (connectedCalendarId) {
+      const dbId = connectedCalendarId
+      const token = tokens.access_token
+      ;(async () => {
+        try {
+          await registerWebhook(dbId, token, calendarId)
+        } catch (e) {
+          console.error('Non-blocking webhook registration failed:', e)
+        }
+        try {
+          await syncCalendar(dbId)
+        } catch (e) {
+          console.error('Non-blocking initial sync failed:', e)
+        }
+      })()
     }
 
     return NextResponse.redirect(new URL('/app/settings?success=calendar_connected', request.url))

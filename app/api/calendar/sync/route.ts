@@ -34,6 +34,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success })
     }
 
+    // For regular sync, also check if webhook needs (re-)registration
+    const { data: calendar } = await supabase
+      .from('connected_calendars')
+      .select('*')
+      .eq('id', calendar_id)
+      .single()
+
+    if (calendar && calendar.provider === 'google') {
+      const webhookExpired = !calendar.webhook_expiration ||
+        new Date(calendar.webhook_expiration) < new Date()
+      const webhookMissing = !calendar.webhook_channel_id
+
+      if (webhookMissing || webhookExpired) {
+        console.log('Webhook missing or expired, re-registering:', {
+          calendar_id,
+          webhookMissing,
+          webhookExpired,
+          expiration: calendar.webhook_expiration,
+        })
+        try {
+          await registerWebhook(calendar_id, calendar.access_token, calendar.calendar_id || 'primary')
+        } catch (e) {
+          console.error('Webhook re-registration failed during sync:', e)
+        }
+      }
+    }
+
     const result = await syncCalendar(calendar_id)
     return NextResponse.json(result)
   } catch (error: any) {
