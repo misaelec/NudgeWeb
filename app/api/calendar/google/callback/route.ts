@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
         .eq('id', existing.id)
         
       // Register webhook and trigger sync
-      await registerWebhook(existing.id, tokens.access_token)
+      await registerWebhook(existing.id, tokens.access_token, calendarId)
       await syncCalendar(existing.id)
     } else {
       // Insert new
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       
       // Register webhook and trigger initial sync
       if (newCalendar) {
-        await registerWebhook(newCalendar.id, tokens.access_token)
+        await registerWebhook(newCalendar.id, tokens.access_token, calendarId)
         await syncCalendar(newCalendar.id)
       }
     }

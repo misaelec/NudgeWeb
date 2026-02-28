@@ -27,9 +27,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No channel ID' }, { status: 400 })
     }
     
-    if (resourceState === 'CHANGE' || resourceState === 'ADD' || resourceState === 'UPDATE') {
+    // Google sends lowercase: 'sync' (initial), 'exists' (resource exists), 'update' (changed)
+    if (resourceState === 'sync') {
+      console.log('Webhook sync confirmation received, no action needed')
+      return NextResponse.json({ success: true })
+    }
+
+    if (resourceState === 'exists' || resourceState === 'update') {
       console.log(`Triggering sync for channel: ${channelId}`)
-      
+
       try {
         const result = await triggerSyncForChannel(channelId)
         console.log('Sync result:', result)
@@ -37,7 +43,7 @@ export async function POST(request: NextRequest) {
         console.error('Sync error in webhook:', syncError)
       }
     }
-    
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Webhook error:', error)

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 
 import { useAuth } from '@/components/Providers'
-import { useStore } from '@/lib/store'
+import { useStore, CalendarEvent } from '@/lib/store'
 import {
   ChevronLeft,
   ChevronRight,
@@ -64,11 +64,64 @@ export default function CalendarPage() {
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [showDurationPicker, setShowDurationPicker] = useState(false)
 
-  const { calendarEvents } = useStore()
+  const { calendarEvents: localEvents } = useStore()
+  const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([])
+
+  const fetchDbEvents = useCallback(async () => {
+    if (!user) return
+    try {
+      const res = await fetch('/api/calendar/events', {
+        headers: { 'x-user-id': user.id },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDbEvents(
+          (data.events || []).map((e: any) => ({
+            id: e.id,
+            title: e.title,
+            description: e.description,
+            startDate: new Date(e.startDate),
+            endDate: new Date(e.endDate),
+            location: e.location,
+            color: e.color || '#ea4335',
+            sourceType: e.sourceType || 'google',
+            createdAt: new Date(e.createdAt),
+          }))
+        )
+      }
+    } catch (err) {
+      console.error('Failed to fetch DB events:', err)
+    }
+  }, [user])
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (mounted && user) {
+      fetchDbEvents()
+    }
+  }, [mounted, user, fetchDbEvents])
+
+  // Merge local (Zustand) events with DB (synced) events, dedup by id
+  const calendarEvents = useMemo(() => {
+    const seen = new Set<string>()
+    const merged: CalendarEvent[] = []
+    for (const e of localEvents) {
+      if (!seen.has(e.id)) {
+        seen.add(e.id)
+        merged.push(e)
+      }
+    }
+    for (const e of dbEvents) {
+      if (!seen.has(e.id)) {
+        seen.add(e.id)
+        merged.push(e)
+      }
+    }
+    return merged
+  }, [localEvents, dbEvents])
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
@@ -343,15 +396,22 @@ export default function CalendarPage() {
                           className="p-4 bg-surface-secondary rounded-xl"
                         >
                           <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium text-text-primary">
-                              {event.title}
-                            </h4>
-                            <button
-                              onClick={() => calendarActions.deleteEvent(event.id)}
-                              className="text-text-tertiary hover:text-action-danger transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-text-primary">
+                                {event.title}
+                              </h4>
+                              {event.sourceType === 'google' && (
+                                <span className="text-[10px] px-1.5 py-0.5 bg-[#ea4335]/10 text-[#ea4335] rounded-md font-medium">G</span>
+                              )}
+                            </div>
+                            {event.sourceType === 'local' && (
+                              <button
+                                onClick={() => calendarActions.deleteEvent(event.id)}
+                                className="text-text-tertiary hover:text-action-danger transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-text-tertiary">
                             <Clock className="w-3.5 h-3.5" />

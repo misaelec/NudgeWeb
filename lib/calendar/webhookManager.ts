@@ -12,19 +12,18 @@ function generateChannelId(): string {
   return `nudge-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
 }
 
-export async function registerWebhook(calendarId: string, accessToken: string): Promise<boolean> {
+export async function registerWebhook(calendarDbId: string, accessToken: string, googleCalendarId: string = 'primary'): Promise<boolean> {
   const channelId = generateChannelId()
   const webhookUrl = getWebhookUrl()
-  
+
   const sevenDaysFromNow = new Date()
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
-  const expiration = sevenDaysFromNow.toISOString()
-  
-  console.log('Registering webhook:', { calendarId, webhookUrl, channelId })
-  
+
+  console.log('Registering webhook:', { calendarDbId, googleCalendarId, webhookUrl, channelId })
+
   try {
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/watch`,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(googleCalendarId)}/watch`,
       {
         method: 'POST',
         headers: {
@@ -59,8 +58,8 @@ export async function registerWebhook(calendarId: string, accessToken: string): 
         webhook_expiration: new Date(data.expiration).toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', calendarId)
-    
+      .eq('id', calendarDbId)
+
     console.log('Webhook info saved to database')
     return true
   } catch (error) {
@@ -72,7 +71,7 @@ export async function registerWebhook(calendarId: string, accessToken: string): 
 export async function stopWebhook(channelId: string, resourceId: string, accessToken: string): Promise<boolean> {
   try {
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/channels/stop`,
+      `https://www.googleapis.com/calendar/v3/channels/stop`,
       {
         method: 'POST',
         headers: {
@@ -114,5 +113,5 @@ export async function renewWebhook(calendarId: string): Promise<boolean> {
     )
   }
   
-  return registerWebhook(calendarId, calendar.access_token)
+  return registerWebhook(calendarId, calendar.access_token, calendar.calendar_id || 'primary')
 }
