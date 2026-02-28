@@ -100,42 +100,68 @@ async function fetchGoogleCalendarEvents(
   calendarId: string,
   syncToken?: string
 ): Promise<FetchEventsResult> {
-  const params = new URLSearchParams({
-    singleEvents: 'true',
-    orderBy: 'startTime',
-    showDeleted: 'true',
-  })
+  const allEvents: GoogleCalendarEvent[] = []
+  const allDeletedIds: string[] = []
+  let pageToken: string | undefined
+  let finalSyncToken = ''
 
-  if (syncToken) {
-    params.set('syncToken', syncToken)
-  } else {
-    params.set('timeMin', new Date().toISOString())
-  }
+  do {
+    const params = new URLSearchParams({
+      singleEvents: 'true',
+      orderBy: 'startTime',
+      showDeleted: 'true',
+      maxResults: '250',
+    })
 
-  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    console.error('Google Calendar API error:', error)
-
-    if (error.error?.code === 410) {
-      console.log('Sync token expired, need full sync')
-      return { events: [], nextSyncToken: '', deletedIds: [], needsFullSync: true }
+    if (syncToken) {
+      params.set('syncToken', syncToken)
+    } else {
+      params.set('timeMin', new Date().toISOString())
     }
 
-    throw new Error(`Google Calendar API error: ${error.error?.message || 'Unknown'}`)
-  }
+    if (pageToken) {
+      params.set('pageToken', pageToken)
+    }
 
-  const data = await response.json()
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      console.error('Google Calendar API error:', error)
+
+      if (error.error?.code === 410) {
+        console.log('Sync token expired, need full sync')
+        return { events: [], nextSyncToken: '', deletedIds: [], needsFullSync: true }
+      }
+
+      throw new Error(`Google Calendar API error: ${error.error?.message || 'Unknown'}`)
+    }
+
+    const data = await response.json()
+    const items: GoogleCalendarEvent[] = data.items || []
+
+    for (const item of items) {
+      if (item.status === 'cancelled') {
+        allDeletedIds.push(item.id)
+      } else {
+        allEvents.push(item)
+      }
+    }
+
+    pageToken = data.nextPageToken
+    if (data.nextSyncToken) {
+      finalSyncToken = data.nextSyncToken
+    }
+  } while (pageToken)
 
   return {
-    events: data.items || [],
-    nextSyncToken: data.nextSyncToken || '',
-    deletedIds: data.items?.filter((e: any) => e.status === 'cancelled').map((e: any) => e.id) || [],
+    events: allEvents,
+    nextSyncToken: finalSyncToken,
+    deletedIds: allDeletedIds,
   }
 }
 
@@ -461,10 +487,6 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
 
     // --- Step 1: Always write all events to local calendar_events table ---
     for (const event of events) {
-      if (event.status === 'cancelled') {
-        continue
-      }
-
       try {
         const startDate = event.start?.dateTime || event.start?.date || new Date().toISOString()
         const endDate = event.end?.dateTime || event.end?.date || new Date().toISOString()
@@ -498,10 +520,6 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
 
     if (rules.length > 0) {
       for (const event of events) {
-        if (event.status === 'cancelled') {
-          continue
-        }
-
         // Loop prevention: skip events we created via sync
         const isLoop = await isLoopEvent(calendarId, event.id)
         if (isLoop) {

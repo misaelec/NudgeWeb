@@ -40,7 +40,9 @@ export async function registerWebhook(calendarDbId: string, accessToken: string,
     )
     
     if (!response.ok) {
-      const error = await response.json()
+      const text = await response.text()
+      let error: any
+      try { error = JSON.parse(text) } catch { error = text }
       console.error('Failed to register webhook with Google:', {
         status: response.status,
         webhookUrl,
@@ -50,7 +52,7 @@ export async function registerWebhook(calendarDbId: string, accessToken: string,
       })
       return false
     }
-    
+
     const data = await response.json()
     console.log('Webhook registered:', data)
     
