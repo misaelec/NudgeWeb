@@ -212,9 +212,14 @@ export function useSupabaseSync() {
 
       if (Array.isArray(calendar)) {
         store.setCalendarEvents(calendar.map((e: any) => ({
-          ...e,
+          id: e.id,
+          title: e.title || '(No title)',
+          description: e.description || '',
           startDate: new Date(e.start_date),
           endDate: new Date(e.end_date),
+          location: e.location || '',
+          color: e.color || '#007AFF',
+          sourceType: e.source_type || 'local',
           createdAt: new Date(e.created_at),
         })))
       }

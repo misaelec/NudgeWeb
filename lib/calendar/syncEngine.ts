@@ -459,112 +459,116 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
       return { success: true, synced: 0, errors: [] }
     }
 
-    const rules = await getSyncRulesForCalendar(calendarId)
-    console.log(`Found ${rules.length} sync rules for calendar`)
-
-    if (rules.length === 0) {
-      if (nextSyncToken) {
-        await updateSyncToken(calendarId, nextSyncToken)
-      }
-      return { success: true, synced: 0, errors: ['No sync rules configured'] }
-    }
-
+    // --- Step 1: Always write all events to local calendar_events table ---
     for (const event of events) {
       if (event.status === 'cancelled') {
         continue
       }
 
-      // Loop prevention: skip events we created via sync
-      const isLoop = await isLoopEvent(calendarId, event.id)
-      if (isLoop) {
-        console.log(`Skipping loop event: ${event.id}`)
-        continue
-      }
-
       try {
-        for (const rule of rules) {
-          const targetCalendar = rule.target_calendar
+        const startDate = event.start?.dateTime || event.start?.date || new Date().toISOString()
+        const endDate = event.end?.dateTime || event.end?.date || new Date().toISOString()
 
-          if (targetCalendar?.provider === 'google') {
-            // Target is a Google calendar — create/update event via API
-            const targetAccessToken = await getValidAccessToken(targetCalendar)
-            const googleEventData = transformEventForGoogle(event, rule)
-
-            // Check if we already synced this event
-            const supabase = createClient(supabaseUrl, supabaseServiceKey)
-            const { data: existingSynced } = await supabase
-              .from('synced_events')
-              .select('target_event_id')
-              .eq('source_calendar_id', calendarId)
-              .eq('source_event_id', event.id)
-              .eq('target_calendar_id', targetCalendar.id)
-              .single()
-
-            if (existingSynced?.target_event_id) {
-              // Update existing event
-              await updateGoogleCalendarEvent(
-                targetAccessToken,
-                targetCalendar.calendar_id || 'primary',
-                existingSynced.target_event_id,
-                googleEventData
-              )
-            } else {
-              // Create new event
-              const newGoogleEventId = await createGoogleCalendarEvent(
-                targetAccessToken,
-                targetCalendar.calendar_id || 'primary',
-                googleEventData
-              )
-              if (newGoogleEventId) {
-                await trackSyncedEvent(
-                  calendarId,
-                  event.id,
-                  newGoogleEventId,
-                  targetCalendar.id,
-                  calendar.user_id
-                )
-              }
-            }
-            synced++
-          } else {
-            // Target is Nudge calendar — write to calendar_events table
-            const nudgeCalendarId = await getOrCreateNudgeCalendar(calendar.user_id)
-
-            const eventData = transformEvent(event, rule)
-            eventData.user_id = calendar.user_id
-
-            const targetEventId = await getOrCreateNudgeCalendarEvent(
-              calendar.user_id,
-              event.id,
-              eventData
-            )
-
-            if (targetEventId) {
-              await trackSyncedEvent(
-                calendarId,
-                event.id,
-                targetEventId,
-                nudgeCalendarId,
-                calendar.user_id
-              )
-              synced++
-            }
-          }
+        const eventData = {
+          title: event.summary || '(No title)',
+          description: event.description || '',
+          start_date: startDate,
+          end_date: endDate,
+          is_all_day: !event.start?.dateTime,
+          google_event_id: event.id,
+          source_type: 'google',
+          source_id: calendarId,
+          color: calendar.color || '#ea4335',
         }
+
+        await getOrCreateNudgeCalendarEvent(
+          calendar.user_id,
+          event.id,
+          eventData
+        )
+        synced++
       } catch (e: any) {
-        errors.push(`Error syncing event ${event.id}: ${e.message}`)
+        errors.push(`Error saving event ${event.id} locally: ${e.message}`)
       }
     }
 
-    // Handle deleted events
+    // --- Step 2: Additionally process sync rules for mirroring ---
+    const rules = await getSyncRulesForCalendar(calendarId)
+    console.log(`Found ${rules.length} sync rules for calendar`)
+
+    if (rules.length > 0) {
+      for (const event of events) {
+        if (event.status === 'cancelled') {
+          continue
+        }
+
+        // Loop prevention: skip events we created via sync
+        const isLoop = await isLoopEvent(calendarId, event.id)
+        if (isLoop) {
+          console.log(`Skipping loop event: ${event.id}`)
+          continue
+        }
+
+        try {
+          for (const rule of rules) {
+            const targetCalendar = rule.target_calendar
+
+            if (targetCalendar?.provider === 'google') {
+              // Target is a Google calendar — create/update event via API
+              const targetAccessToken = await getValidAccessToken(targetCalendar)
+              const googleEventData = transformEventForGoogle(event, rule)
+
+              // Check if we already synced this event
+              const supabase = createClient(supabaseUrl, supabaseServiceKey)
+              const { data: existingSynced } = await supabase
+                .from('synced_events')
+                .select('target_event_id')
+                .eq('source_calendar_id', calendarId)
+                .eq('source_event_id', event.id)
+                .eq('target_calendar_id', targetCalendar.id)
+                .single()
+
+              if (existingSynced?.target_event_id) {
+                await updateGoogleCalendarEvent(
+                  targetAccessToken,
+                  targetCalendar.calendar_id || 'primary',
+                  existingSynced.target_event_id,
+                  googleEventData
+                )
+              } else {
+                const newGoogleEventId = await createGoogleCalendarEvent(
+                  targetAccessToken,
+                  targetCalendar.calendar_id || 'primary',
+                  googleEventData
+                )
+                if (newGoogleEventId) {
+                  await trackSyncedEvent(
+                    calendarId,
+                    event.id,
+                    newGoogleEventId,
+                    targetCalendar.id,
+                    calendar.user_id
+                  )
+                }
+              }
+            }
+            // Nudge-to-Nudge mirroring via rules is already handled by step 1
+          }
+        } catch (e: any) {
+          errors.push(`Error mirroring event ${event.id}: ${e.message}`)
+        }
+      }
+    }
+
+    // --- Step 3: Handle deleted events ---
     if (deletedIds?.length) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey)
       for (const deletedId of deletedIds) {
         try {
-          // Delete from Nudge calendar_events
+          // Delete from local calendar_events
           await deleteSyncedEvent(calendar.user_id, deletedId)
 
-          // Also delete from target Google calendars
+          // Also delete from target Google calendars (sync rules)
           const { data: syncedEntries } = await supabase
             .from('synced_events')
             .select('*, target_calendar:connected_calendars!target_calendar_id(*)')
@@ -581,7 +585,6 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
                   se.target_event_id
                 )
               }
-              // Clean up synced_events entry
               await supabase
                 .from('synced_events')
                 .delete()

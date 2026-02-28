@@ -70,14 +70,11 @@ export async function POST(request: NextRequest) {
         .or(`source_calendar_id.eq.${calendar_id},target_calendar_id.eq.${calendar_id}`)
     }
 
-    // Also delete any calendar_events sourced from this Google calendar
-    if (calendar?.user_id) {
-      await supabase
-        .from('calendar_events')
-        .delete()
-        .eq('user_id', calendar.user_id)
-        .eq('source_type', 'google')
-    }
+    // Also delete any calendar_events sourced from this specific connected calendar
+    await supabase
+      .from('calendar_events')
+      .delete()
+      .eq('source_id', calendar_id)
 
     // Delete sync rules where this calendar is source OR target
     await supabase
