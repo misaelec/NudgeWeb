@@ -38,8 +38,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Trigger sync immediately so existing events are synced right away
+    // Clear sync_token so syncCalendar does a full fetch (not incremental)
+    // This is needed because the initial sync after connecting likely ran before
+    // any rules existed, saving a sync_token but syncing zero events.
     try {
+      await supabase
+        .from('connected_calendars')
+        .update({ sync_token: null })
+        .eq('id', source_calendar_id)
+
       await syncCalendar(source_calendar_id)
     } catch (syncErr) {
       console.error('Failed to trigger initial sync for new rule:', syncErr)

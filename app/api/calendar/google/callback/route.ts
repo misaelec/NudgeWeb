@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         .update({
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
-          token_expires_at: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+          token_expires_at: tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null,
           account_email: email,
           account_name: name || email,
           updated_at: new Date().toISOString(),
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
           account_name: name || email,
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
-          token_expires_at: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+          token_expires_at: tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null,
           calendar_id: calendarId,
           is_primary: false,
           color: '#ea4335',
