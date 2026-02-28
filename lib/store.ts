@@ -483,6 +483,35 @@ export const useStore = create<AppState>()(
     }),
     {
       name: STORAGE_VERSION,
+      partialize: (state) => ({
+        objectives: state.objectives,
+        fearObjectives: state.fearObjectives,
+        reminders: state.reminders,
+        calendarEvents: state.calendarEvents,
+        journalEntries: state.journalEntries,
+        pomodoroSessions: state.pomodoroSessions,
+        totalFocusMinutes: state.totalFocusMinutes,
+        streaks: state.streaks,
+        featureFlags: state.featureFlags,
+        preferences: state.preferences,
+        searchQuery: state.searchQuery,
+      }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState || {}) as Record<string, any>
+        // Only merge data keys, never overwrite functions/actions from currentState
+        const dataKeys = [
+          'objectives', 'fearObjectives', 'reminders', 'calendarEvents',
+          'journalEntries', 'pomodoroSessions', 'totalFocusMinutes',
+          'streaks', 'featureFlags', 'preferences', 'searchQuery',
+        ]
+        const safeData: Record<string, any> = {}
+        for (const key of dataKeys) {
+          if (key in persisted) {
+            safeData[key] = persisted[key]
+          }
+        }
+        return { ...currentState, ...safeData }
+      },
     }
   )
 )

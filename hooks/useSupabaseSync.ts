@@ -106,24 +106,38 @@ export function useSupabaseSync() {
             reminderStore.deleteReminder(oldRecord.id, true)
           }
           break
-        case 'calendar_events':
+        case 'calendar_events': {
+          const mapEvent = (r: any) => ({
+            id: r.id,
+            title: r.title || '(No title)',
+            description: r.description || '',
+            startDate: new Date(r.start_date),
+            endDate: new Date(r.end_date),
+            location: r.location || '',
+            color: r.color || '#007AFF',
+            sourceType: r.source_type || 'local',
+            createdAt: new Date(r.created_at),
+          })
           if (eventType === 'INSERT') {
-            store.calendarActions.addEvent({
-              ...newRecord,
-              startDate: new Date(newRecord.start_date),
-              endDate: new Date(newRecord.end_date),
-              createdAt: new Date(newRecord.created_at),
-            })
+            const exists = store.calendarEvents.some((e: any) => e.id === newRecord.id)
+            if (!exists) {
+              useStore.setState({
+                calendarEvents: [...store.calendarEvents, mapEvent(newRecord)]
+              })
+            }
           } else if (eventType === 'UPDATE') {
-            store.calendarActions.updateEvent(newRecord.id, {
-              ...newRecord,
-              startDate: new Date(newRecord.start_date),
-              endDate: new Date(newRecord.end_date),
+            useStore.setState({
+              calendarEvents: store.calendarEvents.map((e: any) =>
+                e.id === newRecord.id ? { ...e, ...mapEvent(newRecord) } : e
+              )
             })
           } else if (eventType === 'DELETE') {
-            store.calendarActions.deleteEvent(oldRecord.id)
+            useStore.setState({
+              calendarEvents: store.calendarEvents.filter((e: any) => e.id !== oldRecord.id)
+            })
           }
           break
+        }
         case 'journal_entries':
           if (eventType === 'INSERT') {
             store.journalActions.addEntry({
