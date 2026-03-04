@@ -384,11 +384,14 @@ async function getOrCreateNudgeCalendarEvent(
 async function deleteSyncedEvent(userId: string, externalEventId: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-  await supabase
+  const { data, error, count } = await supabase
     .from('calendar_events')
     .delete()
     .eq('user_id', userId)
     .eq('google_event_id', externalEventId)
+    .select('id')
+
+  console.log(`deleteSyncedEvent: google_event_id=${externalEventId}, matched=${data?.length || 0}`, error || '')
 }
 
 async function trackSyncedEvent(
@@ -476,7 +479,7 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
 
     const { events, nextSyncToken, deletedIds } = fetchResult
 
-    console.log(`Fetched ${events.length} events, deleted: ${deletedIds?.length || 0}`)
+    console.log(`Sync mode: ${calendar.sync_token ? 'incremental' : 'full'}, fetched ${events.length} events, deleted: ${deletedIds?.length || 0}`)
 
     if (events.length === 0 && !deletedIds?.length) {
       if (nextSyncToken) {
@@ -579,10 +582,12 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
     }
 
     // --- Step 3: Handle deleted events ---
+    console.log('Step 3 — deletions to process:', deletedIds?.length || 0, deletedIds)
     if (deletedIds?.length) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey)
       for (const deletedId of deletedIds) {
         try {
+          console.log(`Deleting event: ${deletedId} for user: ${calendar.user_id}`)
           // Delete from local calendar_events
           await deleteSyncedEvent(calendar.user_id, deletedId)
 
