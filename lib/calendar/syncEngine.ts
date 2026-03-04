@@ -500,12 +500,13 @@ export async function syncCalendar(calendarId: string, options?: { fullClean?: b
     if (isFullSync && options?.fullClean) {
       const supabaseClean = createClient(supabaseUrl, supabaseServiceKey)
       // Mark as deleted first — triggers Realtime UPDATE so clients can remove events.
-      // (Realtime DELETE events require REPLICA IDENTITY FULL on the table.)
-      await supabaseClean
+      // Uses `description` (not `source_type` which has a CHECK constraint).
+      const { error: markError } = await supabaseClean
         .from('calendar_events')
-        .update({ source_type: 'deleted' })
+        .update({ description: '__NUDGE_DELETED__' })
         .eq('user_id', calendar.user_id)
         .eq('source_id', calendarId)
+      if (markError) console.error('Failed to mark events as deleted:', markError)
       const { error: deleteError } = await supabaseClean
         .from('calendar_events')
         .delete()
@@ -617,15 +618,16 @@ export async function syncCalendar(calendarId: string, options?: { fullClean?: b
 
       // Batch delete from local calendar_events
       // Mark as deleted first — triggers Realtime UPDATE so clients can remove events.
-      // (Realtime DELETE events require REPLICA IDENTITY FULL on the table.)
+      // Uses `description` (not `source_type` which has a CHECK constraint).
       const DEL_BATCH = 50
       for (let i = 0; i < deletedIds.length; i += DEL_BATCH) {
         const batch = deletedIds.slice(i, i + DEL_BATCH)
-        await supabase
+        const { error: markError } = await supabase
           .from('calendar_events')
-          .update({ source_type: 'deleted' })
+          .update({ description: '__NUDGE_DELETED__' })
           .eq('user_id', calendar.user_id)
           .in('google_event_id', batch)
+        if (markError) console.error('Failed to mark events as deleted:', markError)
         await supabase
           .from('calendar_events')
           .delete()

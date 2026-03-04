@@ -132,9 +132,9 @@ export function useSupabaseSync() {
     if (eventType === 'INSERT') {
       batch.inserts.push(newRecord)
     } else if (eventType === 'UPDATE') {
-      // Server marks events source_type='deleted' before DELETE to work around
-      // Realtime not sending DELETE events without REPLICA IDENTITY FULL
-      if (newRecord.source_type === 'deleted') {
+      // Server marks events with description='__NUDGE_DELETED__' before DELETE
+      // to work around Realtime not sending DELETE events without REPLICA IDENTITY FULL
+      if (newRecord.description === '__NUDGE_DELETED__') {
         batch.deleteIds.push(newRecord.id)
       } else {
         batch.updates.push(newRecord)
