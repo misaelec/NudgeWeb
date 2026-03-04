@@ -104,14 +104,20 @@ async function fetchGoogleCalendarEvents(
   const allDeletedIds: string[] = []
   let pageToken: string | undefined
   let finalSyncToken = ''
+  const isIncremental = !!syncToken
 
   do {
     const params = new URLSearchParams({
       singleEvents: 'true',
       orderBy: 'startTime',
-      showDeleted: 'true',
-      maxResults: '250',
+      maxResults: '2500',
     })
+
+    // Only fetch deleted events on incremental syncs (with syncToken).
+    // Full syncs don't need them — we only want currently-active events.
+    if (isIncremental) {
+      params.set('showDeleted', 'true')
+    }
 
     if (syncToken) {
       params.set('syncToken', syncToken)
@@ -491,32 +497,31 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
       return { success: true, synced: 0, errors: [] }
     }
 
-    // --- Step 1: Always write all events to local calendar_events table ---
-    for (const event of events) {
-      try {
-        const startDate = event.start?.dateTime || event.start?.date || new Date().toISOString()
-        const endDate = event.end?.dateTime || event.end?.date || new Date().toISOString()
-
+    // --- Step 1: Write events to local calendar_events table ---
+    // Process in parallel batches for speed
+    const BATCH_SIZE = 20
+    for (let i = 0; i < events.length; i += BATCH_SIZE) {
+      const batch = events.slice(i, i + BATCH_SIZE)
+      const promises = batch.map(event => {
         const eventData = {
           title: event.summary || '(No title)',
           description: event.description || '',
-          start_date: startDate,
-          end_date: endDate,
+          start_date: event.start?.dateTime || event.start?.date || new Date().toISOString(),
+          end_date: event.end?.dateTime || event.end?.date || new Date().toISOString(),
           is_all_day: !event.start?.dateTime,
           google_event_id: event.id,
           source_type: 'google',
           source_id: calendarId,
           color: calendar.color || '#ea4335',
         }
+        return getOrCreateNudgeCalendarEvent(calendar.user_id, event.id, eventData)
+      })
 
-        await getOrCreateNudgeCalendarEvent(
-          calendar.user_id,
-          event.id,
-          eventData
-        )
-        synced++
+      try {
+        await Promise.all(promises)
+        synced += batch.length
       } catch (e: any) {
-        errors.push(`Error saving event ${event.id} locally: ${e.message}`)
+        errors.push(`Batch error: ${e.message}`)
       }
     }
 
@@ -585,16 +590,24 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
     }
 
     // --- Step 3: Handle deleted events ---
-    console.log('Step 3 — deletions to process:', deletedIds?.length || 0, deletedIds)
     if (deletedIds?.length) {
+      console.log(`Deleting ${deletedIds.length} events`)
       const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+      // Batch delete from local calendar_events
+      const DEL_BATCH = 50
+      for (let i = 0; i < deletedIds.length; i += DEL_BATCH) {
+        const batch = deletedIds.slice(i, i + DEL_BATCH)
+        await supabase
+          .from('calendar_events')
+          .delete()
+          .eq('user_id', calendar.user_id)
+          .in('google_event_id', batch)
+      }
+
+      // Clean up synced_events + target calendars
       for (const deletedId of deletedIds) {
         try {
-          console.log(`Deleting event: ${deletedId} for user: ${calendar.user_id}`)
-          // Delete from local calendar_events
-          await deleteSyncedEvent(calendar.user_id, deletedId)
-
-          // Also delete from target Google calendars (sync rules)
           const { data: syncedEntries } = await supabase
             .from('synced_events')
             .select('*, target_calendar:connected_calendars!target_calendar_id(*)')
@@ -618,7 +631,7 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
             }
           }
         } catch (e: any) {
-          errors.push(`Error deleting event ${deletedId}: ${e.message}`)
+          errors.push(`Error cleaning synced event ${deletedId}: ${e.message}`)
         }
       }
     }
