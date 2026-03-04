@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 import { useAuth } from '@/components/Providers'
 import { useStore, CalendarEvent } from '@/lib/store'
@@ -64,64 +64,15 @@ export default function CalendarPage() {
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [showDurationPicker, setShowDurationPicker] = useState(false)
 
-  const { calendarEvents: localEvents } = useStore()
-  const [dbEvents, setDbEvents] = useState<CalendarEvent[]>([])
-
-  const fetchDbEvents = useCallback(async () => {
-    if (!user) return
-    try {
-      const res = await fetch('/api/calendar/events', {
-        headers: { 'x-user-id': user.id },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setDbEvents(
-          (data.events || []).map((e: any) => ({
-            id: e.id,
-            title: e.title,
-            description: e.description,
-            startDate: new Date(e.startDate),
-            endDate: new Date(e.endDate),
-            location: e.location,
-            color: e.color || '#ea4335',
-            sourceType: e.sourceType || 'google',
-            createdAt: new Date(e.createdAt),
-          }))
-        )
-      }
-    } catch (err) {
-      console.error('Failed to fetch DB events:', err)
-    }
-  }, [user])
+  // calendarEvents comes from Zustand, which is populated by:
+  // 1. useSupabaseSync initial fetch on app load
+  // 2. Supabase Realtime subscriptions (INSERT/UPDATE/DELETE)
+  // This means the UI updates automatically when the webhook triggers a sync.
+  const { calendarEvents } = useStore()
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  useEffect(() => {
-    if (mounted && user) {
-      fetchDbEvents()
-    }
-  }, [mounted, user, fetchDbEvents])
-
-  // Merge local (Zustand) events with DB (synced) events, dedup by id
-  const calendarEvents = useMemo(() => {
-    const seen = new Set<string>()
-    const merged: CalendarEvent[] = []
-    for (const e of localEvents) {
-      if (!seen.has(e.id)) {
-        seen.add(e.id)
-        merged.push(e)
-      }
-    }
-    for (const e of dbEvents) {
-      if (!seen.has(e.id)) {
-        seen.add(e.id)
-        merged.push(e)
-      }
-    }
-    return merged
-  }, [localEvents, dbEvents])
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
