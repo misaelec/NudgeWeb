@@ -484,8 +484,9 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
     }
 
     const { events, nextSyncToken, deletedIds } = fetchResult
+    const isFullSync = !calendar.sync_token
 
-    console.log(`Sync mode: ${calendar.sync_token ? 'incremental' : 'full'}, fetched ${events.length} events, deleted: ${deletedIds?.length || 0}`)
+    console.log(`Sync mode: ${isFullSync ? 'full' : 'incremental'}, fetched ${events.length} events, deleted: ${deletedIds?.length || 0}`)
 
     // Save syncToken immediately so next sync is always incremental,
     // even if processing times out on Vercel's 10s limit
@@ -495,6 +496,22 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
 
     if (events.length === 0 && !deletedIds?.length) {
       return { success: true, synced: 0, errors: [] }
+    }
+
+    // On full sync, wipe existing events for this source so the local DB
+    // is a clean mirror of Google Calendar (removes stale/deleted events)
+    if (isFullSync) {
+      const supabaseClean = createClient(supabaseUrl, supabaseServiceKey)
+      const { error: deleteError } = await supabaseClean
+        .from('calendar_events')
+        .delete()
+        .eq('user_id', calendar.user_id)
+        .eq('source_id', calendarId)
+      if (deleteError) {
+        console.error('Error clearing stale events:', deleteError)
+      } else {
+        console.log('Cleared existing events for full sync mirror')
+      }
     }
 
     // --- Step 1: Write events to local calendar_events table ---
