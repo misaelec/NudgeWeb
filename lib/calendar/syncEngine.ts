@@ -481,10 +481,13 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
 
     console.log(`Sync mode: ${calendar.sync_token ? 'incremental' : 'full'}, fetched ${events.length} events, deleted: ${deletedIds?.length || 0}`)
 
+    // Save syncToken immediately so next sync is always incremental,
+    // even if processing times out on Vercel's 10s limit
+    if (nextSyncToken) {
+      await updateSyncToken(calendarId, nextSyncToken)
+    }
+
     if (events.length === 0 && !deletedIds?.length) {
-      if (nextSyncToken) {
-        await updateSyncToken(calendarId, nextSyncToken)
-      }
       return { success: true, synced: 0, errors: [] }
     }
 
@@ -620,11 +623,7 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
       }
     }
 
-    if (nextSyncToken) {
-      await updateSyncToken(calendarId, nextSyncToken)
-    }
-
-    console.log(`Sync complete. Synced ${synced} events`)
+    console.log(`Sync complete. Synced ${synced} events, deleted ${deletedIds?.length || 0}`)
 
     return { success: true, synced, errors }
   } catch (error: any) {
