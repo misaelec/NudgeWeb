@@ -28,7 +28,7 @@ interface FetchEventsResult {
   needsFullSync?: boolean
 }
 
-async function getConnectedCalendar(calendarId: string) {
+export async function getConnectedCalendar(calendarId: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   const { data, error } = await supabase
@@ -95,7 +95,7 @@ export async function getValidAccessToken(calendar: any): Promise<string> {
   return newTokens.access_token
 }
 
-async function fetchGoogleCalendarEvents(
+export async function fetchGoogleCalendarEvents(
   accessToken: string,
   calendarId: string,
   syncToken?: string

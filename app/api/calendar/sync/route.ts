@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { syncCalendar } from '@/lib/calendar/syncEngine'
+import { syncCalendar, getConnectedCalendar, getValidAccessToken, fetchGoogleCalendarEvents } from '@/lib/calendar/syncEngine'
 import { registerWebhook, renewWebhook } from '@/lib/calendar/webhookManager'
 
 export const dynamic = 'force-dynamic'
@@ -44,6 +44,53 @@ export async function POST(request: NextRequest) {
       console.log(`Reset sync token for calendar ${calendar_id}`)
       const result = await syncCalendar(calendar_id, { fullClean: true })
       return NextResponse.json({ ...result, reset: true })
+    }
+
+    if (action === 'debug') {
+      // Read-only diagnostic: shows sync state, tests Google API, checks DB
+      const calendar = await getConnectedCalendar(calendar_id)
+      const accessToken = await getValidAccessToken(calendar)
+      const hasSyncToken = !!calendar.sync_token
+
+      // Count events in DB
+      const { count } = await supabase
+        .from('calendar_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', calendar.user_id)
+        .eq('source_id', calendar_id)
+
+      // Try incremental sync (read-only, we won't save anything)
+      let googleResult: any = { skipped: true }
+      try {
+        const result = await fetchGoogleCalendarEvents(
+          accessToken,
+          calendar.calendar_id || 'primary',
+          calendar.sync_token || undefined
+        )
+        googleResult = {
+          needsFullSync: result.needsFullSync || false,
+          eventsCount: result.events.length,
+          deletedIds: result.deletedIds,
+          eventSummaries: result.events.slice(0, 5).map(e => ({ id: e.id, summary: e.summary, status: e.status })),
+          nextSyncToken: result.nextSyncToken ? '(present)' : '(empty)',
+        }
+      } catch (e: any) {
+        googleResult = { error: e.message }
+      }
+
+      return NextResponse.json({
+        calendar: {
+          id: calendar.id,
+          calendar_id: calendar.calendar_id,
+          has_sync_token: hasSyncToken,
+          sync_token_preview: calendar.sync_token ? calendar.sync_token.substring(0, 20) + '...' : null,
+          last_synced_at: calendar.last_synced_at,
+          webhook_channel_id: calendar.webhook_channel_id,
+          webhook_expiration: calendar.webhook_expiration,
+        },
+        db_event_count: count,
+        google_incremental_result: googleResult,
+      })
     }
 
     // For regular sync, also check if webhook needs (re-)registration
