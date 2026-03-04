@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { useReminderStore } from '@/lib/reminderStore'
-import { supabase } from '@/lib/supabase'
+import { supabase, syncSupabaseSession } from '@/lib/supabase'
 import { useAuth } from '@/components/Providers'
 
 export function useSupabaseSync() {
@@ -265,6 +265,18 @@ export function useSupabaseSync() {
 
     if (!token || !userId) {
       return
+    }
+
+    // Sync the auth session to the Supabase client so Realtime
+    // RLS filtering works (auth.uid() must match user_id)
+    const stored = localStorage.getItem('supabase_session')
+    if (stored) {
+      try {
+        const session = JSON.parse(stored)
+        if (session.access_token && session.refresh_token) {
+          syncSupabaseSession(session.access_token, session.refresh_token)
+        }
+      } catch {}
     }
 
     if (channelRef.current && isConnectedRef.current && currentUserIdRef.current === userId) {
