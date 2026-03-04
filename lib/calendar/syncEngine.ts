@@ -452,7 +452,7 @@ async function isLoopEvent(calendarId: string, googleEventId: string): Promise<b
   return (data && data.length > 0) || false
 }
 
-export async function syncCalendar(calendarId: string): Promise<SyncResult> {
+export async function syncCalendar(calendarId: string, options?: { fullClean?: boolean }): Promise<SyncResult> {
   const errors: string[] = []
   let synced = 0
 
@@ -498,9 +498,10 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
       return { success: true, synced: 0, errors: [] }
     }
 
-    // On full sync, wipe existing events for this source so the local DB
-    // is a clean mirror of Google Calendar (removes stale/deleted events)
-    if (isFullSync) {
+    // Only wipe existing events when explicitly requested (manual "Sync Now").
+    // Webhook-triggered syncs should never wipe — it causes a race condition
+    // where the UI refetches during the wipe before re-insert completes.
+    if (isFullSync && options?.fullClean) {
       const supabaseClean = createClient(supabaseUrl, supabaseServiceKey)
       const { error: deleteError } = await supabaseClean
         .from('calendar_events')

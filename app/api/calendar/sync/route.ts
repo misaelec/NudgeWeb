@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await syncCalendar(calendar_id)
+    const result = await syncCalendar(calendar_id, { fullClean: true })
     return NextResponse.json(result)
   } catch (error: any) {
     console.error('Sync API error:', error)
