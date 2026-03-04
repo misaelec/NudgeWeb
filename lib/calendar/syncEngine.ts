@@ -108,18 +108,15 @@ async function fetchGoogleCalendarEvents(
 
   do {
     const params = new URLSearchParams({
+      singleEvents: 'true',
+      orderBy: 'startTime',
       maxResults: '2500',
     })
 
     if (isIncremental) {
-      // Incremental sync: use syncToken, showDeleted to catch cancellations.
-      // Google does NOT support singleEvents/orderBy with syncToken.
       params.set('syncToken', syncToken!)
       params.set('showDeleted', 'true')
     } else {
-      // Full sync: expand recurring events, order by time, future only.
-      params.set('singleEvents', 'true')
-      params.set('orderBy', 'startTime')
       params.set('timeMin', new Date().toISOString())
     }
 
