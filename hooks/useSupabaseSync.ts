@@ -11,6 +11,7 @@ export function useSupabaseSync() {
   const isConnectedRef = useRef(false)
   const currentUserIdRef = useRef<string | null>(null)
   const isProcessingRef = useRef(false)
+  const calendarDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isReady, setIsReady] = useState(false)
 
   const { user, loading } = useAuth()
@@ -66,111 +67,111 @@ export function useSupabaseSync() {
     return null
   }
 
-  const handleDatabaseChange = (payload: any, table: string) => {
-    console.log('[Realtime] Change received:', table, payload.eventType, payload)
-    if (isProcessingRef.current) {
-      console.log('[Realtime] Skipped — isProcessing lock')
-      return
-    }
+  const refetchCalendarEvents = async () => {
+    const token = await getAccessToken()
+    const userId = getUserId()
+    if (!token || !userId) return
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
+    }
+    const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
+
+    try {
+      const res = await fetch(
+        `${API_URL}/rest/v1/calendar_events?user_id=eq.${userId}&order=start_date.asc`,
+        { headers }
+      )
+      const calendar = await res.json()
+      if (Array.isArray(calendar)) {
+        useStore.getState().setCalendarEvents(calendar.map((e: any) => ({
+          id: e.id,
+          title: e.title || '(No title)',
+          description: e.description || '',
+          startDate: new Date(e.start_date),
+          endDate: new Date(e.end_date),
+          location: e.location || '',
+          color: e.color || '#007AFF',
+          sourceType: e.source_type || 'local',
+          createdAt: new Date(e.created_at),
+        })))
+      }
+    } catch (err) {
+      console.error('Failed to refetch calendar events:', err)
+    }
+  }
+
+  const handleDatabaseChange = (payload: any, table: string) => {
     const { eventType, new: newRecord, old: oldRecord } = payload
-    
-    isProcessingRef.current = true
 
     const reminderStore = useReminderStore.getState()
     const store = useStore.getState()
 
-    try {
-      switch (table) {
-        case 'reminders':
-          if (eventType === 'INSERT') {
-            const existing = reminderStore.reminders.find(r => r.id === newRecord.id)
-            if (existing) return
-            reminderStore.syncFromRealtime({
-              id: newRecord.id,
-              title: newRecord.title,
-              notes: newRecord.notes,
-              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
-              priority: newRecord.priority || 'medium',
-              completed: newRecord.is_completed ?? false,
-              createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
-            })
-          } else if (eventType === 'UPDATE') {
-            reminderStore.syncFromRealtime({
-              id: newRecord.id,
-              title: newRecord.title || '',
-              notes: newRecord.notes,
-              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
-              priority: newRecord.priority || 'medium',
-              completed: newRecord.is_completed ?? false,
-            })
-          } else if (eventType === 'DELETE') {
-            reminderStore.deleteReminder(oldRecord.id, true)
-          }
-          break
-        case 'calendar_events': {
-          const mapEvent = (r: any) => ({
-            id: r.id,
-            title: r.title || '(No title)',
-            description: r.description || '',
-            startDate: new Date(r.start_date),
-            endDate: new Date(r.end_date),
-            location: r.location || '',
-            color: r.color || '#007AFF',
-            sourceType: r.source_type || 'local',
-            createdAt: new Date(r.created_at),
+    switch (table) {
+      case 'reminders':
+        if (eventType === 'INSERT') {
+          const existing = reminderStore.reminders.find(r => r.id === newRecord.id)
+          if (existing) return
+          reminderStore.syncFromRealtime({
+            id: newRecord.id,
+            title: newRecord.title,
+            notes: newRecord.notes,
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
+            priority: newRecord.priority || 'medium',
+            completed: newRecord.is_completed ?? false,
+            createdAt: newRecord.created_at ? new Date(newRecord.created_at) : new Date(),
           })
-          if (eventType === 'INSERT') {
-            const exists = store.calendarEvents.some((e: any) => e.id === newRecord.id)
-            if (!exists) {
-              useStore.setState({
-                calendarEvents: [...store.calendarEvents, mapEvent(newRecord)]
-              })
-            }
-          } else if (eventType === 'UPDATE') {
-            useStore.setState({
-              calendarEvents: store.calendarEvents.map((e: any) =>
-                e.id === newRecord.id ? { ...e, ...mapEvent(newRecord) } : e
-              )
-            })
-          } else if (eventType === 'DELETE') {
-            useStore.setState({
-              calendarEvents: store.calendarEvents.filter((e: any) => e.id !== oldRecord.id)
-            })
-          }
-          break
+        } else if (eventType === 'UPDATE') {
+          reminderStore.syncFromRealtime({
+            id: newRecord.id,
+            title: newRecord.title || '',
+            notes: newRecord.notes,
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : new Date(),
+            priority: newRecord.priority || 'medium',
+            completed: newRecord.is_completed ?? false,
+          })
+        } else if (eventType === 'DELETE') {
+          reminderStore.deleteReminder(oldRecord.id, true)
         }
-        case 'journal_entries':
-          if (eventType === 'INSERT') {
-            store.journalActions.addEntry({
-              ...newRecord,
-              createdAt: new Date(newRecord.created_at),
-            })
-          } else if (eventType === 'DELETE') {
-            store.journalActions.deleteEntry(oldRecord.id)
-          }
-          break
-        case 'objectives':
-          if (eventType === 'INSERT') {
-            store.objectiveActions.addObjective({
-              ...newRecord,
-              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
-              createdAt: new Date(newRecord.created_at),
-            })
-          } else if (eventType === 'UPDATE') {
-            store.objectiveActions.updateObjective(newRecord.id, {
-              ...newRecord,
-              dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
-            })
-          } else if (eventType === 'DELETE') {
-            store.objectiveActions.deleteObjective(oldRecord.id)
-          }
-          break
-      }
-    } finally {
-      setTimeout(() => {
-        isProcessingRef.current = false
-      }, 100)
+        break
+      case 'calendar_events':
+        // Debounce: batch sync writes trigger many Realtime events.
+        // Wait for changes to settle, then do a single refetch.
+        if (calendarDebounceRef.current) {
+          clearTimeout(calendarDebounceRef.current)
+        }
+        calendarDebounceRef.current = setTimeout(() => {
+          refetchCalendarEvents()
+        }, 1000)
+        break
+      case 'journal_entries':
+        if (eventType === 'INSERT') {
+          store.journalActions.addEntry({
+            ...newRecord,
+            createdAt: new Date(newRecord.created_at),
+          })
+        } else if (eventType === 'DELETE') {
+          store.journalActions.deleteEntry(oldRecord.id)
+        }
+        break
+      case 'objectives':
+        if (eventType === 'INSERT') {
+          store.objectiveActions.addObjective({
+            ...newRecord,
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
+            createdAt: new Date(newRecord.created_at),
+          })
+        } else if (eventType === 'UPDATE') {
+          store.objectiveActions.updateObjective(newRecord.id, {
+            ...newRecord,
+            dueDate: newRecord.due_date ? new Date(newRecord.due_date) : undefined,
+          })
+        } else if (eventType === 'DELETE') {
+          store.objectiveActions.deleteObjective(oldRecord.id)
+        }
+        break
     }
   }
 
