@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { syncCalendar } from '@/lib/calendar/syncEngine'
-import { registerWebhook } from '@/lib/calendar/webhookManager'
+import { registerWebhook, renewWebhook } from '@/lib/calendar/webhookManager'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,16 +47,16 @@ export async function POST(request: NextRequest) {
       const webhookMissing = !calendar.webhook_channel_id
 
       if (webhookMissing || webhookExpired) {
-        console.log('Webhook missing or expired, re-registering:', {
+        console.log('Webhook missing or expired, renewing:', {
           calendar_id,
           webhookMissing,
           webhookExpired,
           expiration: calendar.webhook_expiration,
         })
         try {
-          await registerWebhook(calendar_id, calendar.access_token, calendar.calendar_id || 'primary')
+          await renewWebhook(calendar_id)
         } catch (e) {
-          console.error('Webhook re-registration failed during sync:', e)
+          console.error('Webhook renewal failed during sync:', e)
         }
       }
     }
