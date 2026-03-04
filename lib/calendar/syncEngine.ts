@@ -499,6 +499,13 @@ export async function syncCalendar(calendarId: string, options?: { fullClean?: b
     // where the UI refetches during the wipe before re-insert completes.
     if (isFullSync && options?.fullClean) {
       const supabaseClean = createClient(supabaseUrl, supabaseServiceKey)
+      // Mark as deleted first — triggers Realtime UPDATE so clients can remove events.
+      // (Realtime DELETE events require REPLICA IDENTITY FULL on the table.)
+      await supabaseClean
+        .from('calendar_events')
+        .update({ source_type: 'deleted' })
+        .eq('user_id', calendar.user_id)
+        .eq('source_id', calendarId)
       const { error: deleteError } = await supabaseClean
         .from('calendar_events')
         .delete()
@@ -609,9 +616,16 @@ export async function syncCalendar(calendarId: string, options?: { fullClean?: b
       const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
       // Batch delete from local calendar_events
+      // Mark as deleted first — triggers Realtime UPDATE so clients can remove events.
+      // (Realtime DELETE events require REPLICA IDENTITY FULL on the table.)
       const DEL_BATCH = 50
       for (let i = 0; i < deletedIds.length; i += DEL_BATCH) {
         const batch = deletedIds.slice(i, i + DEL_BATCH)
+        await supabase
+          .from('calendar_events')
+          .update({ source_type: 'deleted' })
+          .eq('user_id', calendar.user_id)
+          .in('google_event_id', batch)
         await supabase
           .from('calendar_events')
           .delete()

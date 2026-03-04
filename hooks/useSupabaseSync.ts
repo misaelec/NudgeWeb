@@ -119,7 +119,10 @@ export function useSupabaseSync() {
       }
     }
 
-    console.log(`[Calendar RT] Flushed batch: +${inserts.length} ~${updates.length} -${deleteIds.length}`)
+    // Only log when there are inserts or deletes (skip update-only noise during full sync)
+    if (inserts.length > 0 || deleteIds.length > 0) {
+      console.log(`[Calendar RT] Flushed batch: +${inserts.length} ~${updates.length} -${deleteIds.length}`)
+    }
     store.setCalendarEvents(events)
   }
 
@@ -129,7 +132,13 @@ export function useSupabaseSync() {
     if (eventType === 'INSERT') {
       batch.inserts.push(newRecord)
     } else if (eventType === 'UPDATE') {
-      batch.updates.push(newRecord)
+      // Server marks events source_type='deleted' before DELETE to work around
+      // Realtime not sending DELETE events without REPLICA IDENTITY FULL
+      if (newRecord.source_type === 'deleted') {
+        batch.deleteIds.push(newRecord.id)
+      } else {
+        batch.updates.push(newRecord)
+      }
     } else if (eventType === 'DELETE') {
       batch.deleteIds.push(oldRecord.id)
     }
