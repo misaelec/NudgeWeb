@@ -45,16 +45,15 @@ export function getSupabaseClient(): SupabaseClient {
 
 export const supabase = getSupabaseClient()
 
-export function syncSupabaseSession(accessToken: string, refreshToken: string) {
+export async function syncSupabaseSession(accessToken: string, refreshToken: string) {
   if (supabaseInstance) {
-    supabaseInstance.auth.setSession({
+    const { error } = await supabaseInstance.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken,
-    }).then(({ data, error }) => {
-      if (error) {
-        console.error('Error setting session:', error)
-      }
     })
+    if (error) {
+      console.error('Error setting session:', error)
+    }
   }
 }
 

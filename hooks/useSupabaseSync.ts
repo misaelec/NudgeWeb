@@ -67,7 +67,9 @@ export function useSupabaseSync() {
   }
 
   const handleDatabaseChange = (payload: any, table: string) => {
+    console.log('[Realtime] Change received:', table, payload.eventType, payload)
     if (isProcessingRef.current) {
+      console.log('[Realtime] Skipped — isProcessing lock')
       return
     }
 
@@ -274,7 +276,8 @@ export function useSupabaseSync() {
       try {
         const session = JSON.parse(stored)
         if (session.access_token && session.refresh_token) {
-          syncSupabaseSession(session.access_token, session.refresh_token)
+          await syncSupabaseSession(session.access_token, session.refresh_token)
+          console.log('[Realtime] Session synced to Supabase client')
         }
       } catch {}
     }
@@ -309,7 +312,8 @@ export function useSupabaseSync() {
         { event: '*', schema: 'public', table: 'objectives' },
         (payload) => handleDatabaseChange(payload, 'objectives')
       )
-      .subscribe(async (status) => {
+      .subscribe(async (status, err) => {
+        console.log('[Realtime] Channel status:', status, err || '')
         if (status === 'SUBSCRIBED') {
           isConnectedRef.current = true
           currentUserIdRef.current = userId
