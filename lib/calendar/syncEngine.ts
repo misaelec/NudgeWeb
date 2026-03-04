@@ -109,14 +109,15 @@ async function fetchGoogleCalendarEvents(
   do {
     const params = new URLSearchParams({
       singleEvents: 'true',
-      orderBy: 'startTime',
       maxResults: '2500',
     })
 
     if (isIncremental) {
       params.set('syncToken', syncToken!)
       params.set('showDeleted', 'true')
+      // orderBy, timeMin, timeMax etc. are FORBIDDEN with syncToken
     } else {
+      params.set('orderBy', 'startTime')
       params.set('timeMin', new Date().toISOString())
     }
 
@@ -134,8 +135,8 @@ async function fetchGoogleCalendarEvents(
       const error = await response.json()
       console.error('Google Calendar API error:', error)
 
-      if (error.error?.code === 410) {
-        console.log('Sync token expired, need full sync')
+      if (error.error?.code === 410 || error.error?.code === 400) {
+        console.log(`Sync token invalid (${error.error?.code}), need full sync`)
         return { events: [], nextSyncToken: '', deletedIds: [], needsFullSync: true }
       }
 

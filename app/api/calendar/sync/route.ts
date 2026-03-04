@@ -34,6 +34,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success })
     }
 
+    if (action === 'reset_sync') {
+      // Clear sync_token so next sync does a full fetch with a clean token
+      await supabase
+        .from('connected_calendars')
+        .update({ sync_token: null, updated_at: new Date().toISOString() })
+        .eq('id', calendar_id)
+
+      console.log(`Reset sync token for calendar ${calendar_id}`)
+      const result = await syncCalendar(calendar_id, { fullClean: true })
+      return NextResponse.json({ ...result, reset: true })
+    }
+
     // For regular sync, also check if webhook needs (re-)registration
     const { data: calendar } = await supabase
       .from('connected_calendars')

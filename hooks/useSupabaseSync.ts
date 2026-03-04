@@ -11,7 +11,8 @@ export function useSupabaseSync() {
   const isConnectedRef = useRef(false)
   const currentUserIdRef = useRef<string | null>(null)
   const isProcessingRef = useRef(false)
-  const calendarDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const calendarBatchRef = useRef<{ inserts: any[]; updates: any[]; deleteIds: string[] }>({ inserts: [], updates: [], deleteIds: [] })
+  const calendarFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isReady, setIsReady] = useState(false)
 
   const { user, loading } = useAuth()
@@ -67,40 +68,77 @@ export function useSupabaseSync() {
     return null
   }
 
-  const refetchCalendarEvents = async () => {
-    const token = await getAccessToken()
-    const userId = getUserId()
-    if (!token || !userId) return
+  const dbRowToCalendarEvent = (row: any) => ({
+    id: row.id,
+    title: row.title || '(No title)',
+    description: row.description || '',
+    startDate: new Date(row.start_date),
+    endDate: new Date(row.end_date),
+    location: row.location || '',
+    color: row.color || '#007AFF',
+    sourceType: row.source_type || 'local',
+    createdAt: new Date(row.created_at),
+  })
 
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'apikey': 'sb_publishable_4HHk7Qa7gY-Qnoa8dbCa6Q_ZnebZgQJ',
+  const flushCalendarUpdates = () => {
+    const batch = calendarBatchRef.current
+    if (!batch.inserts.length && !batch.updates.length && !batch.deleteIds.length) return
+
+    const inserts = [...batch.inserts]
+    const updates = [...batch.updates]
+    const deleteIds = [...batch.deleteIds]
+    batch.inserts = []
+    batch.updates = []
+    batch.deleteIds = []
+
+    const store = useStore.getState()
+    let events = [...store.calendarEvents]
+
+    // Apply deletes
+    if (deleteIds.length > 0) {
+      console.log(`[Calendar RT] Deleting ${deleteIds.length} events`)
+      events = events.filter(e => !deleteIds.includes(e.id))
     }
-    const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
 
-    try {
-      const res = await fetch(
-        `${API_URL}/rest/v1/calendar_events?user_id=eq.${userId}&order=start_date.asc`,
-        { headers }
-      )
-      const calendar = await res.json()
-      if (Array.isArray(calendar)) {
-        useStore.getState().setCalendarEvents(calendar.map((e: any) => ({
-          id: e.id,
-          title: e.title || '(No title)',
-          description: e.description || '',
-          startDate: new Date(e.start_date),
-          endDate: new Date(e.end_date),
-          location: e.location || '',
-          color: e.color || '#007AFF',
-          sourceType: e.source_type || 'local',
-          createdAt: new Date(e.created_at),
-        })))
+    // Apply updates
+    for (const updated of updates) {
+      const mapped = dbRowToCalendarEvent(updated)
+      const idx = events.findIndex(e => e.id === mapped.id)
+      if (idx >= 0) {
+        events[idx] = mapped
+      } else {
+        events.push(mapped)
       }
-    } catch (err) {
-      console.error('Failed to refetch calendar events:', err)
     }
+
+    // Apply inserts
+    for (const inserted of inserts) {
+      const mapped = dbRowToCalendarEvent(inserted)
+      if (!events.some(e => e.id === mapped.id)) {
+        events.push(mapped)
+      }
+    }
+
+    console.log(`[Calendar RT] Flushed batch: +${inserts.length} ~${updates.length} -${deleteIds.length}`)
+    store.setCalendarEvents(events)
+  }
+
+  const queueCalendarUpdate = (eventType: string, newRecord: any, oldRecord: any) => {
+    const batch = calendarBatchRef.current
+
+    if (eventType === 'INSERT') {
+      batch.inserts.push(newRecord)
+    } else if (eventType === 'UPDATE') {
+      batch.updates.push(newRecord)
+    } else if (eventType === 'DELETE') {
+      batch.deleteIds.push(oldRecord.id)
+    }
+
+    // Flush after 100ms to batch rapid sync writes into one setState
+    if (calendarFlushTimerRef.current) {
+      clearTimeout(calendarFlushTimerRef.current)
+    }
+    calendarFlushTimerRef.current = setTimeout(flushCalendarUpdates, 100)
   }
 
   const handleDatabaseChange = (payload: any, table: string) => {
@@ -137,14 +175,7 @@ export function useSupabaseSync() {
         }
         break
       case 'calendar_events':
-        // Debounce: batch sync writes trigger many Realtime events.
-        // Wait for changes to settle, then do a single refetch.
-        if (calendarDebounceRef.current) {
-          clearTimeout(calendarDebounceRef.current)
-        }
-        calendarDebounceRef.current = setTimeout(() => {
-          refetchCalendarEvents()
-        }, 1000)
+        queueCalendarUpdate(eventType, newRecord, oldRecord)
         break
       case 'journal_entries':
         if (eventType === 'INSERT') {
