@@ -63,7 +63,9 @@ export async function registerWebhook(calendarDbId: string, accessToken: string,
       .update({
         webhook_channel_id: channelId,
         webhook_resource_id: data.resourceId,
-        webhook_expiration: new Date(data.expiration).toISOString(),
+        webhook_expiration: data.expiration
+          ? new Date(Number(data.expiration)).toISOString()
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', calendarDbId)
