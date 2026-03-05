@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { calendar_id, color } = body
+  const { calendar_id, color, account_name } = body
 
   if (!calendar_id) {
     return NextResponse.json({ error: 'Missing calendar_id' }, { status: 400 })
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
 
   const updates: Record<string, any> = { updated_at: new Date().toISOString() }
   if (color) updates.color = color
+  if (account_name !== undefined) updates.account_name = account_name
 
   // Update the calendar record
   const { error: calError } = await supabase

@@ -27,15 +27,19 @@ const VISIBILITY_OPTIONS: { value: VisibilityType; label: string }[] = [
   { value: 'full', label: 'Full Details' },
 ]
 
-function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: {
+function CalendarCard({ calendar, onRemove, onSync, onColorChange, onNameChange, isSyncing }: {
   calendar: ConnectedCalendar
   onRemove: () => void
   onSync?: () => void
   onColorChange?: (color: string) => void
+  onNameChange?: (name: string) => void
   isSyncing?: boolean
 }) {
   const [showColors, setShowColors] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState(calendar.accountName || calendar.accountEmail || '')
   const pickerRef = useRef<HTMLDivElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!showColors) return
@@ -47,6 +51,18 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: 
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showColors])
+
+  useEffect(() => {
+    if (editingName) nameInputRef.current?.focus()
+  }, [editingName])
+
+  const commitName = () => {
+    setEditingName(false)
+    const trimmed = nameValue.trim()
+    if (trimmed && trimmed !== (calendar.accountName || calendar.accountEmail)) {
+      onNameChange?.(trimmed)
+    }
+  }
 
   return (
     <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
@@ -77,9 +93,26 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: 
           )}
         </div>
         <div>
-          <p className="font-medium text-text-primary">
-            {calendar.provider === 'nudge' ? 'My Nudge Calendar' : calendar.accountEmail}
-          </p>
+          {calendar.provider === 'nudge' ? (
+            <p className="font-medium text-text-primary">My Nudge Calendar</p>
+          ) : editingName ? (
+            <input
+              ref={nameInputRef}
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setEditingName(false); setNameValue(calendar.accountName || calendar.accountEmail || '') } }}
+              className="font-medium text-text-primary bg-surface-primary border border-accent-primary rounded px-1 py-0.5 text-sm outline-none w-48"
+            />
+          ) : (
+            <button
+              onClick={() => setEditingName(true)}
+              className="font-medium text-text-primary hover:text-accent-primary transition-colors text-left"
+              title="Click to rename"
+            >
+              {calendar.accountName || calendar.accountEmail}
+            </button>
+          )}
           <p className="text-sm text-text-tertiary">{PROVIDER_LABELS[calendar.provider]}</p>
         </div>
       </div>
@@ -127,11 +160,11 @@ function SyncRuleRow({
     <div className="flex items-center gap-4 py-3 border-b border-border-primary last:border-0">
       <div className="flex-1 flex items-center gap-2">
         <span className="text-sm font-medium text-text-primary">
-          {sourceCalendar.provider === 'nudge' ? 'My Nudge Calendar' : sourceCalendar.accountEmail}
+          {sourceCalendar.provider === 'nudge' ? 'My Nudge Calendar' : (sourceCalendar.accountName || sourceCalendar.accountEmail)}
         </span>
         <span className="text-text-tertiary">→</span>
         <span className="text-sm font-medium text-text-primary">
-          {targetCalendar.provider === 'nudge' ? 'My Nudge Calendar' : targetCalendar.accountEmail}
+          {targetCalendar.provider === 'nudge' ? 'My Nudge Calendar' : (targetCalendar.accountName || targetCalendar.accountEmail)}
         </span>
       </div>
 
@@ -192,7 +225,7 @@ function AddRuleModal({
               <option value="">Select source calendar</option>
               {sourceCalendars.map(cal => (
                 <option key={cal.id} value={cal.id}>
-                  {cal.provider === 'nudge' ? 'My Nudge Calendar' : cal.accountEmail}
+                  {cal.provider === 'nudge' ? 'My Nudge Calendar' : (cal.accountName || cal.accountEmail)}
                 </option>
               ))}
             </select>
@@ -208,7 +241,7 @@ function AddRuleModal({
               <option value="">Select target calendar</option>
               {targetCalendars.map(cal => (
                 <option key={cal.id} value={cal.id}>
-                  {cal.provider === 'nudge' ? 'My Nudge Calendar' : cal.accountEmail}
+                  {cal.provider === 'nudge' ? 'My Nudge Calendar' : (cal.accountName || cal.accountEmail)}
                 </option>
               ))}
             </select>
@@ -311,6 +344,20 @@ export default function CalendarSettings() {
     }
   }
 
+  const handleNameChange = async (calendarId: string, name: string) => {
+    const { updateCalendar } = useCalendarSyncStore.getState()
+    updateCalendar(calendarId, { accountName: name })
+    try {
+      await fetch('/api/calendar/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendar_id: calendarId, account_name: name }),
+      })
+    } catch (error) {
+      console.error('Failed to update calendar name:', error)
+    }
+  }
+
   const handleSyncCalendar = async (calendarId: string) => {
     setSyncingCalendarId(calendarId)
     try {
@@ -378,6 +425,7 @@ export default function CalendarSettings() {
             onRemove={() => handleRemoveCalendar(calendar.id)}
             onSync={calendar.provider !== 'nudge' ? () => handleSyncCalendar(calendar.id) : undefined}
             onColorChange={(color) => handleColorChange(calendar.id, color)}
+            onNameChange={(name) => handleNameChange(calendar.id, name)}
             isSyncing={syncingCalendarId === calendar.id}
           />
         ))}
