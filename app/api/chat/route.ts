@@ -16,6 +16,19 @@ export const maxDuration = 60
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+/** Derive a human-readable display name from a calendar ID that looks like an email. */
+function ownerNameFromCalendarId(calendarId: string): string | null {
+  // Personal calendars have an email as ID, e.g. nayely.aguilera@azumo.com
+  // Group/shared calendars look like c_xxx@group.calendar.google.com — skip those
+  if (!calendarId.includes('@') || calendarId.endsWith('@group.calendar.google.com')) return null
+  const local = calendarId.split('@')[0]
+  return local
+    .split(/[._-]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 /** Fetch all Google connected calendars for the user with valid tokens. */
 async function getGoogleConnectedCalendars(userId: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
@@ -109,7 +122,7 @@ function buildAgentTools(userId: string) {
           return { calendars: [], message: 'No Google account connected.' }
         }
 
-        const allCalendars: { id: string; name: string; accessRole: string; account: string }[] = []
+        const allCalendars: { id: string; name: string; ownerName: string | null; accessRole: string; account: string }[] = []
 
         for (const account of connectedAccounts) {
           try {
@@ -128,6 +141,7 @@ function buildAgentTools(userId: string) {
               allCalendars.push({
                 id: cal.id,
                 name: cal.summary || cal.id,
+                ownerName: ownerNameFromCalendarId(cal.id),
                 accessRole: cal.accessRole,
                 account: accountLabel,
               })
@@ -137,7 +151,7 @@ function buildAgentTools(userId: string) {
           }
         }
 
-        console.log('[chat tool] listGoogleCalendars found:', allCalendars.length, 'calendars:', allCalendars.map(c => ({ name: c.name, id: c.id, accessRole: c.accessRole })))
+        console.log('[chat tool] listGoogleCalendars found:', allCalendars.length, 'calendars:', allCalendars.map(c => ({ name: c.name, ownerName: c.ownerName, accessRole: c.accessRole })))
         return { calendars: allCalendars }
       },
     }),
@@ -272,10 +286,11 @@ You have three tools:
 
 WORKFLOW — when the user asks about ANOTHER PERSON (e.g. "When is Nayely available?", "What does Nayely have today?"):
   Step 1: Call listGoogleCalendars (ALWAYS — do not skip this step).
-  Step 2: Find calendars whose name matches the person (case-insensitive, partial match OK).
+  Step 2: Match the person against BOTH the "name" field AND the "ownerName" field (case-insensitive, partial match OK).
+          "ownerName" is derived from the calendar ID email and may more accurately reflect the person's real name.
     - Exactly one match → call getEventsFromGoogleCalendar with that calendar's id.
-    - Multiple matches → show the options and ask which one before fetching.
-    - No match → tell the user that calendar is not visible to their connected account.
+    - Multiple matches → list them and ask the user which one to use before fetching.
+    - No match at all → tell the user: "I couldn't find a calendar for [name] in your connected account. They may not have shared their calendar with you."
   Step 3: Report the events found, noting if access is limited to free/busy only.
 
 Answer concisely and helpfully. If asked about something outside calendars/reminders, say so.`
