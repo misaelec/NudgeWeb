@@ -26,7 +26,7 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
     [userId]
   )
 
-  const { messages, sendMessage, status } = useChat({ transport })
+  const { messages, sendMessage, status, error } = useChat({ transport })
 
   const isLoading = status === 'submitted' || status === 'streaming'
 
@@ -105,6 +105,13 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
           <div className="flex justify-start">
             <div className="bg-surface-secondary text-text-tertiary px-3 py-2 rounded-apple-lg text-sm">
               <span className="animate-pulse">...</span>
+            </div>
+          </div>
+        )}
+        {error && (
+          <div className="flex justify-start">
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-2 rounded-apple-lg text-sm">
+              Error: {error.message || 'Something went wrong. Try again.'}
             </div>
           </div>
         )}

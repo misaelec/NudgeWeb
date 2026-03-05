@@ -1,4 +1,11 @@
-import { streamText, convertToModelMessages, stepCountIs, tool } from 'ai'
+import {
+  streamText,
+  convertToModelMessages,
+  stepCountIs,
+  tool,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+} from 'ai'
 import { google } from '@ai-sdk/google'
 import { groq } from '@ai-sdk/groq'
 import { createClient } from '@supabase/supabase-js'
@@ -48,12 +55,6 @@ function buildAgentTools(userId: string) {
   }
 }
 
-const systemPrompt = `You are the AI assistant for Nudge, a productivity app.
-Use the getCalendarEvents tool to look up the user's calendar events and reminders when needed.
-Answer concisely and helpfully.
-If asked about something outside calendar/reminders, let the user know you only have access to those.
-Today's date is ${new Date().toISOString().split('T')[0]}.`
-
 export async function POST(request: Request) {
   const userId = request.headers.get('x-user-id')
 
@@ -65,32 +66,51 @@ export async function POST(request: Request) {
   const modelMessages = await convertToModelMessages(messages)
   const tools = buildAgentTools(userId)
 
-  try {
-    const result = streamText({
-      model: google('gemini-2.0-flash'),
-      system: systemPrompt,
-      messages: modelMessages,
-      tools,
-      stopWhen: stepCountIs(5),
-    })
+  const systemPrompt = `You are the AI assistant for Nudge, a productivity app.
+Use the getCalendarEvents tool to look up the user's calendar events and reminders when needed.
+Answer concisely and helpfully.
+If asked about something outside calendar/reminders, let the user know you only have access to those.
+Today's date is ${new Date().toISOString().split('T')[0]}.`
 
-    return result.toUIMessageStreamResponse()
-  } catch (primaryError) {
-    console.warn('Google Gemini failed, falling back to Groq:', primaryError)
+  const providers = [
+    { name: 'Google', model: google('gemini-2.0-flash') },
+    { name: 'Groq', model: groq('llama-3.3-70b-versatile') },
+  ]
 
-    try {
-      const result = streamText({
-        model: groq('llama-3.3-70b-versatile'),
-        system: systemPrompt,
-        messages: modelMessages,
-        tools,
-        stopWhen: stepCountIs(5),
-      })
+  return createUIMessageStreamResponse({
+    stream: createUIMessageStream({
+      execute: async ({ writer }) => {
+        let lastError: unknown
 
-      return result.toUIMessageStreamResponse()
-    } catch (fallbackError) {
-      console.error('Both providers failed:', fallbackError)
-      return new Response('Internal Server Error', { status: 500 })
-    }
-  }
+        for (const { name, model } of providers) {
+          try {
+            const result = streamText({
+              model,
+              system: systemPrompt,
+              messages: modelMessages,
+              tools,
+              stopWhen: stepCountIs(5),
+            })
+
+            // Iterate manually so streaming errors are caught
+            const uiStream = result.toUIMessageStream()
+            for await (const chunk of uiStream) {
+              writer.write(chunk)
+            }
+            return // success
+          } catch (error) {
+            lastError = error
+            console.warn(`[chat] ${name} failed:`, error)
+          }
+        }
+
+        // All providers failed
+        console.error('[chat] All providers failed. Last error:', lastError)
+      },
+      onError: (error) => {
+        console.error('[chat] Stream error:', error)
+        return 'An error occurred while generating a response.'
+      },
+    }),
+  })
 }
