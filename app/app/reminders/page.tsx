@@ -15,8 +15,6 @@ import {
   CheckCircle2,
   Calendar,
   X,
-  ChevronDown,
-  ChevronUp,
   Search,
   BellOff,
   TrendingUp,
@@ -24,8 +22,6 @@ import {
   Edit2
 } from 'lucide-react'
 import { format } from 'date-fns'
-
-type Filter = 'all' | 'pending' | 'completed'
 
 export default function RemindersPage() {
   const { user, loading } = useAuth()
@@ -36,7 +32,6 @@ export default function RemindersPage() {
   const [showEditReminder, setShowEditReminder] = useState(false)
   const [editingReminder, setEditingReminder] = useState<any>(null)
   const [showCompleted, setShowCompleted] = useState(false)
-  const [filter, setFilter] = useState<Filter>('all')
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
 
   const [newReminder, setNewReminder] = useState({
@@ -62,18 +57,14 @@ export default function RemindersPage() {
   }, [user, mounted])
 
   const filteredReminders = reminders.filter(r => {
-    const matchesFilter = filter === 'all' 
-      ? true 
-      : filter === 'completed' 
-        ? r.completed 
-        : !r.completed
-    
-    const matchesSearch = searchQuery === '' 
-      ? true 
+    if (!showCompleted && r.completed) return false
+
+    const matchesSearch = searchQuery === ''
+      ? true
       : r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.notes?.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    return matchesFilter && matchesSearch
+
+    return matchesSearch
   })
 
   const pendingCount = reminders.filter(r => !r.completed).length
@@ -236,20 +227,19 @@ export default function RemindersPage() {
             </div>
           ) : (
             <>
-              <div className="flex gap-2 mb-6">
-                {(['all', 'pending', 'completed'] as Filter[]).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-4 py-2 rounded-apple-lg font-medium transition-all ${
-                      filter === f
-                        ? 'bg-accent-primary text-white'
-                        : 'bg-surface-secondary text-text-secondary hover:bg-border-primary'
-                    }`}
-                  >
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-6">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={showCompleted}
+                      onChange={() => setShowCompleted(!showCompleted)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-border-primary rounded-full peer peer-checked:bg-accent-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all transition-colors" />
+                  </div>
+                  <span className="text-sm text-text-secondary">Show completed</span>
+                </label>
               </div>
 
               {filteredReminders.length > 0 ? (
@@ -268,28 +258,13 @@ export default function RemindersPage() {
                 <div className="card text-center py-12">
                   <Bell className="w-16 h-16 mx-auto mb-4 text-text-placeholder" />
                   <h3 className="text-lg font-medium text-text-primary mb-2">
-                    {filter === 'completed' ? 'No completed reminders' : 'No reminders found'}
+                    No reminders found
                   </h3>
                   <p className="text-text-tertiary">
-                    {filter === 'completed'
-                      ? 'Complete some reminders to see them here.'
-                      : searchQuery ? 'Try a different search term.'
+                    {searchQuery ? 'Try a different search term.'
                       : 'Create your first reminder to stay on track.'}
                   </p>
                 </div>
-              )}
-
-              {reminders.some(r => r.completed) && (
-                <button
-                  onClick={() => setShowCompleted(!showCompleted)}
-                  className="mt-6 flex items-center justify-center gap-2 w-full py-3 text-sm text-text-tertiary hover:text-text-primary transition-colors"
-                >
-                  {showCompleted ? (
-                    <>Hide completed <ChevronUp className="w-4 h-4" /></>
-                  ) : (
-                    <>Show completed <ChevronDown className="w-4 h-4" /></>
-                  )}
-                </button>
               )}
             </>
           )}
