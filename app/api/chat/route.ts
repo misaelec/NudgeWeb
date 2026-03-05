@@ -9,11 +9,23 @@ import {
 } from 'ai'
 import { groq } from '@ai-sdk/groq'
 import { createClient } from '@supabase/supabase-js'
+import { getValidAccessToken } from '@/lib/calendar/syncEngine'
 
 export const maxDuration = 60
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+/** Fetch all Google connected calendars for the user with valid tokens. */
+async function getGoogleConnectedCalendars(userId: string) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const { data } = await supabase
+    .from('connected_calendars')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('provider', 'google')
+  return data ?? []
+}
 
 function buildAgentTools(userId: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
@@ -31,11 +43,10 @@ function buildAgentTools(userId: string) {
         required: ['startDate', 'endDate'],
       }),
       execute: async ({ startDate, endDate }) => {
-        // Normalize bare dates (YYYY-MM-DD) to cover the full day in UTC
         const start = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000Z`
         const end = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999Z`
 
-        console.log('[chat tool] getCalendarEvents called:', { startDate, endDate, start, end, userId })
+        console.log('[chat tool] getCalendarEvents called:', { startDate, endDate, userId })
 
         const [eventsResult, calendarsResult, remindersResult] = await Promise.all([
           supabase
@@ -75,16 +86,126 @@ function buildAgentTools(userId: string) {
 
         console.log('[chat tool] Results:', {
           eventsCount: events.length,
-          events: events.map((e) => ({ title: e.title, start_date: e.start_date, calendar: e.calendar })),
           remindersCount: (remindersResult.data ?? []).length,
-          calendarsFound: calendarsResult.data?.length ?? 0,
-          eventsError: eventsResult.error,
         })
 
-        return {
-          events,
-          reminders: remindersResult.data ?? [],
+        return { events, reminders: remindersResult.data ?? [] }
+      },
+    }),
+
+    listGoogleCalendars: tool({
+      description:
+        'Lists all calendars visible to the user\'s connected Google account(s), including shared calendars and other people\'s calendars they have access to. Use this when the user asks about a specific person\'s schedule or availability.',
+      inputSchema: jsonSchema<Record<string, never>>({
+        type: 'object',
+        properties: {},
+        required: [],
+      }),
+      execute: async () => {
+        console.log('[chat tool] listGoogleCalendars called for userId:', userId)
+        const connectedAccounts = await getGoogleConnectedCalendars(userId)
+
+        if (connectedAccounts.length === 0) {
+          return { calendars: [], message: 'No Google account connected.' }
         }
+
+        const allCalendars: { id: string; name: string; accessRole: string; account: string }[] = []
+
+        for (const account of connectedAccounts) {
+          try {
+            const accessToken = await getValidAccessToken(account)
+            const res = await fetch(
+              'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            )
+            if (!res.ok) {
+              console.warn('[chat tool] calendarList error for', account.account_email, await res.text())
+              continue
+            }
+            const data = await res.json()
+            const accountLabel = account.account_name || account.account_email
+            for (const cal of data.items ?? []) {
+              allCalendars.push({
+                id: cal.id,
+                name: cal.summary || cal.id,
+                accessRole: cal.accessRole,
+                account: accountLabel,
+              })
+            }
+          } catch (err) {
+            console.warn('[chat tool] Failed to list calendars for', account.account_email, err)
+          }
+        }
+
+        console.log('[chat tool] listGoogleCalendars found:', allCalendars.length, 'calendars')
+        return { calendars: allCalendars }
+      },
+    }),
+
+    getEventsFromGoogleCalendar: tool({
+      description:
+        'Fetches events directly from a specific Google Calendar by its ID (obtained from listGoogleCalendars). Use this to check another person\'s schedule or any calendar not synced locally.',
+      inputSchema: jsonSchema<{ calendarId: string; startDate: string; endDate: string }>({
+        type: 'object',
+        properties: {
+          calendarId: { type: 'string', description: 'The Google Calendar ID from listGoogleCalendars' },
+          startDate: { type: 'string', description: 'Start date in ISO 8601 format (YYYY-MM-DD)' },
+          endDate: { type: 'string', description: 'End date in ISO 8601 format (YYYY-MM-DD)' },
+        },
+        required: ['calendarId', 'startDate', 'endDate'],
+      }),
+      execute: async ({ calendarId, startDate, endDate }) => {
+        const start = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000Z`
+        const end = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999Z`
+
+        console.log('[chat tool] getEventsFromGoogleCalendar called:', { calendarId, startDate, endDate })
+
+        const connectedAccounts = await getGoogleConnectedCalendars(userId)
+        if (connectedAccounts.length === 0) {
+          return { events: [], error: 'No Google account connected.' }
+        }
+
+        // Try each connected account until one can access the calendar
+        for (const account of connectedAccounts) {
+          try {
+            const accessToken = await getValidAccessToken(account)
+            const params = new URLSearchParams({
+              singleEvents: 'true',
+              orderBy: 'startTime',
+              timeMin: start,
+              timeMax: end,
+              maxResults: '100',
+            })
+            const res = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            )
+
+            if (res.status === 403 || res.status === 404) continue // try next account
+
+            if (!res.ok) {
+              const err = await res.json()
+              console.warn('[chat tool] getEventsFromGoogleCalendar error:', err)
+              continue
+            }
+
+            const data = await res.json()
+            const events = (data.items ?? []).map((e: any) => ({
+              title: e.summary || '(No title)',
+              start: e.start?.dateTime || e.start?.date,
+              end: e.end?.dateTime || e.end?.date,
+              isAllDay: !e.start?.dateTime,
+              location: e.location,
+            }))
+
+            console.log('[chat tool] getEventsFromGoogleCalendar found:', events.length, 'events')
+            return { events }
+          } catch (err) {
+            console.warn('[chat tool] Failed for account', account.account_email, err)
+          }
+        }
+
+        return { events: [], error: 'Could not access that calendar. You may not have permission.' }
       },
     }),
   }
@@ -104,11 +225,30 @@ export async function POST(request: Request) {
   const tools = buildAgentTools(userId)
 
   const systemPrompt = `You are the AI assistant for Nudge, a productivity app.
-Use the getCalendarEvents tool to look up the user's calendar events and reminders when needed.
-Each event includes a "calendar" field indicating which calendar it belongs to. When listing events, group or label them by calendar name (e.g. "You have 3 events today in Work Calendar: ...").
-Answer concisely and helpfully.
-If asked about something outside calendar/reminders, let the user know you only have access to those.
-Today's date is ${new Date().toISOString().split('T')[0]}.`
+Today's date is ${new Date().toISOString().split('T')[0]}.
+
+You have three tools:
+
+1. getCalendarEvents — fetches the user's own synced events and reminders from the local database for a date range.
+   - Use this for questions about the user's own schedule.
+   - Events include a "calendar" field. Group them by calendar name when listing (e.g. "You have 3 events today in Work Calendar: ...").
+
+2. listGoogleCalendars — lists ALL calendars visible to the user's connected Google account, including shared calendars and other people's calendars they have access to.
+   - Use this whenever the user asks about a specific person's availability or schedule.
+   - Returns: id, name, accessRole, account.
+
+3. getEventsFromGoogleCalendar — fetches events from any Google Calendar by its ID (from listGoogleCalendars).
+   - Use this after identifying the right calendar from listGoogleCalendars.
+
+WORKFLOW for person-specific queries (e.g. "When is Nayely available?"):
+- Call listGoogleCalendars first.
+- Find calendars whose name matches the person (case-insensitive, partial match is fine).
+- If exactly one match: call getEventsFromGoogleCalendar directly.
+- If multiple matches: ask the user which calendar to use before fetching.
+- If no match: inform the user that that calendar is not visible to their connected account.
+- If accessRole is "freeBusyReader": you can see when they're busy but not event details — mention this limitation.
+
+Answer concisely and helpfully. If asked about something outside calendars/reminders, let the user know you only have access to those.`
 
   const providers = [
     { name: 'Groq llama-3.3-70b', model: groq('llama-3.3-70b-versatile') },
@@ -129,7 +269,7 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`
               system: systemPrompt,
               messages: modelMessages,
               tools,
-              stopWhen: stepCountIs(5),
+              stopWhen: stepCountIs(8),
             })
 
             // Iterate manually so we can detect error chunks and fall through
