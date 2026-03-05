@@ -109,9 +109,14 @@ function buildAgentTools(userId: string) {
     listGoogleCalendars: tool({
       description:
         'Lists all calendars visible to the user\'s connected Google account(s), including shared calendars and other people\'s calendars they have access to. Use this when the user asks about a specific person\'s schedule or availability.',
-      inputSchema: jsonSchema<Record<string, never>>({
+      inputSchema: jsonSchema<{ accountEmail?: string }>({
         type: 'object',
-        properties: {},
+        properties: {
+          accountEmail: {
+            type: 'string',
+            description: 'Optional: the connected Google account email to query. Omit to search all connected accounts.',
+          },
+        },
         required: [],
       }),
       execute: async () => {
