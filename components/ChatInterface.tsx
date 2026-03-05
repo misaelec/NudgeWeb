@@ -101,10 +101,12 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
             </div>
           )
         })}
-        {status === 'submitted' && (
+        {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <div className="bg-surface-secondary text-text-tertiary px-3 py-2 rounded-apple-lg text-sm">
-              <span className="animate-pulse">...</span>
+            <div className="bg-surface-secondary px-3 py-3 rounded-apple-lg flex items-center gap-1">
+              <span className="w-2 h-2 bg-text-tertiary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-text-tertiary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-text-tertiary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
