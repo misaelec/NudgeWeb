@@ -28,14 +28,18 @@ function buildAgentTools(userId: string) {
         endDate: z.string().describe('End date in ISO 8601 format'),
       }),
       execute: async ({ startDate, endDate }) => {
-        const [eventsResult, remindersResult] = await Promise.all([
+        const [eventsResult, calendarsResult, remindersResult] = await Promise.all([
           supabase
             .from('calendar_events')
-            .select('title, start_date, end_date, is_all_day, location')
+            .select('title, description, start_date, end_date, is_all_day, location, source_type, source_id')
             .eq('user_id', userId)
             .gte('start_date', startDate)
             .lte('start_date', endDate)
             .order('start_date', { ascending: true }),
+          supabase
+            .from('connected_calendars')
+            .select('id, account_name, account_email, provider')
+            .eq('user_id', userId),
           supabase
             .from('reminders')
             .select('title, notes, due_date, priority')
@@ -46,8 +50,22 @@ function buildAgentTools(userId: string) {
             .order('due_date', { ascending: true }),
         ])
 
+        const calendarMap = new Map(
+          (calendarsResult.data ?? []).map((c) => [c.id, c.account_name || c.account_email])
+        )
+
+        const events = (eventsResult.data ?? []).map((e) => ({
+          title: e.title,
+          description: e.description,
+          start_date: e.start_date,
+          end_date: e.end_date,
+          is_all_day: e.is_all_day,
+          location: e.location,
+          calendar: calendarMap.get(e.source_id) || e.source_type || 'Local',
+        }))
+
         return {
-          events: eventsResult.data ?? [],
+          events,
           reminders: remindersResult.data ?? [],
         }
       },
@@ -68,6 +86,7 @@ export async function POST(request: Request) {
 
   const systemPrompt = `You are the AI assistant for Nudge, a productivity app.
 Use the getCalendarEvents tool to look up the user's calendar events and reminders when needed.
+Each event includes a "calendar" field indicating which calendar it belongs to. When listing events, group or label them by calendar name (e.g. "You have 3 events today in Work Calendar: ...").
 Answer concisely and helpfully.
 If asked about something outside calendar/reminders, let the user know you only have access to those.
 Today's date is ${new Date().toISOString().split('T')[0]}.`
