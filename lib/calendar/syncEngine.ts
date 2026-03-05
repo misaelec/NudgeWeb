@@ -264,15 +264,16 @@ async function getSyncRulesForCalendar(calendarId: string): Promise<any[]> {
 function transformEvent(event: GoogleCalendarEvent, rule: any): Partial<any> {
   let summary = event.summary || 'Busy'
   let description = event.description || ''
-  const visibility = rule.visibility_type || 'busy'
+  const visibility = rule.visibility_type || 'title_only'
 
   if (visibility === 'busy') {
     summary = 'Busy'
     description = ''
-  } else if (visibility === 'blocked') {
-    summary = 'Blocked'
+  } else if (visibility === 'title_only') {
+    // Keep original title, hide description
     description = ''
   }
+  // 'full' — keep both summary and description as-is
 
   const startDate = event.start?.dateTime || event.start?.date || new Date().toISOString()
   const endDate = event.end?.dateTime || event.end?.date || new Date().toISOString()
@@ -291,15 +292,16 @@ function transformEvent(event: GoogleCalendarEvent, rule: any): Partial<any> {
 function transformEventForGoogle(event: GoogleCalendarEvent, rule: any): { summary: string; description: string; start: any; end: any } {
   let summary = event.summary || 'Busy'
   let description = event.description || ''
-  const visibility = rule.visibility_type || 'busy'
+  const visibility = rule.visibility_type || 'title_only'
 
   if (visibility === 'busy') {
     summary = 'Busy'
     description = ''
-  } else if (visibility === 'blocked') {
-    summary = 'Blocked'
+  } else if (visibility === 'title_only') {
+    // Keep original title, hide description
     description = ''
   }
+  // 'full' — keep both summary and description as-is
 
   return {
     summary,

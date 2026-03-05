@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
 
 export type CalendarProvider = 'google' | 'apple' | 'outlook' | 'nudge'
-export type VisibilityType = 'busy' | 'full' | 'blocked'
+export type VisibilityType = 'busy' | 'full' | 'title_only'
 export type SyncDirection = 'one_way' | 'bidirectional'
 
 export interface ConnectedCalendar {

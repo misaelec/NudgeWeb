@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
+import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
 import { Calendar, X, Globe, Loader2, RefreshCw } from 'lucide-react'
 import { useStore } from '@/lib/store'
@@ -22,14 +22,9 @@ const PROVIDER_LABELS: Record<string, string> = {
 }
 
 const VISIBILITY_OPTIONS: { value: VisibilityType; label: string }[] = [
+  { value: 'title_only', label: 'Original Name' },
   { value: 'busy', label: 'Show as Busy' },
-  { value: 'full', label: 'Show Full Details' },
-  { value: 'blocked', label: 'Blocked' },
-]
-
-const DIRECTION_OPTIONS: { value: SyncDirection; label: string }[] = [
-  { value: 'one_way', label: 'One-way' },
-  { value: 'bidirectional', label: 'Bidirectional' },
+  { value: 'full', label: 'Full Details' },
 ]
 
 function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: {
@@ -110,19 +105,17 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: 
   )
 }
 
-function SyncRuleRow({ 
-  rule, 
+function SyncRuleRow({
+  rule,
   calendars,
   onToggle,
   onVisibilityChange,
-  onDirectionChange,
   onRemove
-}: { 
+}: {
   rule: CalendarSyncRule
   calendars: ConnectedCalendar[]
   onToggle: () => void
   onVisibilityChange: (v: VisibilityType) => void
-  onDirectionChange: (d: SyncDirection) => void
   onRemove: () => void
 }) {
   const sourceCalendar = calendars.find(c => c.id === rule.sourceCalendarId)
@@ -141,7 +134,7 @@ function SyncRuleRow({
           {targetCalendar.provider === 'nudge' ? 'My Nudge Calendar' : targetCalendar.accountEmail}
         </span>
       </div>
-      
+
       <label className="relative inline-flex items-center cursor-pointer">
         <input
           type="checkbox"
@@ -158,16 +151,6 @@ function SyncRuleRow({
         className="text-sm bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
       >
         {VISIBILITY_OPTIONS.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-
-      <select
-        value={rule.syncDirection}
-        onChange={(e) => onDirectionChange(e.target.value as SyncDirection)}
-        className="text-sm bg-surface-secondary border border-border-primary rounded-apple-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
-      >
-        {DIRECTION_OPTIONS.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
@@ -421,11 +404,10 @@ export default function CalendarSettings() {
           </p>
 
           <div className="bg-surface-secondary rounded-apple-lg overflow-hidden">
-            <div className="grid grid-cols-[2fr_80px_140px_140px_40px] gap-4 px-4 py-3 bg-background-primary border-b border-border-primary text-sm font-medium text-text-tertiary">
+            <div className="grid grid-cols-[2fr_80px_140px_40px] gap-4 px-4 py-3 bg-background-primary border-b border-border-primary text-sm font-medium text-text-tertiary">
               <div>Sync from → to</div>
               <div>On</div>
               <div>Show as</div>
-              <div>Direction</div>
               <div></div>
             </div>
 
@@ -436,7 +418,6 @@ export default function CalendarSettings() {
                 calendars={allCalendars}
                 onToggle={() => toggleSyncRule(rule.id)}
                 onVisibilityChange={(v) => updateSyncRule(rule.id, { visibilityType: v })}
-                onDirectionChange={(d) => updateSyncRule(rule.id, { syncDirection: d })}
                 onRemove={() => removeSyncRule(rule.id)}
               />
             ))}
@@ -472,7 +453,7 @@ export default function CalendarSettings() {
               sourceCalendarId: sourceId,
               targetCalendarId: targetId,
               isEnabled: true,
-              visibilityType: 'busy',
+              visibilityType: 'title_only',
               syncDirection: 'one_way',
             })
             setShowAddRuleModal(false)
