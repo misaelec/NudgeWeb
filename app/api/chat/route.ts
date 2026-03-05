@@ -291,11 +291,16 @@ WORKFLOW — when the user asks about ANOTHER PERSON (e.g. "When is Nayely avail
   Step 1: Call listGoogleCalendars.
   Step 2: Match the person's name against the "name" field (case-insensitive, partial match OK).
     - Exactly one match → go to Step 4.
-    - Multiple matches → list the options and ask the user which one before continuing.
+    - Multiple matches → list each option with its "name" AND "email" AND "account" so the user can identify the right one, then ask which one to use before continuing.
+      Example: "I found multiple calendars matching that name:
+        1. Nayely Aguilera (nayely@nerds.ai) — nerds.ai account
+        2. Nayely Rodriguez (nayely.rodriguez@nerds.ai) — nerds.ai account
+      Which one should I check?"
     - No match → go to Step 3 (do NOT give up yet).
   Step 3 (fallback — same-org email guessing):
+    - Only attempt this if the user provided a FULL NAME (first + last). If only a first name was given and there was no match, ask the user for the full name first.
     - Find the user's primary calendar (primary: true) and extract the domain from its email (e.g. misael@nerds.ai → nerds.ai).
-    - From the person's name, generate candidate emails in this order:
+    - From the person's full name, generate candidate emails in this order:
         1. firstname.lastname@domain  (e.g. nayely.aguilera@nerds.ai)
         2. firstname@domain           (e.g. nayely@nerds.ai)
         3. flastname@domain           (e.g. naguilera@nerds.ai)
