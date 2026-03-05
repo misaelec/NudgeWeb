@@ -190,6 +190,12 @@ function buildAgentTools(userId: string) {
             }
 
             const data = await res.json()
+            console.log('[chat tool] getEventsFromGoogleCalendar raw:', {
+              itemCount: data.items?.length ?? 0,
+              accessRole: data.accessRole,
+              summary: data.summary,
+            })
+
             const events = (data.items ?? []).map((e: any) => ({
               title: e.summary || '(No title)',
               start: e.start?.dateTime || e.start?.date,
@@ -197,6 +203,28 @@ function buildAgentTools(userId: string) {
               isAllDay: !e.start?.dateTime,
               location: e.location,
             }))
+
+            // If no events returned, the calendar may only allow free/busy access.
+            // Fall back to the FreeBusy API to check for busy slots.
+            if (events.length === 0) {
+              console.log('[chat tool] No events from events.list, trying freeBusy API')
+              const fbRes = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timeMin: start, timeMax: end, items: [{ id: calendarId }] }),
+              })
+              if (fbRes.ok) {
+                const fbData = await fbRes.json()
+                const busySlots: { start: string; end: string }[] = fbData.calendars?.[calendarId]?.busy ?? []
+                console.log('[chat tool] freeBusy slots:', busySlots.length)
+                if (busySlots.length > 0) {
+                  return {
+                    events: busySlots.map((s) => ({ title: 'Busy', start: s.start, end: s.end, isAllDay: false })),
+                    note: 'Limited access: only free/busy information is available for this calendar, not event details.',
+                  }
+                }
+              }
+            }
 
             console.log('[chat tool] getEventsFromGoogleCalendar found:', events.length, 'events')
             return { events }
@@ -229,26 +257,28 @@ Today's date is ${new Date().toISOString().split('T')[0]}.
 
 You have three tools:
 
-1. getCalendarEvents — fetches the user's own synced events and reminders from the local database for a date range.
-   - Use this for questions about the user's own schedule.
-   - Events include a "calendar" field. Group them by calendar name when listing (e.g. "You have 3 events today in Work Calendar: ...").
+1. getCalendarEvents — fetches the USER'S OWN synced events and reminders from the local Nudge database.
+   - ONLY use this for the user's own schedule ("what do I have today?", "my events this week").
+   - NEVER use this to look up another person's schedule.
+   - Events include a "calendar" field. Group by calendar name when listing.
 
-2. listGoogleCalendars — lists ALL calendars visible to the user's connected Google account, including shared calendars and other people's calendars they have access to.
-   - Use this whenever the user asks about a specific person's availability or schedule.
+2. listGoogleCalendars — lists ALL calendars visible to the user's connected Google account, including other people's calendars they have been granted access to.
+   - Use this FIRST whenever the user asks about another person's schedule, availability, or calendar.
    - Returns: id, name, accessRole, account.
 
-3. getEventsFromGoogleCalendar — fetches events from any Google Calendar by its ID (from listGoogleCalendars).
-   - Use this after identifying the right calendar from listGoogleCalendars.
+3. getEventsFromGoogleCalendar — fetches events directly from Google for a specific calendar ID.
+   - Use this AFTER getting the calendar ID from listGoogleCalendars.
+   - If the result includes a "note" about limited access, mention it to the user.
 
-WORKFLOW for person-specific queries (e.g. "When is Nayely available?"):
-- Call listGoogleCalendars first.
-- Find calendars whose name matches the person (case-insensitive, partial match is fine).
-- If exactly one match: call getEventsFromGoogleCalendar directly.
-- If multiple matches: ask the user which calendar to use before fetching.
-- If no match: inform the user that that calendar is not visible to their connected account.
-- If accessRole is "freeBusyReader": you can see when they're busy but not event details — mention this limitation.
+WORKFLOW — when the user asks about ANOTHER PERSON (e.g. "When is Nayely available?", "What does Nayely have today?"):
+  Step 1: Call listGoogleCalendars (ALWAYS — do not skip this step).
+  Step 2: Find calendars whose name matches the person (case-insensitive, partial match OK).
+    - Exactly one match → call getEventsFromGoogleCalendar with that calendar's id.
+    - Multiple matches → show the options and ask which one before fetching.
+    - No match → tell the user that calendar is not visible to their connected account.
+  Step 3: Report the events found, noting if access is limited to free/busy only.
 
-Answer concisely and helpfully. If asked about something outside calendars/reminders, let the user know you only have access to those.`
+Answer concisely and helpfully. If asked about something outside calendars/reminders, say so.`
 
   const providers = [
     { name: 'Groq llama-3.3-70b', model: groq('llama-3.3-70b-versatile') },
