@@ -64,7 +64,7 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: 
             title="Change color"
           />
           {showColors && (
-            <div className="absolute top-7 left--1 z-50 bg-surface-primary border border-border-primary rounded-apple-lg p-3 shadow-lg grid grid-cols-7 gap-2.5 w-fit">
+            <div className="absolute top-7 -left-1 z-50 bg-surface-primary border border-border-primary rounded-apple-lg p-3 shadow-lg grid grid-cols-7 gap-3 w-fit">
               {CALENDAR_COLORS.map(color => (
                 <button
                   key={color}
@@ -72,7 +72,7 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: 
                     onColorChange?.(color)
                     setShowColors(false)
                   }}
-                  className={`w-6 h-6 rounded-full transition-transform hover:scale-125 ${
+                  className={`w-4 h-4 rounded-full transition-transform hover:scale-125 ${
                     calendar.color === color ? 'ring-2 ring-text-primary ring-offset-2 ring-offset-surface-primary' : ''
                   }`}
                   style={{ backgroundColor: color }}
@@ -355,7 +355,10 @@ export default function CalendarSettings() {
     )
   }
 
-  const displayCalendars = nudgeCalendar ? calendars : [
+  // Only show external calendars in the connections list (not the Nudge local calendar)
+  const displayCalendars = externalCalendars
+  // All calendars including nudge — needed for sync rules
+  const allCalendars = nudgeCalendar ? calendars : [
     {
       id: 'nudge-local',
       userId: user?.id || '',
@@ -430,7 +433,7 @@ export default function CalendarSettings() {
               <SyncRuleRow
                 key={rule.id}
                 rule={rule}
-                calendars={displayCalendars}
+                calendars={allCalendars}
                 onToggle={() => toggleSyncRule(rule.id)}
                 onVisibilityChange={(v) => updateSyncRule(rule.id, { visibilityType: v })}
                 onDirectionChange={(d) => updateSyncRule(rule.id, { syncDirection: d })}
@@ -460,7 +463,7 @@ export default function CalendarSettings() {
 
       {showAddRuleModal && (
         <AddRuleModal
-          calendars={displayCalendars}
+          calendars={allCalendars}
           onClose={() => setShowAddRuleModal(false)}
           onSave={(sourceId, targetId) => {
             if (!user) return
