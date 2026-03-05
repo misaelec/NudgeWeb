@@ -137,7 +137,7 @@ function buildAgentTools(userId: string) {
           }
         }
 
-        console.log('[chat tool] listGoogleCalendars found:', allCalendars.length, 'calendars')
+        console.log('[chat tool] listGoogleCalendars found:', allCalendars.length, 'calendars:', allCalendars.map(c => ({ name: c.name, id: c.id, accessRole: c.accessRole })))
         return { calendars: allCalendars }
       },
     }),
