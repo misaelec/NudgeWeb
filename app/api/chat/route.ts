@@ -122,7 +122,7 @@ function buildAgentTools(userId: string) {
           return { calendars: [], message: 'No Google account connected.' }
         }
 
-        const allCalendars: { id: string; name: string; email?: string; accessRole: string; account: string }[] = []
+        const allCalendars: { id: string; name: string; email?: string; accessRole: string; primary: boolean; account: string }[] = []
 
         for (const account of connectedAccounts) {
           try {
@@ -145,6 +145,7 @@ function buildAgentTools(userId: string) {
                 name: ownerName ?? cal.summary ?? cal.id,
                 email: cal.id.includes('@') && !cal.id.endsWith('@group.calendar.google.com') ? cal.id : undefined,
                 accessRole: cal.accessRole,
+                primary: cal.primary ?? false,
                 account: accountLabel,
               })
             }
@@ -287,13 +288,21 @@ You have three tools:
    - If the result includes a "note" about limited access, mention it to the user.
 
 WORKFLOW — when the user asks about ANOTHER PERSON (e.g. "When is Nayely available?", "What does Nayely have today?"):
-  Step 1: Call listGoogleCalendars (ALWAYS — do not skip this step).
+  Step 1: Call listGoogleCalendars.
   Step 2: Match the person's name against the "name" field (case-insensitive, partial match OK).
-          The "name" field already reflects the person's real name when available (derived from their email).
-    - Exactly one match → call getEventsFromGoogleCalendar with that calendar's id.
-    - Multiple matches → list them and ask the user which one to use before fetching.
-    - No match at all → tell the user: "I couldn't find a calendar for [name] in your connected account. They may not have shared their calendar with you."
-  Step 3: Report the events found, noting if access is limited to free/busy only.
+    - Exactly one match → go to Step 4.
+    - Multiple matches → list the options and ask the user which one before continuing.
+    - No match → go to Step 3 (do NOT give up yet).
+  Step 3 (fallback — same-org email guessing):
+    - Find the user's primary calendar (primary: true) and extract the domain from its email (e.g. misael@nerds.ai → nerds.ai).
+    - From the person's name, generate candidate emails in this order:
+        1. firstname.lastname@domain  (e.g. nayely.aguilera@nerds.ai)
+        2. firstname@domain           (e.g. nayely@nerds.ai)
+        3. flastname@domain           (e.g. naguilera@nerds.ai)
+    - Call getEventsFromGoogleCalendar with each candidate until one returns events or a non-error response.
+    - If a candidate works → use those results.
+    - If all candidates fail → tell the user: "I couldn't find a calendar for [name]. They may not have shared their calendar with you, or they may be on a different domain."
+  Step 4: Report the events found, noting if access is limited to free/busy only.
 
 Answer concisely and helpfully. If asked about something outside calendars/reminders, say so.`
 
@@ -316,7 +325,7 @@ Answer concisely and helpfully. If asked about something outside calendars/remin
               system: systemPrompt,
               messages: modelMessages,
               tools,
-              stopWhen: stepCountIs(8),
+              stopWhen: stepCountIs(10),
             })
 
             // Iterate manually so we can detect error chunks and fall through
