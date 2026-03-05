@@ -3,13 +3,13 @@ import {
   convertToModelMessages,
   stepCountIs,
   tool,
+  jsonSchema,
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from 'ai'
 import { google } from '@ai-sdk/google'
 import { groq } from '@ai-sdk/groq'
 import { createClient } from '@supabase/supabase-js'
-import { z } from 'zod'
 
 export const maxDuration = 60
 
@@ -23,9 +23,13 @@ function buildAgentTools(userId: string) {
     getCalendarEvents: tool({
       description:
         'Fetches calendar events and pending reminders for a date range from the database.',
-      inputSchema: z.object({
-        startDate: z.string().describe('Start date in ISO 8601 format'),
-        endDate: z.string().describe('End date in ISO 8601 format'),
+      inputSchema: jsonSchema<{ startDate: string; endDate: string }>({
+        type: 'object',
+        properties: {
+          startDate: { type: 'string', description: 'Start date in ISO 8601 format (YYYY-MM-DD)' },
+          endDate: { type: 'string', description: 'End date in ISO 8601 format (YYYY-MM-DD)' },
+        },
+        required: ['startDate', 'endDate'],
       }),
       execute: async ({ startDate, endDate }) => {
         // Normalize bare dates (YYYY-MM-DD) to cover the full day in UTC
@@ -108,8 +112,8 @@ If asked about something outside calendar/reminders, let the user know you only 
 Today's date is ${new Date().toISOString().split('T')[0]}.`
 
   const providers = [
-    { name: 'Google', model: google('gemini-2.0-flash') },
     { name: 'Groq', model: groq('llama-3.3-70b-versatile') },
+    { name: 'Google', model: google('gemini-2.0-flash') },
   ]
 
   return createUIMessageStreamResponse({
