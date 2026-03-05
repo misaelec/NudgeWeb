@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { syncCalendar, deleteGoogleCalendarEvent, getValidAccessToken } from '@/lib/calendar/syncEngine'
+import { deleteGoogleCalendarEvent, getValidAccessToken } from '@/lib/calendar/syncEngine'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
         user_id,
         source_calendar_id,
         target_calendar_id,
-        visibility_type: visibility_type || 'busy',
-        sync_direction: sync_direction || 'bidirectional',
+        visibility_type: visibility_type || 'title_only',
+        sync_direction: sync_direction || 'one_way',
         is_enabled: true,
       })
       .select()
@@ -38,19 +38,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Clear sync_token so syncCalendar does a full fetch (not incremental)
-    // This is needed because the initial sync after connecting likely ran before
-    // any rules existed, saving a sync_token but syncing zero events.
-    try {
-      await supabase
-        .from('connected_calendars')
-        .update({ sync_token: null })
-        .eq('id', source_calendar_id)
-
-      await syncCalendar(source_calendar_id)
-    } catch (syncErr) {
-      console.error('Failed to trigger initial sync for new rule:', syncErr)
-    }
+    // Clear sync_token so the next sync does a full fetch and processes rules.
+    // The actual sync is triggered by the client as a separate request to avoid timeout.
+    await supabase
+      .from('connected_calendars')
+      .update({ sync_token: null })
+      .eq('id', source_calendar_id)
 
     return NextResponse.json({ rule: data })
   } catch (error) {
@@ -85,7 +78,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ rule: data })
+    // Clear sync_token when visibility changes or rule is re-enabled
+    // so the next sync does a full fetch and re-processes all events with new settings.
+    // The client triggers the actual sync as a separate request.
+    const needsResync = updates.visibility_type || updates.is_enabled === true
+    if (needsResync && data) {
+      await supabase
+        .from('connected_calendars')
+        .update({ sync_token: null })
+        .eq('id', data.source_calendar_id)
+    }
+
+    return NextResponse.json({ rule: data, needs_sync: needsResync ? data.source_calendar_id : null })
   } catch (error) {
     console.error('Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -4,6 +4,7 @@ import { syncCalendar, getConnectedCalendar, getValidAccessToken, fetchGoogleCal
 import { registerWebhook, renewWebhook } from '@/lib/calendar/webhookManager'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   const body = await request.json()

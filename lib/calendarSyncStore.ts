@@ -166,7 +166,7 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
         updatedAt: new Date(),
       }]
     }))
-    
+
     try {
       const response = await fetch('/api/calendar/sync-rules', {
         method: 'POST',
@@ -184,10 +184,16 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
       console.log('addSyncRule data:', data)
       if (data.rule) {
         set((state) => ({
-          syncRules: state.syncRules.map(r => 
+          syncRules: state.syncRules.map(r =>
             r.id === tempId ? { ...r, id: data.rule.id } : r
           )
         }))
+        // Trigger sync as a separate request so it gets its own timeout window
+        fetch('/api/calendar/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ calendar_id: rule.sourceCalendarId }),
+        }).catch(e => console.error('Sync after rule creation failed:', e))
       }
     } catch (error) {
       console.error('Error creating sync rule:', error)
@@ -219,9 +225,9 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
         r.id === id ? { ...r, ...updates, updatedAt: new Date() } : r
       )
     }))
-    
+
     try {
-      await fetch('/api/calendar/sync-rules', {
+      const response = await fetch('/api/calendar/sync-rules', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -233,6 +239,15 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
           }
         })
       })
+      const data = await response.json()
+      // Trigger sync if visibility or enabled state changed
+      if (data.needs_sync) {
+        fetch('/api/calendar/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ calendar_id: data.needs_sync }),
+        }).catch(e => console.error('Sync after rule update failed:', e))
+      }
     } catch (error) {
       console.error('Error updating sync rule:', error)
       if (oldRule) {
