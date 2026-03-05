@@ -90,6 +90,8 @@ export async function POST(request: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
 
+  console.log('[chat] POST hit, userId:', userId)
+
   const { messages } = await request.json()
   const modelMessages = await convertToModelMessages(messages)
   const tools = buildAgentTools(userId)
@@ -102,7 +104,7 @@ If asked about something outside calendar/reminders, let the user know you only 
 Today's date is ${new Date().toISOString().split('T')[0]}.`
 
   const providers = [
-    { name: 'Google', model: google('gemini-2.0-flash') },
+    { name: 'Google', model: google('gemini-1.5-flash') },
     { name: 'Groq', model: groq('llama-3.3-70b-versatile') },
   ]
 
