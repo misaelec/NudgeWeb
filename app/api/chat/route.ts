@@ -7,7 +7,6 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from 'ai'
-import { google } from '@ai-sdk/google'
 import { groq } from '@ai-sdk/groq'
 import { createClient } from '@supabase/supabase-js'
 
@@ -112,8 +111,10 @@ If asked about something outside calendar/reminders, let the user know you only 
 Today's date is ${new Date().toISOString().split('T')[0]}.`
 
   const providers = [
-    { name: 'Groq', model: groq('llama-3.3-70b-versatile') },
-    { name: 'Google', model: google('gemini-2.0-flash') },
+    { name: 'Groq llama-3.3-70b', model: groq('llama-3.3-70b-versatile') },
+    { name: 'Groq llama-3.1-8b', model: groq('llama-3.1-8b-instant') },
+    // Add Google back once billing is enabled on the Google AI project
+    // { name: 'Google', model: google('gemini-2.0-flash') },
   ]
 
   return createUIMessageStreamResponse({
