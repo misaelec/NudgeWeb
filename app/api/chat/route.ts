@@ -1,4 +1,4 @@
-import { streamText, stepCountIs, tool } from 'ai'
+import { streamText, convertToModelMessages, stepCountIs, tool } from 'ai'
 import { google } from '@ai-sdk/google'
 import { groq } from '@ai-sdk/groq'
 import { createClient } from '@supabase/supabase-js'
@@ -62,13 +62,14 @@ export async function POST(request: Request) {
   }
 
   const { messages } = await request.json()
+  const modelMessages = await convertToModelMessages(messages)
   const tools = buildAgentTools(userId)
 
   try {
     const result = streamText({
       model: google('gemini-2.0-flash'),
       system: systemPrompt,
-      messages,
+      messages: modelMessages,
       tools,
       stopWhen: stepCountIs(5),
     })
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       const result = streamText({
         model: groq('llama-3.3-70b-versatile'),
         system: systemPrompt,
-        messages,
+        messages: modelMessages,
         tools,
         stopWhen: stepCountIs(5),
       })
