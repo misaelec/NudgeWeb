@@ -92,9 +92,12 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`
               stopWhen: stepCountIs(5),
             })
 
-            // Iterate manually so streaming errors are caught
+            // Iterate manually so we can detect error chunks and fall through
             const uiStream = result.toUIMessageStream()
             for await (const chunk of uiStream) {
+              if ('type' in chunk && chunk.type === 'error') {
+                throw new Error(chunk.errorText)
+              }
               writer.write(chunk)
             }
             return // success
