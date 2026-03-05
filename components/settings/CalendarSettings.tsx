@@ -1,10 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
 import { Calendar, X, Globe, Loader2, RefreshCw } from 'lucide-react'
+
+const CALENDAR_COLORS = [
+  '#ea4335', '#f4511e', '#e67c73', '#f09300',
+  '#f6bf26', '#33b679', '#0b8043', '#039be5',
+  '#4285f4', '#3f51b5', '#7986cb', '#8e24aa',
+  '#616161', '#a79b8e',
+]
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Google Calendar',
@@ -24,19 +31,55 @@ const DIRECTION_OPTIONS: { value: SyncDirection; label: string }[] = [
   { value: 'bidirectional', label: 'Bidirectional' },
 ]
 
-function CalendarCard({ calendar, onRemove, onSync, isSyncing }: {
+function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: {
   calendar: ConnectedCalendar
   onRemove: () => void
   onSync?: () => void
+  onColorChange?: (color: string) => void
   isSyncing?: boolean
 }) {
+  const [showColors, setShowColors] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showColors) return
+    const handleClick = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowColors(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showColors])
+
   return (
     <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
       <div className="flex items-center gap-3">
-        <div
-          className="w-4 h-4 rounded-full"
-          style={{ backgroundColor: calendar.color }}
-        />
+        <div className="relative" ref={pickerRef}>
+          <button
+            onClick={() => onColorChange && setShowColors(!showColors)}
+            className="w-4 h-4 rounded-full ring-2 ring-transparent hover:ring-text-tertiary transition-all cursor-pointer"
+            style={{ backgroundColor: calendar.color }}
+            title="Change color"
+          />
+          {showColors && (
+            <div className="absolute top-6 left-0 z-50 bg-surface-primary border border-border-primary rounded-apple-lg p-2 shadow-lg grid grid-cols-7 gap-1.5 w-fit">
+              {CALENDAR_COLORS.map(color => (
+                <button
+                  key={color}
+                  onClick={() => {
+                    onColorChange?.(color)
+                    setShowColors(false)
+                  }}
+                  className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${
+                    calendar.color === color ? 'ring-2 ring-text-primary ring-offset-1 ring-offset-surface-primary' : ''
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
         <div>
           <p className="font-medium text-text-primary">
             {calendar.provider === 'nudge' ? 'My Nudge Calendar' : calendar.accountEmail}
@@ -256,6 +299,21 @@ export default function CalendarSettings() {
     }
   }
 
+  const handleColorChange = async (calendarId: string, color: string) => {
+    const { updateCalendar } = useCalendarSyncStore.getState()
+    updateCalendar(calendarId, { color })
+
+    try {
+      await fetch('/api/calendar/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendar_id: calendarId, color }),
+      })
+    } catch (error) {
+      console.error('Failed to update calendar color:', error)
+    }
+  }
+
   const handleSyncCalendar = async (calendarId: string) => {
     setSyncingCalendarId(calendarId)
     try {
@@ -319,6 +377,7 @@ export default function CalendarSettings() {
             calendar={calendar}
             onRemove={() => handleRemoveCalendar(calendar.id)}
             onSync={calendar.provider !== 'nudge' ? () => handleSyncCalendar(calendar.id) : undefined}
+            onColorChange={(color) => handleColorChange(calendar.id, color)}
             isSyncing={syncingCalendarId === calendar.id}
           />
         ))}
