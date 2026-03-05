@@ -46,6 +46,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...result, reset: true })
     }
 
+    if (action === 'cleanup_duplicates') {
+      // Delete ALL calendar_events for this user, then trigger a fresh fullClean sync
+      const calendar = await getConnectedCalendar(calendar_id)
+      const { count: beforeCount } = await supabase
+        .from('calendar_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', calendar.user_id)
+
+      // Wipe all events for this user (including ones without source_id from old code)
+      await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('user_id', calendar.user_id)
+
+      // Clear sync token so we get a fresh one
+      await supabase
+        .from('connected_calendars')
+        .update({ sync_token: null, updated_at: new Date().toISOString() })
+        .eq('id', calendar_id)
+
+      // Run fresh sync
+      const result = await syncCalendar(calendar_id, { fullClean: true })
+
+      const { count: afterCount } = await supabase
+        .from('calendar_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', calendar.user_id)
+
+      return NextResponse.json({
+        ...result,
+        cleanup: true,
+        before_count: beforeCount,
+        after_count: afterCount,
+      })
+    }
+
     if (action === 'debug') {
       // Read-only diagnostic: shows sync state, tests Google API, checks DB
       const calendar = await getConnectedCalendar(calendar_id)

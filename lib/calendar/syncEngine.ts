@@ -117,8 +117,10 @@ export async function fetchGoogleCalendarEvents(
       params.set('showDeleted', 'true')
       // orderBy, timeMin, timeMax etc. are FORBIDDEN with syncToken
     } else {
-      params.set('orderBy', 'startTime')
-      params.set('timeMin', new Date().toISOString())
+      // Full sync: do NOT use orderBy or timeMin — they are in Google's
+      // "forbidden with syncToken" list, and using them here prevents
+      // Google from returning a nextSyncToken in the response.
+      params.set('showDeleted', 'true')
     }
 
     if (pageToken) {
@@ -348,20 +350,22 @@ async function getOrCreateNudgeCalendarEvent(
 ): Promise<string | null> {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-  const { data: existing } = await supabase
+  // Use .limit(1) instead of .single() — .single() errors when duplicates exist,
+  // returning data=null and causing cascading duplicate inserts.
+  const { data: existingRows } = await supabase
     .from('calendar_events')
     .select('id')
     .eq('user_id', userId)
     .eq('google_event_id', externalEventId)
-    .single()
+    .limit(1)
+
+  const existing = existingRows?.[0]
 
   if (existing) {
     await supabase
       .from('calendar_events')
       .update(eventData)
       .eq('id', existing.id)
-      .select('id')
-      .single()
 
     return existing.id
   }
