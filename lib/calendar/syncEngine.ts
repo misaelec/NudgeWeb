@@ -558,63 +558,89 @@ export async function syncCalendar(calendarId: string, options?: { fullClean?: b
     console.log(`Found ${rules.length} sync rules for calendar`)
 
     if (rules.length > 0) {
-      for (const event of events) {
-        // Loop prevention: skip events we created via sync
-        const isLoop = await isLoopEvent(calendarId, event.id)
-        if (isLoop) {
-          console.log(`Skipping loop event: ${event.id}`)
-          continue
-        }
+      // Pre-filter loop events in parallel
+      const loopChecks = await Promise.all(
+        events.map(event => isLoopEvent(calendarId, event.id).then(isLoop => ({ event, isLoop })))
+      )
+      const eventsToMirror = loopChecks.filter(({ isLoop }) => !isLoop).map(({ event }) => event)
+      const loopCount = events.length - eventsToMirror.length
+      if (loopCount > 0) console.log(`Skipping ${loopCount} loop events`)
+      console.log(`Step 2: mirroring ${eventsToMirror.length} events across ${rules.length} rules`)
 
-        try {
-          for (const rule of rules) {
-            const targetCalendar = rule.target_calendar
-
-            if (targetCalendar?.provider === 'google') {
-              // Target is a Google calendar — create/update event via API
-              const targetAccessToken = await getValidAccessToken(targetCalendar)
-              const googleEventData = transformEventForGoogle(event, rule)
-
-              // Check if we already synced this event
-              const supabase = createClient(supabaseUrl, supabaseServiceKey)
-              const { data: existingSynced } = await supabase
-                .from('synced_events')
-                .select('target_event_id')
-                .eq('source_calendar_id', calendarId)
-                .eq('source_event_id', event.id)
-                .eq('target_calendar_id', targetCalendar.id)
-                .single()
-
-              if (existingSynced?.target_event_id) {
-                await updateGoogleCalendarEvent(
-                  targetAccessToken,
-                  targetCalendar.calendar_id || 'primary',
-                  existingSynced.target_event_id,
-                  googleEventData
-                )
-              } else {
-                const newGoogleEventId = await createGoogleCalendarEvent(
-                  targetAccessToken,
-                  targetCalendar.calendar_id || 'primary',
-                  googleEventData
-                )
-                if (newGoogleEventId) {
-                  await trackSyncedEvent(
-                    calendarId,
-                    event.id,
-                    newGoogleEventId,
-                    targetCalendar.id,
-                    calendar.user_id
-                  )
-                }
-              }
-            }
-            // Nudge-to-Nudge mirroring via rules is already handled by step 1
+      // Pre-fetch access tokens for all target calendars (one per rule)
+      const targetTokens = new Map<string, string>()
+      for (const rule of rules) {
+        const tc = rule.target_calendar
+        if (tc?.provider === 'google' && !targetTokens.has(tc.id)) {
+          try {
+            targetTokens.set(tc.id, await getValidAccessToken(tc))
+          } catch (e: any) {
+            console.error(`Failed to get access token for target calendar ${tc.id}:`, e.message)
           }
-        } catch (e: any) {
-          errors.push(`Error mirroring event ${event.id}: ${e.message}`)
         }
       }
+
+      // Process in parallel batches
+      const MIRROR_BATCH = 10
+      let mirrored = 0
+      for (let i = 0; i < eventsToMirror.length; i += MIRROR_BATCH) {
+        const batch = eventsToMirror.slice(i, i + MIRROR_BATCH)
+        const promises = batch.map(async (event) => {
+          for (const rule of rules) {
+            const targetCalendar = rule.target_calendar
+            if (targetCalendar?.provider !== 'google') continue
+
+            const targetAccessToken = targetTokens.get(targetCalendar.id)
+            if (!targetAccessToken) continue
+
+            const googleEventData = transformEventForGoogle(event, rule)
+
+            // Check if we already synced this event (use .limit(1) to avoid .single() errors)
+            const supabase = createClient(supabaseUrl, supabaseServiceKey)
+            const { data: existingRows } = await supabase
+              .from('synced_events')
+              .select('target_event_id')
+              .eq('source_calendar_id', calendarId)
+              .eq('source_event_id', event.id)
+              .eq('target_calendar_id', targetCalendar.id)
+              .limit(1)
+
+            const existingTargetId = existingRows?.[0]?.target_event_id
+
+            if (existingTargetId) {
+              await updateGoogleCalendarEvent(
+                targetAccessToken,
+                targetCalendar.calendar_id || 'primary',
+                existingTargetId,
+                googleEventData
+              )
+            } else {
+              const newGoogleEventId = await createGoogleCalendarEvent(
+                targetAccessToken,
+                targetCalendar.calendar_id || 'primary',
+                googleEventData
+              )
+              if (newGoogleEventId) {
+                await trackSyncedEvent(
+                  calendarId,
+                  event.id,
+                  newGoogleEventId,
+                  targetCalendar.id,
+                  calendar.user_id
+                )
+              }
+            }
+          }
+        })
+
+        try {
+          await Promise.all(promises)
+          mirrored += batch.length
+        } catch (e: any) {
+          errors.push(`Mirror batch error: ${e.message}`)
+        }
+      }
+      console.log(`Step 2 complete: mirrored ${mirrored} events`)
     }
 
     // --- Step 3: Handle deleted events ---

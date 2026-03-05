@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { syncCalendar, triggerSyncForChannel } from '@/lib/calendar/syncEngine'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   try {
