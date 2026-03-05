@@ -104,6 +104,7 @@ export interface UserPreferences {
   reminderNotifications: boolean
   focusNotifications: boolean
   streakNotifications: boolean
+  showCompletedReminders: boolean
 }
 
 interface AppState {
@@ -192,6 +193,7 @@ const defaultPreferences: UserPreferences = {
   reminderNotifications: true,
   focusNotifications: true,
   streakNotifications: true,
+  showCompletedReminders: false,
 }
 
 export const useStore = create<AppState>()(

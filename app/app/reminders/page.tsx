@@ -25,13 +25,12 @@ import { format } from 'date-fns'
 
 export default function RemindersPage() {
   const { user, loading } = useAuth()
-  const { preferences, searchQuery, setSearchQuery } = useStore()
+  const { preferences, searchQuery, setSearchQuery, settingsActions } = useStore()
   const { reminders, addReminder, updateReminder, deleteReminder, toggleReminder, syncFromSupabase } = useReminderStore()
   const [mounted, setMounted] = useState(false)
   const [showAddReminder, setShowAddReminder] = useState(false)
   const [showEditReminder, setShowEditReminder] = useState(false)
   const [editingReminder, setEditingReminder] = useState<any>(null)
-  const [showCompleted, setShowCompleted] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
 
   const [newReminder, setNewReminder] = useState({
@@ -57,7 +56,7 @@ export default function RemindersPage() {
   }, [user, mounted])
 
   const filteredReminders = reminders.filter(r => {
-    if (!showCompleted && r.completed) return false
+    if (!preferences.showCompletedReminders && r.completed) return false
 
     const matchesSearch = searchQuery === ''
       ? true
@@ -232,8 +231,8 @@ export default function RemindersPage() {
                   <div className="relative">
                     <input
                       type="checkbox"
-                      checked={showCompleted}
-                      onChange={() => setShowCompleted(!showCompleted)}
+                      checked={preferences.showCompletedReminders}
+                      onChange={() => settingsActions.updatePreferences({ showCompletedReminders: !preferences.showCompletedReminders })}
                       className="sr-only peer"
                     />
                     <div className="w-9 h-5 bg-border-primary rounded-full peer peer-checked:bg-accent-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all transition-colors" />

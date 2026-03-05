@@ -3,6 +3,7 @@
 import { ReactNode, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import ChatInterface from '@/components/ChatInterface'
 import { useAuth } from '@/components/Providers'
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -34,6 +35,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <main className="flex-1 ml-64 p-8">
         {children}
       </main>
+      <ChatInterface />
     </div>
   )
 }
