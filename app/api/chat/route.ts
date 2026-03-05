@@ -28,6 +28,8 @@ function buildAgentTools(userId: string) {
         endDate: z.string().describe('End date in ISO 8601 format'),
       }),
       execute: async ({ startDate, endDate }) => {
+        console.log('[chat tool] getCalendarEvents called:', { startDate, endDate, userId })
+
         const [eventsResult, calendarsResult, remindersResult] = await Promise.all([
           supabase
             .from('calendar_events')
@@ -63,6 +65,14 @@ function buildAgentTools(userId: string) {
           location: e.location,
           calendar: calendarMap.get(e.source_id) || e.source_type || 'Local',
         }))
+
+        console.log('[chat tool] Results:', {
+          eventsCount: events.length,
+          events: events.map((e) => ({ title: e.title, start_date: e.start_date, calendar: e.calendar })),
+          remindersCount: (remindersResult.data ?? []).length,
+          calendarsFound: calendarsResult.data?.length ?? 0,
+          eventsError: eventsResult.error,
+        })
 
         return {
           events,
