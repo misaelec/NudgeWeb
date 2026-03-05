@@ -122,7 +122,7 @@ function buildAgentTools(userId: string) {
           return { calendars: [], message: 'No Google account connected.' }
         }
 
-        const allCalendars: { id: string; name: string; ownerName: string | null; accessRole: string; account: string }[] = []
+        const allCalendars: { id: string; name: string; email?: string; accessRole: string; account: string }[] = []
 
         for (const account of connectedAccounts) {
           try {
@@ -138,10 +138,12 @@ function buildAgentTools(userId: string) {
             const data = await res.json()
             const accountLabel = account.account_name || account.account_email
             for (const cal of data.items ?? []) {
+              const ownerName = ownerNameFromCalendarId(cal.id)
               allCalendars.push({
                 id: cal.id,
-                name: cal.summary || cal.id,
-                ownerName: ownerNameFromCalendarId(cal.id),
+                // Prefer the derived human name over the raw email string when available
+                name: ownerName ?? cal.summary ?? cal.id,
+                email: cal.id.includes('@') && !cal.id.endsWith('@group.calendar.google.com') ? cal.id : undefined,
                 accessRole: cal.accessRole,
                 account: accountLabel,
               })
@@ -151,7 +153,7 @@ function buildAgentTools(userId: string) {
           }
         }
 
-        console.log('[chat tool] listGoogleCalendars found:', allCalendars.length, 'calendars:', allCalendars.map(c => ({ name: c.name, ownerName: c.ownerName, accessRole: c.accessRole })))
+        console.log('[chat tool] listGoogleCalendars found:', allCalendars.length, 'calendars:', allCalendars.map(c => ({ name: c.name, email: c.email, accessRole: c.accessRole })))
         return { calendars: allCalendars }
       },
     }),
@@ -286,8 +288,8 @@ You have three tools:
 
 WORKFLOW — when the user asks about ANOTHER PERSON (e.g. "When is Nayely available?", "What does Nayely have today?"):
   Step 1: Call listGoogleCalendars (ALWAYS — do not skip this step).
-  Step 2: Match the person against BOTH the "name" field AND the "ownerName" field (case-insensitive, partial match OK).
-          "ownerName" is derived from the calendar ID email and may more accurately reflect the person's real name.
+  Step 2: Match the person's name against the "name" field (case-insensitive, partial match OK).
+          The "name" field already reflects the person's real name when available (derived from their email).
     - Exactly one match → call getEventsFromGoogleCalendar with that calendar's id.
     - Multiple matches → list them and ask the user which one to use before fetching.
     - No match at all → tell the user: "I couldn't find a calendar for [name] in your connected account. They may not have shared their calendar with you."
