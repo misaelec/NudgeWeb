@@ -28,15 +28,19 @@ function buildAgentTools(userId: string) {
         endDate: z.string().describe('End date in ISO 8601 format'),
       }),
       execute: async ({ startDate, endDate }) => {
-        console.log('[chat tool] getCalendarEvents called:', { startDate, endDate, userId })
+        // Normalize bare dates (YYYY-MM-DD) to cover the full day in UTC
+        const start = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000Z`
+        const end = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999Z`
+
+        console.log('[chat tool] getCalendarEvents called:', { startDate, endDate, start, end, userId })
 
         const [eventsResult, calendarsResult, remindersResult] = await Promise.all([
           supabase
             .from('calendar_events')
             .select('title, description, start_date, end_date, is_all_day, location, source_type, source_id')
             .eq('user_id', userId)
-            .gte('start_date', startDate)
-            .lte('start_date', endDate)
+            .gte('start_date', start)
+            .lte('start_date', end)
             .order('start_date', { ascending: true }),
           supabase
             .from('connected_calendars')
@@ -47,8 +51,8 @@ function buildAgentTools(userId: string) {
             .select('title, notes, due_date, priority')
             .eq('user_id', userId)
             .eq('is_completed', false)
-            .gte('due_date', startDate)
-            .lte('due_date', endDate)
+            .gte('due_date', start)
+            .lte('due_date', end)
             .order('due_date', { ascending: true }),
         ])
 
@@ -104,7 +108,7 @@ If asked about something outside calendar/reminders, let the user know you only 
 Today's date is ${new Date().toISOString().split('T')[0]}.`
 
   const providers = [
-    { name: 'Google', model: google('gemini-1.5-flash') },
+    { name: 'Google', model: google('gemini-2.0-flash') },
     { name: 'Groq', model: groq('llama-3.3-70b-versatile') },
   ]
 
