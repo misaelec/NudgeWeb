@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType, SyncDirection } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
 import { Calendar, X, Globe, Loader2, RefreshCw } from 'lucide-react'
+import { useStore } from '@/lib/store'
 
 const CALENDAR_COLORS = [
   '#ea4335', '#f4511e', '#e67c73', '#f09300',
@@ -63,7 +64,7 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: 
             title="Change color"
           />
           {showColors && (
-            <div className="absolute top-6 left-0 z-50 bg-surface-primary border border-border-primary rounded-apple-lg p-2 shadow-lg grid grid-cols-7 gap-1.5 w-fit">
+            <div className="absolute top-7 left--1 z-50 bg-surface-primary border border-border-primary rounded-apple-lg p-3 shadow-lg grid grid-cols-7 gap-2.5 w-fit">
               {CALENDAR_COLORS.map(color => (
                 <button
                   key={color}
@@ -71,8 +72,8 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, isSyncing }: 
                     onColorChange?.(color)
                     setShowColors(false)
                   }}
-                  className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${
-                    calendar.color === color ? 'ring-2 ring-text-primary ring-offset-1 ring-offset-surface-primary' : ''
+                  className={`w-6 h-6 rounded-full transition-transform hover:scale-125 ${
+                    calendar.color === color ? 'ring-2 ring-text-primary ring-offset-2 ring-offset-surface-primary' : ''
                   }`}
                   style={{ backgroundColor: color }}
                 />
@@ -300,8 +301,21 @@ export default function CalendarSettings() {
   }
 
   const handleColorChange = async (calendarId: string, color: string) => {
+    // Update calendar store (settings UI)
     const { updateCalendar } = useCalendarSyncStore.getState()
     updateCalendar(calendarId, { color })
+
+    // Update local calendar events to reflect the new color instantly
+    const cal = calendars.find(c => c.id === calendarId)
+    if (cal) {
+      const sourceType = cal.provider === 'nudge' ? 'local' : cal.provider
+      const store = useStore.getState()
+      store.setCalendarEvents(
+        store.calendarEvents.map(e =>
+          e.sourceType === sourceType ? { ...e, color } : e
+        )
+      )
+    }
 
     try {
       await fetch('/api/calendar/update', {
