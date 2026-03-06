@@ -8,6 +8,7 @@ import {
   createUIMessageStreamResponse,
 } from 'ai'
 import { groq } from '@ai-sdk/groq'
+import { google } from '@ai-sdk/google'
 import { createClient } from '@supabase/supabase-js'
 import { getValidAccessToken } from '@/lib/calendar/syncEngine'
 
@@ -243,7 +244,8 @@ function buildAgentTools(userId: string) {
         const nameParts = name.trim().split(/\s+/)
         if (nameParts.length < 2) {
           return {
-            error: `No calendar found for "${name}". Ask the user for the full name (first and last) to try org email patterns.`,
+            needsFullName: true,
+            firstName: name,
           }
         }
 
@@ -298,17 +300,17 @@ export async function POST(request: Request) {
 Tools:
 - getCalendarEvents: user's OWN events/reminders. Never use for other people.
 - getPersonEvents: find another person's events by name. Handles discovery automatically.
-  - If result has "needsDisambiguation", list the matches with name/email/account and ask which one.
-  - If result has "error", relay it to the user.
-  - If result has "note", mention the access limitation.
+  - If result has "needsDisambiguation": list the matches with name/email/account and ask which one. Call again with calendarId once user picks.
+  - If result has "needsFullName": ask the user for the full name (first AND last). NEVER invent or guess a last name.
+  - If result has "error": relay it to the user.
+  - If result has "note": mention the access limitation.
 
 Group events by calendar when listing. Be concise.`
 
   const providers = [
+    { name: 'Google gemini-2.0-flash', model: google('gemini-2.0-flash') },
     { name: 'Groq llama-3.3-70b', model: groq('llama-3.3-70b-versatile') },
     { name: 'Groq llama-3.1-8b', model: groq('llama-3.1-8b-instant') },
-    // Add Google back once billing is enabled on the Google AI project
-    // { name: 'Google', model: google('gemini-2.0-flash') },
   ]
 
   return createUIMessageStreamResponse({
