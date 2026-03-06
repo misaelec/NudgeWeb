@@ -77,7 +77,7 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
             Ask me about your calendar or reminders.
           </p>
         )}
-        {messages.map((msg) => {
+        {messages.map((msg, msgIndex) => {
           const parts = msg.parts as MessagePart[]
           const textContent = parts
             .filter((p) => p.type === 'text' && p.text)
@@ -87,12 +87,13 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
             (p) => p.type.startsWith('tool-') && p.state !== 'output-available'
           )
 
-          // Find a completed createCalendarEvent call that needs calendar selection
-          const calendarSelectPart = parts.find((p) => {
+          // Show calendar picker only on the last message (disappears once user picks)
+          const isLastMessage = msgIndex === messages.length - 1
+          const calendarSelectPart = isLastMessage ? parts.find((p) => {
             if (!p.type.startsWith('tool-') || p.state !== 'output-available') return false
             const result = p.output ?? p.toolInvocation?.result
             return result?.action === 'select_calendar'
-          })
+          }) : undefined
           const calendarSelectData = calendarSelectPart
             ? (calendarSelectPart.output ?? calendarSelectPart.toolInvocation?.result)
             : null

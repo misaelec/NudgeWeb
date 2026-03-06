@@ -199,27 +199,45 @@ function buildAgentTools(userId: string, userTimezone: string = 'UTC') {
 
         const connectedAccounts = await getGoogleConnectedCalendars(userId)
 
-        // No calendarId — return available calendars for user to pick
+        // No calendarId — try to resolve from calendarName or show picker
         if (!calendarId) {
           const { data: allCals } = await supabase
             .from('connected_calendars')
             .select('id, account_name, account_email, provider, color')
             .eq('user_id', userId)
 
-          const calendars = (allCals ?? []).map((c) => ({
-            id: c.account_email || c.id,
-            name: c.account_name || c.account_email,
-            provider: c.provider,
-            color: c.color,
-          }))
+          const calendars = [
+            { id: 'nudge-local', name: 'My Nudge Calendar', provider: 'nudge', color: '#6366f1' },
+            ...(allCals ?? []).map((c) => ({
+              id: c.account_email || c.id,
+              name: c.account_name || c.account_email,
+              provider: c.provider,
+              color: c.color,
+            })),
+          ]
 
-          // Add local Nudge calendar
-          calendars.unshift({ id: 'nudge-local', name: 'My Nudge Calendar', provider: 'nudge', color: '#6366f1' })
-
-          return {
-            action: 'select_calendar' as const,
-            calendars,
-            pendingEvent: { title, startDate, startTime, endDate, endTime, description, location },
+          // If a name hint was provided, try to match it
+          if (calendarName) {
+            const q = calendarName.toLowerCase()
+            const matches = calendars.filter((c) => c.name?.toLowerCase().includes(q))
+            if (matches.length === 1) {
+              // Exactly one match — auto-select, no picker needed
+              calendarId = matches[0].id
+              calendarName = matches[0].name
+            } else {
+              // Multiple or zero matches — show only the relevant subset (or all if zero)
+              return {
+                action: 'select_calendar' as const,
+                calendars: matches.length > 0 ? matches : calendars,
+                pendingEvent: { title, startDate, startTime, endDate, endTime, description, location },
+              }
+            }
+          } else {
+            return {
+              action: 'select_calendar' as const,
+              calendars,
+              pendingEvent: { title, startDate, startTime, endDate, endTime, description, location },
+            }
           }
         }
 
@@ -495,7 +513,7 @@ Tools:
   - "error": relay to user.
 - createCalendarEvent: creates a calendar event.
   - ALWAYS resolve relative dates ("tomorrow", "next Monday", "Friday") to YYYY-MM-DD using today's date before calling. Only ask the user if both date AND time are completely absent from their message.
-  - If calendarId is omitted, the tool returns available calendars and the UI shows buttons — do NOT ask the user to type a calendar name.
+  - If calendarId is omitted, the tool returns available calendars. Output NO text — the UI shows the picker buttons automatically.
   - When user sends "Calendar selected: [name] (id: [id])", call createCalendarEvent again with that calendarId and the same event details from context.
   - "success": confirm using the result message. "error": relay to user.
 - createReminder: creates a reminder.
