@@ -24,7 +24,6 @@ import {
   Lock,
   Moon,
   Sun,
-  Globe,
   HelpCircle,
   LogOut,
   ChevronRight,
@@ -71,6 +70,7 @@ export default function SettingsPage() {
     appBlocking: true,
     journal: true,
     objectives: true,
+    happiness: true,
   })
 
   useEffect(() => {
@@ -179,6 +179,7 @@ export default function SettingsPage() {
     { key: 'calendar', icon: Calendar, label: 'Calendar', description: 'View and manage events' },
     { key: 'pomodoro', icon: Sparkles, label: 'Focus', description: 'Pomodoro technique for productivity' },
     { key: 'journal', icon: BookOpen, label: 'Journal', description: 'Write daily reflections' },
+    { key: 'happiness', icon: Target, label: 'Well-being', description: 'PERMA-V well-being assessments' },
   ]
 
   const toggleFeature = (key: string) => {
@@ -392,16 +393,9 @@ export default function SettingsPage() {
           <section className="card">
             <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-accent-secondary" />
-              Sync
+              More
             </h2>
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
-                <div className="flex items-center gap-3">
-                  <Globe className="w-5 h-5 text-text-tertiary" />
-                  <span className="font-medium text-text-primary">Sync with iOS App</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-text-tertiary" />
-              </button>
               <button className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
                 <div className="flex items-center gap-3">
                   <Lock className="w-5 h-5 text-text-tertiary" />

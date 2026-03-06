@@ -16,6 +16,7 @@ import {
   MessageSquarePlus,
   X,
   Send,
+  Smile,
 } from 'lucide-react'
 import { useAuth } from './Providers'
 
@@ -107,6 +108,7 @@ export default function Sidebar() {
     appBlocking: true,
     journal: true,
     objectives: true,
+    happiness: true,
   })
 
   useEffect(() => {
@@ -134,6 +136,7 @@ export default function Sidebar() {
     { href: '/app/focus', icon: Focus, label: 'Focus', key: 'pomodoro' },
     { href: '/app/calendar', icon: Calendar, label: 'Calendar', key: 'calendar' },
     { href: '/app/journal', icon: BookOpen, label: 'Journal', key: 'journal' },
+    { href: '/app/happiness', icon: Smile, label: 'Well-being', key: 'happiness' },
     { href: '/app/settings', icon: Settings, label: 'Settings', key: null },
   ].filter(item => item.key === null || featureFlags[item.key] !== false)
 
