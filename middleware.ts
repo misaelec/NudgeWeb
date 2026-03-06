@@ -5,7 +5,7 @@ export default createMiddleware(routing)
 
 export const config = {
   matcher: [
-    // Match all paths except API routes, static files, and Next.js internals
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)',
+    // Match all paths except API routes, auth callbacks, static files, and Next.js internals
+    '/((?!api|auth/callback|_next/static|_next/image|favicon.ico|.*\\..*).*)',
   ],
 }
