@@ -483,7 +483,7 @@ Tools:
 Be concise. Group events by calendar when listing.`
 
   const providers = [
-    { name: 'Google gemini-2.0-flash', model: google('gemini-2.0-flash') },
+    { name: 'Google gemini-2.0-flash-lite', model: google('gemini-2.0-flash-lite') },
     { name: 'Groq llama-3.3-70b', model: groq('llama-3.3-70b-versatile') },
     { name: 'Groq llama-3.1-8b', model: groq('llama-3.1-8b-instant') },
   ]
