@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/components/Providers'
 import {
   Focus,
@@ -22,6 +23,7 @@ import { useStore } from '@/lib/store'
 import { format, subDays } from 'date-fns'
 
 export default function StatisticsPage() {
+  const t = useTranslations('statistics')
   const router = useRouter()
   const { user, loading } = useAuth()
   const { objectives, fearObjectives, reminders, totalFocusMinutes, pomodoroSessions, streaks, journalEntries } = useStore()
@@ -61,7 +63,7 @@ export default function StatisticsPage() {
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <h1 className="text-3xl font-semibold text-text-primary mb-2">
-            Statistics
+            {t('title')}
           </h1>
           <p className="text-text-tertiary">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </header>
@@ -69,31 +71,31 @@ export default function StatisticsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             icon={<Focus className="w-6 h-6" />}
-            label="Focus Time"
+            label={t('focusTime')}
             value={`${Math.floor(totalFocusMinutes / 60)}h ${totalFocusMinutes % 60}m`}
-            subtext={`${pomodoroSessions} sessions today`}
+            subtext={t('focusSessions', { n: pomodoroSessions })}
             color="blue"
             trend={totalFocusMinutes > 0 ? '+' : ''}
           />
           <StatCard
             icon={<Flame className="w-6 h-6" />}
-            label="Focus Streak"
+            label={t('focusStreak')}
             value={streaks.focus?.currentCount || 0}
-            subtext={`Best: ${streaks.focus?.longestCount || 0} days`}
+            subtext={t('focusStreakBest', { n: streaks.focus?.longestCount || 0 })}
             color="orange"
           />
           <StatCard
             icon={<BookOpen className="w-6 h-6" />}
-            label="Journal Streak"
+            label={t('journalStreak')}
             value={streaks.journal?.currentCount || 0}
-            subtext={`${journalThisWeek} this week`}
+            subtext={t('journalThisWeek', { n: journalThisWeek })}
             color="green"
           />
           <StatCard
             icon={<Trophy className="w-6 h-6" />}
-            label="Objectives"
+            label={t('objectives')}
             value={`${completedObjectives}/${objectives.length}`}
-            subtext={`${activeObjectives} active`}
+            subtext={t('objectivesActive', { n: activeObjectives })}
             color="purple"
           />
         </div>
@@ -103,29 +105,29 @@ export default function StatisticsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <QuickActionCard
                 icon={<Focus className="w-8 h-8" />}
-                title="Start Focus Session"
-                description="Begin a Pomodoro timer and block distractions"
+                title={t('startFocus')}
+                description={t('startFocusDesc')}
                 color="blue"
                 onClick={() => router.push('/app/focus')}
               />
               <QuickActionCard
                 icon={<CalendarCheck className="w-8 h-8" />}
-                title="Add Reminder"
-                description="Never miss an important task"
+                title={t('addReminder')}
+                description={t('addReminderDesc')}
                 color="green"
                 onClick={() => router.push('/app/reminders')}
               />
               <QuickActionCard
                 icon={<BookOpen className="w-8 h-8" />}
-                title="Write Journal"
-                description="Capture your thoughts and reflections"
+                title={t('writeJournal')}
+                description={t('writeJournalDesc')}
                 color="orange"
                 onClick={() => router.push('/app/journal')}
               />
               <QuickActionCard
                 icon={<Target className="w-8 h-8" />}
-                title="Set Objectives"
-                description="Define your goals and key results"
+                title={t('setObjectives')}
+                description={t('setObjectivesDesc')}
                 color="purple"
                 onClick={() => router.push('/app/journal')}
               />
@@ -135,23 +137,23 @@ export default function StatisticsPage() {
           <div className="card">
             <div className="flex items-center gap-2 mb-4">
               <BarChart3 className="w-5 h-5 text-accent-secondary" />
-              <h2 className="text-lg font-semibold text-text-primary">Today's Progress</h2>
+              <h2 className="text-lg font-semibold text-text-primary">{t('todaysProgress')}</h2>
             </div>
             <div className="space-y-4">
               <ProgressItem
-                label="Reminders"
+                label={t('progressReminders')}
                 current={completedReminders}
                 total={reminders.length}
                 color="bg-accent-secondary"
               />
               <ProgressItem
-                label="Objectives"
+                label={t('progressObjectives')}
                 current={completedObjectives}
                 total={objectives.length}
                 color="bg-success"
               />
               <ProgressItem
-                label="Focus Sessions"
+                label={t('progressFocus')}
                 current={pomodoroSessions}
                 total={8}
                 max={8}
@@ -164,12 +166,12 @@ export default function StatisticsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 card">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-text-primary">Recent Objectives</h2>
+              <h2 className="text-lg font-semibold text-text-primary">{t('recentObjectives')}</h2>
               <button
                 onClick={() => router.push('/app/journal')}
                 className="text-accent-primary text-sm font-medium hover:underline"
               >
-                View All
+                {t('viewAll')}
               </button>
             </div>
             {objectives.length > 0 ? (
@@ -181,9 +183,9 @@ export default function StatisticsPage() {
             ) : (
               <EmptyState
                 icon={<Target className="w-12 h-12 text-text-placeholder" />}
-                title="No objectives yet"
-                description="Create your first objective to track your goals"
-                action="Add Objective"
+                title={t('noObjectivesTitle')}
+                description={t('noObjectivesDesc')}
+                action={t('addObjective')}
                 onClick={() => router.push('/app/journal')}
               />
             )}
@@ -192,8 +194,8 @@ export default function StatisticsPage() {
           <div className="space-y-6">
             <div className="card">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-text-primary">Upcoming</h2>
-                <span className="text-xs text-text-tertiary">Next 7 days</span>
+                <h2 className="text-lg font-semibold text-text-primary">{t('upcoming')}</h2>
+                <span className="text-xs text-text-tertiary">{t('upcomingDays')}</span>
               </div>
               {reminders.filter(r => !r.completed).slice(0, 4).length > 0 ? (
                 <div className="space-y-3">
@@ -214,7 +216,7 @@ export default function StatisticsPage() {
                 </div>
               ) : (
                 <div className="text-center py-4 text-text-tertiary">
-                  No upcoming reminders
+                  {t('noUpcoming')}
                 </div>
               )}
             </div>
@@ -222,16 +224,16 @@ export default function StatisticsPage() {
             <div className="card">
               <div className="flex items-center gap-2 mb-4">
                 <Zap className="w-5 h-5 text-action-warning" />
-                <h2 className="text-lg font-semibold text-text-primary">Quick Stats</h2>
+                <h2 className="text-lg font-semibold text-text-primary">{t('quickStats')}</h2>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-3 bg-surface-secondary rounded-apple-lg">
                   <p className="text-2xl font-semibold text-text-primary">{pendingReminders}</p>
-                  <p className="text-xs text-text-tertiary">Pending</p>
+                  <p className="text-xs text-text-tertiary">{t('pending')}</p>
                 </div>
                 <div className="text-center p-3 bg-surface-secondary rounded-apple-lg">
                   <p className="text-2xl font-semibold text-text-primary">{activeFears}</p>
-                  <p className="text-xs text-text-tertiary">Active Fears</p>
+                  <p className="text-xs text-text-tertiary">{t('activeFears')}</p>
                 </div>
               </div>
             </div>
@@ -339,6 +341,7 @@ function QuickActionCard({ icon, title, description, color, onClick }: {
 }
 
 function ObjectiveRow({ objective }: { objective: any }) {
+  const t = useTranslations('statistics')
   const categoryColors: Record<string, string> = {
     work: 'bg-accent-secondary/10 text-accent-secondary',
     personal: 'bg-success/10 text-success',
@@ -353,7 +356,7 @@ function ObjectiveRow({ objective }: { objective: any }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-text-primary truncate">{objective.title}</p>
-        <p className="text-sm text-text-tertiary">{objective.progress}% complete</p>
+        <p className="text-sm text-text-tertiary">{t('complete', { pct: objective.progress })}</p>
       </div>
       <div className="w-24 h-2 bg-border-primary rounded-full overflow-hidden">
         <div

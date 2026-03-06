@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
@@ -23,6 +24,7 @@ import { format } from 'date-fns'
 type Tab = 'journal' | 'objectives' | 'fears'
 
 export default function JournalPage() {
+  const t = useTranslations('journal')
   const { user, loading } = useAuth()
   const { objectiveActions, fearActions, journalActions, featureFlags } = useStore()
   const [mounted, setMounted] = useState(false)
@@ -108,16 +110,16 @@ export default function JournalPage() {
         <div className="max-w-5xl mx-auto">
           <header className="mb-8">
             <h1 className="text-3xl font-semibold text-apple-gray-900 dark:text-white mb-2">
-              Journal & Goals
+              {t('title')}
             </h1>
-            <p className="text-apple-gray-500">Reflect, plan, and overcome fears</p>
+            <p className="text-apple-gray-500">{t('subtitle')}</p>
           </header>
 
           <div className="flex gap-2 mb-6">
             {[
-              { id: 'objectives', icon: Target, label: 'Objectives' },
-              { id: 'fears', icon: AlertTriangle, label: 'Fear Setting' },
-              { id: 'journal', icon: BookOpen, label: 'Journal' }
+              { id: 'objectives', icon: Target, label: t('tabObjectives') },
+              { id: 'fears', icon: AlertTriangle, label: t('tabFears') },
+              { id: 'journal', icon: BookOpen, label: t('tabJournal') }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -183,6 +185,8 @@ export default function JournalPage() {
 }
 
 function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective, setNewObjective, onAdd, onDelete, onUpdate, onAddKeyResult, onToggleKeyResult }: any) {
+  const t = useTranslations('journal')
+  const tc = useTranslations('common')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [newKeyResult, setNewKeyResult] = useState('')
 
@@ -210,7 +214,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
       <div className="flex justify-end mb-6">
         <button onClick={() => setShowAddModal(true)} className="btn-primary">
           <Plus className="w-5 h-5 mr-2 inline" />
-          Add Objective
+          {t('addObjective')}
         </button>
       </div>
 
@@ -253,7 +257,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
                   <div className="flex items-center gap-4 mt-4">
                     <div className="flex-1">
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-apple-gray-500">Progress</span>
+                        <span className="text-apple-gray-500">{t('progress')}</span>
                         <span className="font-medium text-apple-gray-900 dark:text-white">{obj.progress}%</span>
                       </div>
                       <div className="w-full h-2 bg-apple-gray-100 dark:bg-apple-gray-700 rounded-full overflow-hidden">
@@ -273,7 +277,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
 
                   {expandedId === obj.id && (
                     <div className="mt-4 pt-4 border-t border-apple-gray-100 dark:border-apple-gray-800 animate-slide-down">
-                      <h5 className="text-sm font-medium text-apple-gray-900 dark:text-white mb-3">Key Results</h5>
+                      <h5 className="text-sm font-medium text-apple-gray-900 dark:text-white mb-3">{t('keyResults')}</h5>
                       {obj.keyResults && obj.keyResults.length > 0 ? (
                         <div className="space-y-2 mb-4">
                           {obj.keyResults.map((kr: any) => (
@@ -295,7 +299,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-apple-gray-400 mb-4">No key results yet</p>
+                        <p className="text-sm text-apple-gray-400 mb-4">{t('noKeyResults')}</p>
                       )}
 
                       <div className="flex gap-2">
@@ -304,7 +308,7 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
                           value={newKeyResult}
                           onChange={e => setNewKeyResult(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleAddKeyResult(obj.id)}
-                          placeholder="Add a key result..."
+                          placeholder={t('addKeyResultPlaceholder')}
                           className="input flex-1"
                         />
                         <button
@@ -331,65 +335,65 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
       ) : (
         <div className="card text-center py-12">
           <Target className="w-16 h-16 mx-auto mb-4 text-apple-gray-300" />
-          <h3 className="text-lg font-medium text-apple-gray-900 dark:text-white mb-2">No objectives yet</h3>
-          <p className="text-apple-gray-500 mb-4">Create your first objective to start tracking your goals</p>
-          <button onClick={() => setShowAddModal(true)} className="btn-primary">Add Objective</button>
+          <h3 className="text-lg font-medium text-apple-gray-900 dark:text-white mb-2">{t('noObjectivesTitle')}</h3>
+          <p className="text-apple-gray-500 mb-4">{t('noObjectivesDesc')}</p>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">{t('addObjective')}</button>
         </div>
       )}
 
       {showAddModal && (
-        <Modal title="Add Objective" onClose={() => setShowAddModal(false)}>
+        <Modal title={t('objModalTitle')} onClose={() => setShowAddModal(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Title</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">{t('objFieldTitle')}</label>
               <input
                 type="text"
                 value={newObjective.title}
                 onChange={e => setNewObjective({ ...newObjective, title: e.target.value })}
                 className="input"
-                placeholder="What do you want to achieve?"
+                placeholder={t('objFieldTitlePlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Description</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">{t('objFieldDesc')}</label>
               <textarea
                 value={newObjective.description}
                 onChange={e => setNewObjective({ ...newObjective, description: e.target.value })}
                 className="input"
                 rows={2}
-                placeholder="Why is this important?"
+                placeholder={t('objFieldDescPlaceholder')}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Category</label>
+                <label className="block text-sm font-medium text-text-primary mb-1">{t('objFieldCategory')}</label>
                 <select
                   value={newObjective.category}
                   onChange={e => setNewObjective({ ...newObjective, category: e.target.value as any })}
                   className="input"
                 >
-                  <option value="work">Work</option>
-                  <option value="personal">Personal</option>
-                  <option value="health">Health</option>
-                  <option value="learning">Learning</option>
+                  <option value="work">{t('catWork')}</option>
+                  <option value="personal">{t('catPersonal')}</option>
+                  <option value="health">{t('catHealth')}</option>
+                  <option value="learning">{t('catLearning')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Priority</label>
+                <label className="block text-sm font-medium text-text-primary mb-1">{t('objFieldPriority')}</label>
                 <select
                   value={newObjective.priority}
                   onChange={e => setNewObjective({ ...newObjective, priority: e.target.value as any })}
                   className="input"
                 >
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option value="high">{t('prioHigh')}</option>
+                  <option value="medium">{t('prioMedium')}</option>
+                  <option value="low">{t('prioLow')}</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-3 pt-4">
-              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={onAdd} className="btn-primary flex-1">Add Objective</button>
+              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1">{tc('cancel')}</button>
+              <button onClick={onAdd} className="btn-primary flex-1">{t('addObjective')}</button>
             </div>
           </div>
         </Modal>
@@ -399,6 +403,8 @@ function ObjectivesTab({ objectives, showAddModal, setShowAddModal, newObjective
 }
 
 function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, onAdd, onDelete, onUpdateStatus, onToggleActionStep, onAddActionStep, onAddReflection }: any) {
+  const t = useTranslations('journal')
+  const tc = useTranslations('common')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [newActionStep, setNewActionStep] = useState('')
   const [showReflection, setShowReflection] = useState<string | null>(null)
@@ -424,11 +430,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
   }
 
   const reflectionQuestions = [
-    "What's the worst that could happen?",
-    "How likely is this to actually happen?",
-    "What would I do if this happened?",
-    "What are the benefits of attempting this?",
-    "What's the cost of inaction?"
+    t('rq1'), t('rq2'), t('rq3'), t('rq4'), t('rq5')
   ]
 
   return (
@@ -436,7 +438,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
       <div className="flex justify-end mb-6">
         <button onClick={() => setShowAddModal(true)} className="btn-primary">
           <Plus className="w-5 h-5 mr-2 inline" />
-          Add Fear
+          {t('addFear')}
         </button>
       </div>
 
@@ -453,7 +455,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h4 className="font-semibold text-lg text-apple-gray-900 dark:text-white">{fear.fear}</h4>
-                      <p className="text-sm text-apple-gray-500 mt-1">Why: {fear.why}</p>
+                      <p className="text-sm text-apple-gray-500 mt-1">{t('why')} {fear.why}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <select
@@ -461,9 +463,9 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                         onChange={e => onUpdateStatus(fear.id, e.target.value)}
                         className="text-xs px-2 py-1 rounded-full border-0 bg-apple-gray-100 dark:bg-apple-gray-800 text-apple-gray-700 dark:text-apple-gray-300 cursor-pointer"
                       >
-                        <option value="active">Active</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="abandoned">Abandoned</option>
+                        <option value="active">{t('statusActive')}</option>
+                        <option value="resolved">{t('statusResolved')}</option>
+                        <option value="abandoned">{t('statusAbandoned')}</option>
                       </select>
                       <button
                         onClick={() => onDelete(fear.id)}
@@ -476,12 +478,12 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
 
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div className="p-3 bg-apple-green/5 rounded-apple-lg">
-                      <p className="text-xs font-medium text-apple-green mb-1">Prevention</p>
-                      <p className="text-sm text-apple-gray-600 dark:text-apple-gray-400">{fear.prevention || 'Not set'}</p>
+                      <p className="text-xs font-medium text-apple-green mb-1">{t('prevention')}</p>
+                      <p className="text-sm text-apple-gray-600 dark:text-apple-gray-400">{fear.prevention || t('notSet')}</p>
                     </div>
                     <div className="p-3 bg-apple-blue/5 rounded-apple-lg">
-                      <p className="text-xs font-medium text-apple-blue mb-1">Repair Plan</p>
-                      <p className="text-sm text-apple-gray-600 dark:text-apple-gray-400">{fear.repair || 'Not set'}</p>
+                      <p className="text-xs font-medium text-apple-blue mb-1">{t('repairPlan')}</p>
+                      <p className="text-sm text-apple-gray-600 dark:text-apple-gray-400">{fear.repair || t('notSet')}</p>
                     </div>
                   </div>
 
@@ -489,13 +491,13 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                     onClick={() => setExpandedId(expandedId === fear.id ? null : fear.id)}
                     className="mt-4 text-sm text-apple-blue font-medium hover:underline flex items-center gap-1"
                   >
-                    {expandedId === fear.id ? 'Hide' : 'Show'} action steps & reflections
+                    {expandedId === fear.id ? t('hideSteps') : t('showSteps')}
                     <ChevronRight className={`w-4 h-4 transition-transform ${expandedId === fear.id ? 'rotate-90' : ''}`} />
                   </button>
 
                   {expandedId === fear.id && (
                     <div className="mt-4 pt-4 border-t border-apple-gray-100 dark:border-apple-gray-800 animate-slide-down">
-                      <h5 className="text-sm font-medium text-apple-gray-900 dark:text-white mb-3">Action Steps</h5>
+                      <h5 className="text-sm font-medium text-apple-gray-900 dark:text-white mb-3">{t('actionSteps')}</h5>
                       {fear.actionSteps && fear.actionSteps.length > 0 ? (
                         <div className="space-y-2 mb-4">
                           {fear.actionSteps.map((step: any) => (
@@ -517,7 +519,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-apple-gray-400 mb-4">No action steps yet</p>
+                        <p className="text-sm text-apple-gray-400 mb-4">{t('noActionSteps')}</p>
                       )}
 
                       <div className="flex gap-2 mb-6">
@@ -526,7 +528,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                           value={newActionStep}
                           onChange={e => setNewActionStep(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleAddActionStep(fear.id)}
-                          placeholder="Add an action step..."
+                          placeholder={t('addActionStepPlaceholder')}
                           className="input flex-1"
                         />
                         <button
@@ -538,12 +540,12 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                       </div>
 
                       <div className="flex items-center justify-between mb-3">
-                        <h5 className="text-sm font-medium text-apple-gray-900 dark:text-white">Reflections</h5>
+                        <h5 className="text-sm font-medium text-apple-gray-900 dark:text-white">{t('reflections')}</h5>
                         <button
                           onClick={() => setShowReflection(showReflection === fear.id ? null : fear.id)}
                           className="text-xs text-apple-blue font-medium hover:underline"
                         >
-                          {showReflection === fear.id ? 'Cancel' : 'Add Reflection'}
+                          {showReflection === fear.id ? t('cancelReflection') : t('addReflection')}
                         </button>
                       </div>
 
@@ -554,7 +556,7 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                             onChange={e => setReflection({ ...reflection, question: e.target.value })}
                             className="input mb-3"
                           >
-                            <option value="">Select a question...</option>
+                            <option value="">{t('selectQuestion')}</option>
                             {reflectionQuestions.map(q => (
                               <option key={q} value={q}>{q}</option>
                             ))}
@@ -564,10 +566,10 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
                             onChange={e => setReflection({ ...reflection, answer: e.target.value })}
                             className="input mb-3"
                             rows={2}
-                            placeholder="Your reflection..."
+                            placeholder={t('yourReflection')}
                           />
                           <button onClick={() => handleAddReflection(fear.id)} className="btn-primary text-sm">
-                            Add Reflection
+                            {t('addReflection')}
                           </button>
                         </div>
                       )}
@@ -592,58 +594,58 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
       ) : (
         <div className="card text-center py-12">
           <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-action-warning/50" />
-          <h3 className="text-lg font-medium text-apple-gray-900 dark:text-white mb-2">No fears documented yet</h3>
-          <p className="text-apple-gray-500 mb-4">Use fear setting to overcome what&apos;s holding you back</p>
-          <button onClick={() => setShowAddModal(true)} className="btn-primary">Add Fear</button>
+          <h3 className="text-lg font-medium text-apple-gray-900 dark:text-white mb-2">{t('noFearsTitle')}</h3>
+          <p className="text-apple-gray-500 mb-4">{t('noFearsDesc')}</p>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">{t('addFear')}</button>
         </div>
       )}
 
       {showAddModal && (
-        <Modal title="Fear Setting" onClose={() => setShowAddModal(false)}>
+        <Modal title={t('fearModalTitle')} onClose={() => setShowAddModal(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">What do you fear?</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">{t('fearFieldFear')}</label>
               <input
                 type="text"
                 value={newFear.fear}
                 onChange={e => setNewFear({ ...newFear, fear: e.target.value })}
                 className="input"
-                placeholder="Describe your fear..."
+                placeholder={t('fearFieldFearPlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Why does this matter?</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">{t('fearFieldWhy')}</label>
               <textarea
                 value={newFear.why}
                 onChange={e => setNewFear({ ...newFear, why: e.target.value })}
                 className="input"
                 rows={2}
-                placeholder="Why is this fear important to address?"
+                placeholder={t('fearFieldWhyPlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Prevention (What can you do to prevent this?)</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">{t('fearFieldPrevention')}</label>
               <textarea
                 value={newFear.prevention}
                 onChange={e => setNewFear({ ...newFear, prevention: e.target.value })}
                 className="input"
                 rows={2}
-                placeholder="Steps to prevent this fear from becoming reality..."
+                placeholder={t('fearFieldPreventionPlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Repair (What will you do if it happens?)</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">{t('fearFieldRepair')}</label>
               <textarea
                 value={newFear.repair}
                 onChange={e => setNewFear({ ...newFear, repair: e.target.value })}
                 className="input"
                 rows={2}
-                placeholder="How will you recover if this happens?"
+                placeholder={t('fearFieldRepairPlaceholder')}
               />
             </div>
             <div className="flex gap-3 pt-4">
-              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={onAdd} className="btn-primary flex-1">Add Fear</button>
+              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1">{tc('cancel')}</button>
+              <button onClick={onAdd} className="btn-primary flex-1">{t('addFear')}</button>
             </div>
           </div>
         </Modal>
@@ -653,6 +655,8 @@ function FearsTab({ fears, showAddModal, setShowAddModal, newFear, setNewFear, o
 }
 
 function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEntry, onAdd, onDelete }: any) {
+  const t = useTranslations('journal')
+  const tc = useTranslations('common')
   const moods = [
     { emoji: '😊', label: 'Great' },
     { emoji: '🙂', label: 'Good' },
@@ -666,7 +670,7 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
       <div className="flex justify-end mb-6">
         <button onClick={() => setShowAddModal(true)} className="btn-primary">
           <Plus className="w-5 h-5 mr-2 inline" />
-          Add Entry
+          {t('addEntryBtn')}
         </button>
       </div>
 
@@ -700,17 +704,17 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
       ) : (
         <div className="card text-center py-12">
           <BookOpen className="w-16 h-16 mx-auto mb-4 text-apple-gray-300" />
-          <h3 className="text-lg font-medium text-apple-gray-900 dark:text-white mb-2">No journal entries yet</h3>
-          <p className="text-apple-gray-500 mb-4">Start writing to capture your thoughts and reflections</p>
-          <button onClick={() => setShowAddModal(true)} className="btn-primary">Add Entry</button>
+          <h3 className="text-lg font-medium text-apple-gray-900 dark:text-white mb-2">{t('noEntriesTitle')}</h3>
+          <p className="text-apple-gray-500 mb-4">{t('noEntriesDesc')}</p>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">{t('addEntryBtn')}</button>
         </div>
       )}
 
       {showAddModal && (
-        <Modal title="Journal Entry" onClose={() => setShowAddModal(false)}>
+        <Modal title={t('journalModalTitle')} onClose={() => setShowAddModal(false)}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">How are you feeling?</label>
+              <label className="block text-sm font-medium text-text-primary mb-2">{t('howFeeling')}</label>
               <div className="flex gap-2">
                 {moods.map(m => (
                   <button
@@ -728,18 +732,18 @@ function JournalTab({ entries, showAddModal, setShowAddModal, newEntry, setNewEn
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">What&apos;s on your mind?</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">{t('whatsOnMind')}</label>
               <textarea
                 value={newEntry.content}
                 onChange={e => setNewEntry({ ...newEntry, content: e.target.value })}
                 className="input"
                 rows={6}
-                placeholder="Write your thoughts..."
+                placeholder={t('writeThoughts')}
               />
             </div>
             <div className="flex gap-3 pt-4">
-              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={onAdd} className="btn-primary flex-1">Save Entry</button>
+              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1">{tc('cancel')}</button>
+              <button onClick={onAdd} className="btn-primary flex-1">{t('saveEntry')}</button>
             </div>
           </div>
         </Modal>

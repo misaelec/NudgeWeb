@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { useAuth } from '@/components/Providers'
 import { useStore, CalendarEvent } from '@/lib/store'
@@ -47,6 +48,8 @@ const durations = [
 ]
 
 export default function CalendarPage() {
+  const t = useTranslations('calendar')
+  const tc = useTranslations('common')
   const { user, loading } = useAuth()
   const { calendarActions, featureFlags, searchQuery, setSearchQuery } = useStore()
   const [mounted, setMounted] = useState(false)
@@ -170,7 +173,7 @@ export default function CalendarPage() {
           <header className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-semibold text-text-primary mb-1">
-                Calendar
+                {t('title')}
               </h1>
               <p className="text-text-tertiary">{format(currentMonth, 'MMMM yyyy')}</p>
             </div>
@@ -184,7 +187,7 @@ export default function CalendarPage() {
                     setSearchQuery(e.target.value)
                     setViewMode(e.target.value ? 'search' : 'month')
                   }}
-                  placeholder="Search..."
+                  placeholder={t('searchPlaceholder')}
                   className="input pl-10 w-48 text-sm py-2"
                 />
               </div>
@@ -194,7 +197,7 @@ export default function CalendarPage() {
                   className="btn-primary flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Event
+                  {t('addEvent')}
                 </button>
               )}
             </div>
@@ -203,7 +206,7 @@ export default function CalendarPage() {
           {viewMode === 'search' ? (
             <div className="card">
               <h2 className="text-lg font-semibold text-text-primary mb-4">
-                Search Results ({searchResults.length})
+                {t('searchResults', { n: searchResults.length })}
               </h2>
               {searchResults.length > 0 ? (
                 <div className="space-y-3">
@@ -238,7 +241,7 @@ export default function CalendarPage() {
               ) : (
                 <div className="text-center py-12">
                   <Search className="w-12 h-12 mx-auto mb-4 text-text-placeholder" />
-                  <p className="text-text-tertiary">No events found for "{searchQuery}"</p>
+                  <p className="text-text-tertiary">{t('noEventsFound', { query: searchQuery })}</p>
                 </div>
               )}
             </div>
@@ -268,7 +271,7 @@ export default function CalendarPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-accent-primary hover:bg-accent-primary/10 rounded-lg transition-colors"
                     >
                       <CircleDot className="w-4 h-4" />
-                      Today
+                      {t('today')}
                     </button>
                 </div>
 
@@ -323,7 +326,7 @@ export default function CalendarPage() {
                             ))}
                             {dayEvents.length > 2 && (
                               <div className="text-xs text-text-tertiary pl-1">
-                                +{dayEvents.length - 2} more
+                                {t('more', { n: dayEvents.length - 2 })}
                               </div>
                             )}
                           </div>
@@ -337,7 +340,7 @@ export default function CalendarPage() {
               <div className="space-y-4">
                 <div className="card p-5">
                   <h3 className="font-semibold text-text-primary mb-4">
-                    {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'Select a date'}
+                    {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : t('selectDate')}
                   </h3>
                   {eventsForSelectedDate.length > 0 ? (
                     <div className="space-y-3">
@@ -374,13 +377,13 @@ export default function CalendarPage() {
                   ) : (
                     <div className="text-center py-8">
                       <CalendarIcon className="w-10 h-10 mx-auto mb-3 text-text-placeholder" />
-                      <p className="text-sm text-text-tertiary">No events</p>
+                      <p className="text-sm text-text-tertiary">{t('noEvents')}</p>
                     </div>
                   )}
                 </div>
 
                 <div className="card p-5">
-                  <h4 className="font-medium text-text-primary mb-3 text-sm">Quick Add</h4>
+                  <h4 className="font-medium text-text-primary mb-3 text-sm">{t('quickAdd')}</h4>
                   <button
                     onClick={() => {
                       setNewEvent(prev => ({ ...prev, startDate: selectedDate ? format(subDays(selectedDate, 0), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd') }))
@@ -389,7 +392,7 @@ export default function CalendarPage() {
                     disabled={!selectedDate}
                     className="w-full btn-secondary py-3 text-sm disabled:opacity-50"
                   >
-                    Add Event on {selectedDate ? format(selectedDate, 'MMM d') : '...'}
+                    {selectedDate ? t('addEventOn', { date: format(selectedDate, 'MMM d') }) : t('quickAdd')}
                   </button>
                 </div>
               </div>
@@ -403,7 +406,7 @@ export default function CalendarPage() {
           <div className="bg-surface-primary rounded-2xl shadow-2xl w-full max-w-md animate-scale-in">
             <div className="p-6 border-b border-border-primary">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-text-primary">New Event</h2>
+                <h2 className="text-xl font-semibold text-text-primary">{t('newEvent')}</h2>
                 <button
                   onClick={() => setShowAddEvent(false)}
                   className="p-2 hover:bg-surface-secondary rounded-lg transition-colors"
@@ -420,13 +423,13 @@ export default function CalendarPage() {
                   value={newEvent.title}
                   onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
                   className="w-full text-lg font-medium bg-transparent border-b border-border-primary pb-3 focus:outline-none focus:border-accent-primary text-text-primary placeholder:text-text-tertiary"
-                  placeholder="Event title"
+                  placeholder={t('eventTitlePlaceholder')}
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-text-tertiary uppercase tracking-wider mb-2">Date</label>
+                <label className="block text-xs font-medium text-text-tertiary uppercase tracking-wider mb-2">{t('fieldDate')}</label>
                 <input
                   type="date"
                   value={newEvent.startDate}
@@ -437,7 +440,7 @@ export default function CalendarPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <label className="block text-xs font-medium text-text-tertiary uppercase tracking-wider mb-2">Start</label>
+                  <label className="block text-xs font-medium text-text-tertiary uppercase tracking-wider mb-2">{t('fieldStart')}</label>
                   <button
                     onClick={() => { setShowTimePicker(!showTimePicker); setShowDurationPicker(false); }}
                     className="input text-left flex items-center justify-between"
@@ -462,7 +465,7 @@ export default function CalendarPage() {
                   )}
                 </div>
                 <div className="relative">
-                  <label className="block text-xs font-medium text-text-tertiary uppercase tracking-wider mb-2">Duration</label>
+                  <label className="block text-xs font-medium text-text-tertiary uppercase tracking-wider mb-2">{t('fieldDuration')}</label>
                   <button
                     onClick={() => { setShowDurationPicker(!showDurationPicker); setShowTimePicker(false); }}
                     className="input text-left flex items-center justify-between"
@@ -494,13 +497,13 @@ export default function CalendarPage() {
                   onChange={e => setNewEvent({ ...newEvent, description: e.target.value })}
                   className="input resize-none"
                   rows={2}
-                  placeholder="Add description..."
+                  placeholder={t('descPlaceholder')}
                 />
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowAddEvent(false)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={handleAddEvent} className="btn-primary flex-1">Add Event</button>
+                <button onClick={() => setShowAddEvent(false)} className="btn-secondary flex-1">{tc('cancel')}</button>
+                <button onClick={handleAddEvent} className="btn-primary flex-1">{t('addEvent')}</button>
               </div>
             </div>
           </div>

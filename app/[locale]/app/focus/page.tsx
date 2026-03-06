@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
@@ -8,6 +9,7 @@ import { notificationService } from '@/lib/notifications'
 import { Play, Pause, RotateCcw, Clock, Target, Shield, CheckCircle2, XCircle, Bell, BellOff } from 'lucide-react'
 
 export default function FocusPage() {
+  const t = useTranslations('focus')
   const { user, loading } = useAuth()
   const { pomodoroActions, preferences } = useStore()
   const [mounted, setMounted] = useState(false)
@@ -109,9 +111,9 @@ export default function FocusPage() {
           <header className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-semibold text-text-primary mb-2">
-                Focus Mode
+                {t('title')}
               </h1>
-              <p className="text-text-tertiary">Stay productive with Pomodoro technique</p>
+              <p className="text-text-tertiary">{t('subtitle')}</p>
             </div>
             {notificationPermission !== 'granted' && (
               <button
@@ -119,7 +121,7 @@ export default function FocusPage() {
                 className="btn-secondary flex items-center gap-2"
               >
                 <BellOff className="w-4 h-4" />
-                Enable Notifications
+                {t('enableNotifications')}
               </button>
             )}
           </header>
@@ -129,9 +131,9 @@ export default function FocusPage() {
               <div className="text-center py-8">
                 <div className="flex justify-center gap-2 mb-8">
                   {[
-                    { id: 'pomodoro', label: 'Pomodoro' },
-                    { id: 'shortBreak', label: 'Short Break' },
-                    { id: 'longBreak', label: 'Long Break' }
+                    { id: 'pomodoro', label: t('pomodoro') },
+                    { id: 'shortBreak', label: t('shortBreak') },
+                    { id: 'longBreak', label: t('longBreak') }
                   ].map(item => (
                     <button
                       key={item.id}
@@ -181,12 +183,12 @@ export default function FocusPage() {
                   {!isRunning ? (
                     <button onClick={startTimer} className="btn-primary px-8 py-3 text-lg flex items-center gap-2">
                       <Play className="w-5 h-5" />
-                      Start
+                      {t('start')}
                     </button>
                   ) : (
                     <button onClick={pauseTimer} className="btn-secondary px-8 py-3 text-lg flex items-center gap-2">
                       <Pause className="w-5 h-5" />
-                      Pause
+                      {t('pause')}
                     </button>
                   )}
                   <button onClick={resetTimer} className="btn-secondary px-6 py-3">
@@ -196,10 +198,10 @@ export default function FocusPage() {
 
                 <div className="mt-8 pt-8 border-t border-border-primary">
                   <p className="text-sm text-text-tertiary">
-                    Sessions completed today: <span className="font-semibold text-text-primary">{sessions}</span>
+                    {t('sessionsToday')} <span className="font-semibold text-text-primary">{sessions}</span>
                   </p>
                   <p className="text-sm text-text-tertiary mt-1">
-                    Total focus time: <span className="font-semibold text-text-primary">{sessions * 25} minutes</span>
+                    {t('totalFocusTime')} <span className="font-semibold text-text-primary">{sessions * 25} {t('minutes')}</span>
                   </p>
                 </div>
               </div>
@@ -211,20 +213,20 @@ export default function FocusPage() {
                   <div className="p-2 bg-accent-secondary/10 rounded-apple-lg">
                     <Clock className="w-5 h-5 text-accent-secondary" />
                   </div>
-                  <h3 className="font-semibold text-text-primary">Session Stats</h3>
+                  <h3 className="font-semibold text-text-primary">{t('sessionStats')}</h3>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-text-tertiary">Today</span>
-                    <span className="font-medium text-text-primary">{sessions} sessions</span>
+                    <span className="text-sm text-text-tertiary">{t('today')}</span>
+                    <span className="font-medium text-text-primary">{sessions} {t('sessions')}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-text-tertiary">Focus Time</span>
-                    <span className="font-medium text-text-primary">{sessions * 25} min</span>
+                    <span className="text-sm text-text-tertiary">{t('focusTime')}</span>
+                    <span className="font-medium text-text-primary">{sessions * 25} {t('min')}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-text-tertiary">Break Time</span>
-                    <span className="font-medium text-text-primary">{sessions * 5} min</span>
+                    <span className="text-sm text-text-tertiary">{t('breakTime')}</span>
+                    <span className="font-medium text-text-primary">{sessions * 5} {t('min')}</span>
                   </div>
                 </div>
               </div>
@@ -235,10 +237,10 @@ export default function FocusPage() {
                     <div className="p-2 bg-action-danger/10 rounded-apple-lg">
                       <Shield className="w-5 h-5 text-action-danger" />
                     </div>
-                    <h3 className="font-semibold text-text-primary">App Blocking</h3>
+                    <h3 className="font-semibold text-text-primary">{t('appBlocking')}</h3>
                   </div>
                   <p className="text-sm text-text-tertiary mb-4">
-                    Block distracting apps during focus sessions.
+                    {t('appBlockingDesc')}
                   </p>
                   <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-apple-lg">
                     <div className="flex items-center gap-3">
@@ -248,10 +250,10 @@ export default function FocusPage() {
                         <XCircle className="w-5 h-5 text-text-tertiary" />
                       )}
                       <span className="text-sm font-medium text-text-primary">
-                        {notificationPermission === 'granted' ? 'Enabled' : 'Disabled'}
+                        {notificationPermission === 'granted' ? t('enabled') : t('disabled')}
                       </span>
                     </div>
-                    <span className="text-xs text-text-tertiary">iOS only</span>
+                    <span className="text-xs text-text-tertiary">{t('iosOnly')}</span>
                   </div>
                 </div>
               )}
@@ -261,11 +263,11 @@ export default function FocusPage() {
                   <div className="p-2 bg-success/10 rounded-apple-lg">
                     <Target className="w-5 h-5 text-success" />
                   </div>
-                  <h3 className="font-semibold text-text-primary">Today's Goal</h3>
+                  <h3 className="font-semibold text-text-primary">{t('todaysGoal')}</h3>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-text-tertiary">Sessions</span>
+                    <span className="text-sm text-text-tertiary">{t('sessionsLabel')}</span>
                     <span className="font-medium text-text-primary">{sessions}/8</span>
                   </div>
                   <div className="w-full h-2 bg-surface-secondary rounded-full overflow-hidden">

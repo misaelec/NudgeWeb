@@ -428,7 +428,7 @@ export default function SettingsPage() {
 
           <div className="text-center text-sm text-text-tertiary">
             <p>Nudge Web v1.0.0</p>
-            <p className="mt-1">Built with Next.js & Tailwind CSS</p>
+            <p className="mt-1">Built with ❤️ by Nudge</p>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
@@ -24,6 +25,8 @@ import {
 import { format } from 'date-fns'
 
 export default function RemindersPage() {
+  const t = useTranslations('reminders')
+  const tc = useTranslations('common')
   const { user, loading } = useAuth()
   const { preferences, searchQuery, setSearchQuery, settingsActions } = useStore()
   const { reminders, addReminder, updateReminder, deleteReminder, toggleReminder, syncFromSupabase } = useReminderStore()
@@ -173,10 +176,10 @@ export default function RemindersPage() {
           <header className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-semibold text-text-primary mb-2">
-                Reminders
+                {t('title')}
               </h1>
                 <p className="text-text-tertiary">
-                  {pendingCount} pending, {highPriorityCount} High priority
+                  {t('subtitle', { pending: pendingCount, high: highPriorityCount })}
                 </p>
             </div>
             <div className="flex items-center gap-3">
@@ -186,7 +189,7 @@ export default function RemindersPage() {
                   className="btn-secondary flex items-center gap-2"
                 >
                   <BellOff className="w-4 h-4" />
-                  Enable Notifications
+                  {t('enableNotifications')}
                 </button>
               )}
               {isRemindersEnabled && (
@@ -195,7 +198,7 @@ export default function RemindersPage() {
                   className="btn-primary flex items-center gap-2"
                 >
                   <Plus className="w-5 h-5" />
-                  Add Reminder
+                  {t('addReminder')}
                 </button>
               )}
             </div>
@@ -208,7 +211,7 @@ export default function RemindersPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search reminders..."
+                placeholder={t('searchPlaceholder')}
                 className="input pl-12"
               />
             </div>
@@ -218,10 +221,10 @@ export default function RemindersPage() {
             <div className="card text-center py-12">
               <Bell className="w-16 h-16 mx-auto mb-4 text-text-placeholder" />
               <h3 className="text-lg font-medium text-text-primary mb-2">
-                Reminders Disabled
+                {t('disabledTitle')}
               </h3>
               <p className="text-text-tertiary">
-                Enable reminders in Settings to use this feature.
+                {t('disabledDesc')}
               </p>
             </div>
           ) : (
@@ -237,7 +240,7 @@ export default function RemindersPage() {
                     />
                     <div className="w-9 h-5 bg-border-primary rounded-full peer peer-checked:bg-accent-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all transition-colors" />
                   </div>
-                  <span className="text-sm text-text-secondary">Show completed</span>
+                  <span className="text-sm text-text-secondary">{t('showCompleted')}</span>
                 </label>
               </div>
 
@@ -257,11 +260,10 @@ export default function RemindersPage() {
                 <div className="card text-center py-12">
                   <Bell className="w-16 h-16 mx-auto mb-4 text-text-placeholder" />
                   <h3 className="text-lg font-medium text-text-primary mb-2">
-                    No reminders found
+                    {t('emptyTitle')}
                   </h3>
                   <p className="text-text-tertiary">
-                    {searchQuery ? 'Try a different search term.'
-                      : 'Create your first reminder to stay on track.'}
+                    {searchQuery ? t('emptySearch') : t('emptyFirst')}
                   </p>
                 </div>
               )}
@@ -274,7 +276,7 @@ export default function RemindersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-surface-primary rounded-apple-xl shadow-apple-xl p-6 w-full max-w-md animate-scale-in">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-text-primary">Add Reminder</h2>
+              <h2 className="text-xl font-semibold text-text-primary">{t('addTitle')}</h2>
               <button
                 onClick={() => setShowAddReminder(false)}
                 className="p-2 hover:bg-surface-secondary rounded-apple-lg transition-colors"
@@ -285,29 +287,29 @@ export default function RemindersPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldTitle')}</label>
                 <input
                   type="text"
                   value={newReminder.title}
                   onChange={e => setNewReminder({ ...newReminder, title: e.target.value })}
                   className="input"
-                  placeholder="What do you need to remember?"
+                  placeholder={t('fieldTitlePlaceholder')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Notes</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldNotes')}</label>
                 <textarea
                   value={newReminder.notes}
                   onChange={e => setNewReminder({ ...newReminder, notes: e.target.value })}
                   className="input"
                   rows={2}
-                  placeholder="Add details..."
+                  placeholder={t('fieldNotesPlaceholder')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Due Date</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldDueDate')}</label>
                 <input
                   type="datetime-local"
                   value={newReminder.dueDate}
@@ -317,7 +319,7 @@ export default function RemindersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Priority</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldPriority')}</label>
                 <div className="flex gap-2">
                   {(['high', 'medium', 'low'] as const).map(p => (
                     <button
@@ -334,7 +336,7 @@ export default function RemindersPage() {
                       }`}
                     >
                       {p === 'high' && <AlertCircle className="w-4 h-4 inline mr-1" />}
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                      {p === 'high' ? t('priorityHigh') : p === 'medium' ? t('priorityMedium') : t('priorityLow')}
                     </button>
                   ))}
                 </div>
@@ -349,15 +351,15 @@ export default function RemindersPage() {
                     className="w-5 h-5 rounded border-border-primary bg-surface-primary text-accent-primary focus:ring-accent-primary"
                   />
                   <div>
-                    <p className="font-medium text-text-primary">Notification</p>
-                    <p className="text-sm text-text-tertiary">Get notified when due</p>
+                    <p className="font-medium text-text-primary">{t('notificationLabel')}</p>
+                    <p className="text-sm text-text-tertiary">{t('notificationDesc')}</p>
                   </div>
                 </label>
               )}
 
               <div className="flex gap-3 pt-4">
-                <button onClick={() => setShowAddReminder(false)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={handleAddReminder} className="btn-primary flex-1">Add Reminder</button>
+                <button onClick={() => setShowAddReminder(false)} className="btn-secondary flex-1">{tc('cancel')}</button>
+                <button onClick={handleAddReminder} className="btn-primary flex-1">{t('addReminder')}</button>
               </div>
             </div>
           </div>
@@ -368,7 +370,7 @@ export default function RemindersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-surface-primary rounded-apple-xl shadow-apple-xl p-6 w-full max-w-md animate-scale-in">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-text-primary">Edit Reminder</h2>
+              <h2 className="text-xl font-semibold text-text-primary">{t('editTitle')}</h2>
               <button
                 onClick={() => { setShowEditReminder(false); setEditingReminder(null); }}
                 className="p-2 hover:bg-surface-secondary rounded-apple-lg transition-colors"
@@ -379,29 +381,29 @@ export default function RemindersPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldTitle')}</label>
                 <input
                   type="text"
                   value={editingReminder.title}
                   onChange={e => setEditingReminder({ ...editingReminder, title: e.target.value })}
                   className="input"
-                  placeholder="What do you need to remember?"
+                  placeholder={t('fieldTitlePlaceholder')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Notes</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldNotes')}</label>
                 <textarea
                   value={editingReminder.notes}
                   onChange={e => setEditingReminder({ ...editingReminder, notes: e.target.value })}
                   className="input"
                   rows={2}
-                  placeholder="Add details..."
+                  placeholder={t('fieldNotesPlaceholder')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Due Date</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldDueDate')}</label>
                 <input
                   type="datetime-local"
                   value={editingReminder.dueDate}
@@ -411,7 +413,7 @@ export default function RemindersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Priority</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">{t('fieldPriority')}</label>
                 <div className="flex gap-2">
                   {(['high', 'medium', 'low'] as const).map(p => (
                     <button
@@ -428,7 +430,7 @@ export default function RemindersPage() {
                       }`}
                     >
                       {p === 'high' && <AlertCircle className="w-4 h-4 inline mr-1" />}
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                      {p === 'high' ? t('priorityHigh') : p === 'medium' ? t('priorityMedium') : t('priorityLow')}
                     </button>
                   ))}
                 </div>
@@ -439,10 +441,10 @@ export default function RemindersPage() {
                   onClick={() => { setShowEditReminder(false); setEditingReminder(null); }}
                   className="btn-secondary flex-1"
                 >
-                  Cancel
+                  {tc('cancel')}
                 </button>
                 <button onClick={handleEditReminder} className="btn-primary flex-1">
-                  Save Changes
+                  {t('saveChanges')}
                 </button>
               </div>
             </div>
@@ -459,6 +461,7 @@ function ReminderCard({ reminder, onToggle, onDelete, onEdit }: {
   onDelete: () => void
   onEdit: () => void
 }) {
+  const t = useTranslations('reminders')
   const priorityConfig = {
     high: { icon: AlertCircle, color: 'text-action-danger', bg: 'bg-action-danger/10' },
     medium: { icon: Clock, color: 'text-action-warning', bg: 'bg-action-warning/10' },
@@ -493,7 +496,7 @@ function ReminderCard({ reminder, onToggle, onDelete, onEdit }: {
             </div>
             <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${config.bg} ${config.color}`}>
               <config.icon className="w-3 h-3" />
-              {reminder.priority.charAt(0).toUpperCase() + reminder.priority.slice(1)}
+              {reminder.priority === 'high' ? t('priorityHigh') : reminder.priority === 'medium' ? t('priorityMedium') : t('priorityLow')}
             </div>
           </div>
 
