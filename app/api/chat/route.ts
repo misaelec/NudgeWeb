@@ -296,7 +296,7 @@ function buildAgentTools(userId: string, userTimezone: string = 'UTC') {
               end: { dateTime: endDateTime, timeZone: userTimezone },
             }
             const res = await fetch(
-              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId!)}/events`,
               {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
