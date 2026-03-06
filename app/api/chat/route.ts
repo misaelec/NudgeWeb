@@ -281,6 +281,53 @@ function buildAgentTools(userId: string) {
       },
     }),
 
+    createReminder: tool({
+      description: "Creates a reminder for the user. Due date is optional — only include it if the user explicitly mentioned a date or time.",
+      inputSchema: jsonSchema<{
+        title: string
+        notes?: string
+        dueDate?: string
+        dueTime?: string
+        priority?: string
+      }>({
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Reminder title' },
+          notes: { type: 'string', description: 'Optional additional notes' },
+          dueDate: { type: 'string', description: 'Due date YYYY-MM-DD — only if user specified one' },
+          dueTime: { type: 'string', description: 'Due time HH:MM — only if user specified one' },
+          priority: { type: 'string', description: 'low | medium | high — default medium' },
+        },
+        required: ['title'],
+      }),
+      execute: async ({ title, notes, dueDate, dueTime, priority }) => {
+        console.log('[chat tool] createReminder called:', { title, dueDate, dueTime, priority })
+
+        let due_date: string | null = null
+        if (dueDate) {
+          const time = dueTime ? `${dueTime}:00` : '09:00:00'
+          due_date = new Date(`${dueDate}T${time}`).toISOString()
+        }
+
+        const { error } = await supabase.from('reminders').insert({
+          user_id: userId,
+          title,
+          notes: notes ?? null,
+          due_date,
+          priority: priority ?? 'medium',
+          is_completed: false,
+        })
+
+        if (error) {
+          console.error('[chat tool] createReminder error:', error)
+          return { success: false, error: error.message }
+        }
+
+        const when = dueDate ? ` for ${dueDate}${dueTime ? ` at ${dueTime}` : ''}` : ''
+        return { success: true, message: `Reminder "${title}" created${when}.` }
+      },
+    }),
+
     getPersonEvents: tool({
       description: "Finds another person's calendar by name and fetches their events. Handles calendar discovery, name matching, and email fallback automatically.",
       inputSchema: jsonSchema<{ name: string; startDate: string; endDate: string; calendarId?: string }>({
@@ -419,15 +466,19 @@ export async function POST(request: Request) {
 
 Tools:
 - getCalendarEvents: user's OWN events/reminders. Never use for other people.
-- getPersonEvents: find another person's events by name. Handles discovery automatically.
-  - "needsDisambiguation": list matches with name/email/account, ask which one, then call again with calendarId.
+- getPersonEvents: find another person's events by name.
+  - "needsDisambiguation": list matches, ask which one, call again with calendarId.
   - "needsFullName": ask for full name. NEVER guess a last name.
   - "error": relay to user.
-- createCalendarEvent: creates an event. Always extract title, date, and time from the user's message before calling.
-  - If calendarId is omitted, the tool returns available calendars — the UI will show buttons for the user to pick. Do NOT ask the user to type a calendar name.
-  - When the user sends a message like "Calendar selected: [name] (id: [id])", call createCalendarEvent again with that calendarId and the same event details.
-  - "success": confirm to the user with the message from the result.
-  - "error": relay to user.
+- createCalendarEvent: creates a calendar event.
+  - ALWAYS ask for the date AND time before calling this tool if either is missing. Do not guess or assume.
+  - If calendarId is omitted, the tool returns available calendars and the UI shows buttons — do NOT ask the user to type a calendar name.
+  - When user sends "Calendar selected: [name] (id: [id])", call createCalendarEvent again with that calendarId and the same event details from context.
+  - "success": confirm using the result message. "error": relay to user.
+- createReminder: creates a reminder.
+  - Call immediately after getting the title — do NOT ask for a date/time unless the user mentioned one.
+  - Only include dueDate/dueTime if the user explicitly stated them.
+  - "success": confirm using the result message. "error": relay to user.
 
 Be concise. Group events by calendar when listing.`
 
