@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/components/Providers'
 import { getSupabaseClient, getURL } from '@/lib/supabase'
 import {
@@ -19,6 +20,8 @@ import {
 } from 'lucide-react'
 
 export default function LandingPage() {
+  const t = useTranslations('landing')
+  const tc = useTranslations('common')
   const router = useRouter()
   const [showAuth, setShowAuth] = useState(false)
   const [showLogoutBanner, setShowLogoutBanner] = useState(false)
@@ -52,7 +55,7 @@ export default function LandingPage() {
 
   const handleSendOtp = async () => {
     if (!email) {
-      setError('Please enter your email address')
+      setError(t('errorNoEmail'))
       return
     }
 
@@ -74,7 +77,7 @@ export default function LandingPage() {
       }
     } catch (err) {
       console.error('OTP send error:', err)
-      setError('Something went wrong. Please try again.')
+      setError(tc('error'))
     }
 
     setIsLoading(false)
@@ -84,7 +87,7 @@ export default function LandingPage() {
     const digits = code || otpCode
     const token = digits.join('')
     if (token.length !== 6) {
-      setError('Please enter the full 6-digit code')
+      setError(t('errorIncompleteCode'))
       return
     }
 
@@ -100,7 +103,7 @@ export default function LandingPage() {
       })
 
       if (error) {
-        setError(error.message || 'Invalid code. Please try again.')
+        setError(error.message || t('errorInvalidCode'))
       } else if (data.session) {
         localStorage.setItem('supabase_session', JSON.stringify({
           access_token: data.session.access_token,
@@ -112,7 +115,7 @@ export default function LandingPage() {
       }
     } catch (err) {
       console.error('OTP verify error:', err)
-      setError('Something went wrong. Please try again.')
+      setError(tc('error'))
     }
 
     setIsVerifying(false)
@@ -192,7 +195,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background-primary">
       {showLogoutBanner && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-success text-white px-6 py-3 rounded-apple-lg shadow-apple-lg animate-slide-down">
-          <p className="text-sm font-medium">You have been logged out successfully</p>
+          <p className="text-sm font-medium">{t('loggedOut')}</p>
         </div>
       )}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background-primary/80 backdrop-blur-lg border-b border-border-primary">
@@ -208,13 +211,13 @@ export default function LandingPage() {
               onClick={() => setShowWaitlist(true)}
               className="btn-primary md:hidden"
             >
-              Get Mobile App
+              {t('getMobileApp')}
             </button>
             <button
               onClick={() => setShowAuth(true)}
               className="btn-primary hidden md:block"
             >
-              Get Started
+              {t('getStarted')}
             </button>
           </div>
         </div>
@@ -225,29 +228,28 @@ export default function LandingPage() {
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 bg-accent-primary/10 text-accent-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
               <Sparkles className="w-4 h-4" />
-              Your Personal Growth Companion
+              {t('badge')}
             </div>
             <h1 className="text-5xl md:text-7xl font-semibold text-text-primary mb-6 leading-tight">
-              Achieve More.<br />
-              <span className="text-accent-primary">Stress Less.</span>
+              {t('heroTitle1')}<br />
+              <span className="text-accent-primary">{t('heroTitle2')}</span>
             </h1>
             <p className="text-xl text-text-secondary mb-10 max-w-2xl mx-auto">
-              Nudge combines focus techniques, goal tracking, and self-reflection
-              tools to help you become your best self.
+              {t('heroDesc')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => setShowAuth(true)}
                 className="btn-primary text-lg px-8 py-3 hidden md:inline-flex"
               >
-                Try Nudge Free
+                {t('tryFree')}
                 <ArrowRight className="w-5 h-5 ml-2 inline" />
               </button>
               <button
                 onClick={() => setShowWaitlist(true)}
                 className="btn-primary text-lg px-8 py-3 md:hidden inline-flex"
               >
-                Get Mobile App
+                {t('getMobileApp')}
                 <ArrowRight className="w-5 h-5 ml-2 inline" />
               </button>
             </div>
@@ -256,34 +258,34 @@ export default function LandingPage() {
           <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
             <FeatureCard
               icon={<Focus className="w-8 h-8 text-accent-primary" />}
-              title="Focus Mode"
-              description="Pomodoro timer with app blocking to help you stay in the zone."
+              title={t('featureFocusTitle')}
+              description={t('featureFocusDesc')}
             />
             <FeatureCard
               icon={<Target className="w-8 h-8 text-success" />}
-              title="OKR Tracking"
-              description="Set objectives and track key results to achieve your goals."
+              title={t('featureOkrTitle')}
+              description={t('featureOkrDesc')}
             />
             <FeatureCard
               icon={<BookOpen className="w-8 h-8 text-action-warning" />}
-              title="Fear Setting"
-              description="Address your fears with Tim Ferriss proven methodology."
+              title={t('featureFearTitle')}
+              description={t('featureFearDesc')}
             />
           </div>
         </section>
 
         <section className="bg-surface-secondary py-20">
           <div className="max-w-7xl mx-auto px-6">
-            <h2 className="text-3xl font-semibold text-center text-text-primary mb-12">Everything You Need</h2>
+            <h2 className="text-3xl font-semibold text-center text-text-primary mb-12">{t('everythingTitle')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              <FeatureGridItem icon={<Clock className="w-6 h-6" />} label="Pomodoro Timer" />
-              <FeatureGridItem icon={<Calendar className="w-6 h-6" />} label="Calendar" />
-              <FeatureGridItem icon={<Bell className="w-6 h-6" />} label="Reminders" />
-              <FeatureGridItem icon={<BookOpen className="w-6 h-6" />} label="Journal" />
-              <FeatureGridItem icon={<Target className="w-6 h-6" />} label="Objectives" />
-              <FeatureGridItem icon={<TrendingUp className="w-6 h-6" />} label="Fear Setting" />
-              <FeatureGridItem icon={<CheckCircle2 className="w-6 h-6" />} label="Habits" />
-              <FeatureGridItem icon={<Sparkles className="w-6 h-6" />} label="AI Insights" />
+              <FeatureGridItem icon={<Clock className="w-6 h-6" />} label={t('gridPomodoro')} />
+              <FeatureGridItem icon={<Calendar className="w-6 h-6" />} label={t('gridCalendar')} />
+              <FeatureGridItem icon={<Bell className="w-6 h-6" />} label={t('gridReminders')} />
+              <FeatureGridItem icon={<BookOpen className="w-6 h-6" />} label={t('gridJournal')} />
+              <FeatureGridItem icon={<Target className="w-6 h-6" />} label={t('gridObjectives')} />
+              <FeatureGridItem icon={<TrendingUp className="w-6 h-6" />} label={t('gridFearSetting')} />
+              <FeatureGridItem icon={<CheckCircle2 className="w-6 h-6" />} label={t('gridHabits')} />
+              <FeatureGridItem icon={<Sparkles className="w-6 h-6" />} label={t('gridAI')} />
             </div>
           </div>
         </section>
@@ -292,11 +294,11 @@ export default function LandingPage() {
       <footer className="border-t border-border-primary py-8">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-text-tertiary">
-            © 2026 Nudge. All rights reserved.
+            {t('footerRights')}
           </p>
           <div className="flex items-center gap-6 text-sm">
-            <a href="/privacy" className="text-text-tertiary hover:text-text-primary transition-colors">Privacy Policy</a>
-            <a href="/terms" className="text-text-tertiary hover:text-text-primary transition-colors">Terms of Service</a>
+            <a href="/privacy" className="text-text-tertiary hover:text-text-primary transition-colors">{t('footerPrivacy')}</a>
+            <a href="/terms" className="text-text-tertiary hover:text-text-primary transition-colors">{t('footerTerms')}</a>
           </div>
         </div>
       </footer>
@@ -311,10 +313,10 @@ export default function LandingPage() {
                     <Sparkles className="w-6 h-6 text-white" />
                   </div>
                   <h2 className="text-2xl font-semibold text-text-primary">
-                    Welcome to Nudge
+                    {t('authTitle')}
                   </h2>
                   <p className="text-text-secondary mt-1">
-                    Enter your email to get started
+                    {t('authSubtitle')}
                   </p>
                 </div>
 
@@ -325,7 +327,7 @@ export default function LandingPage() {
                 )}
 
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-text-secondary mb-1">Email</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">{t('authEmail')}</label>
                   <input
                     type="email"
                     value={email}
@@ -344,9 +346,9 @@ export default function LandingPage() {
                   {isLoading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Sending code...
+                      {t('authSending')}
                     </>
-                  ) : 'Continue with Email'}
+                  ) : t('authContinue')}
                 </button>
 
                 <div className="relative mb-4">
@@ -354,7 +356,7 @@ export default function LandingPage() {
                     <div className="w-full border-t border-border-primary" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-surface-primary text-text-tertiary">Or continue with</span>
+                    <span className="px-2 bg-surface-primary text-text-tertiary">{t('authOr')}</span>
                   </div>
                 </div>
 
@@ -377,10 +379,10 @@ export default function LandingPage() {
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
                 <h2 className="text-2xl font-semibold text-text-primary mb-2">
-                  Check your email
+                  {t('otpTitle')}
                 </h2>
                 <p className="text-text-secondary mb-6">
-                  Enter the 6-digit code sent to <span className="font-medium text-text-primary">{email}</span>
+                  {t('otpDesc')} <span className="font-medium text-text-primary">{email}</span>
                 </p>
 
                 {error && (
@@ -413,9 +415,9 @@ export default function LandingPage() {
                   {isVerifying ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Verifying...
+                      {t('otpVerifying')}
                     </>
-                  ) : 'Verify Code'}
+                  ) : t('otpVerify')}
                 </button>
 
                 <div className="flex items-center justify-center gap-4 text-sm">
@@ -424,14 +426,14 @@ export default function LandingPage() {
                     className="text-accent-primary font-medium hover:underline"
                     disabled={isLoading}
                   >
-                    {isLoading ? 'Sending...' : 'Resend code'}
+                    {isLoading ? t('otpSending') : t('otpResend')}
                   </button>
                   <span className="text-text-tertiary">|</span>
                   <button
                     onClick={() => { setOtpSent(false); setOtpCode(['', '', '', '', '', '']); setError(''); }}
                     className="text-accent-primary font-medium hover:underline"
                   >
-                    Use different email
+                    {t('otpDifferentEmail')}
                   </button>
                 </div>
               </div>
@@ -457,15 +459,15 @@ export default function LandingPage() {
                     <Sparkles className="w-6 h-6 text-white" />
                   </div>
                   <h2 className="text-2xl font-semibold text-text-primary">
-                    The mobile version is coming soon!
+                    {t('waitlistTitle')}
                   </h2>
                   <p className="text-text-secondary mt-1">
-                    Be the first to know when it's available.
+                    {t('waitlistSubtitle')}
                   </p>
                 </div>
 
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-text-secondary mb-1">Email</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">{t('authEmail')}</label>
                   <input
                     type="email"
                     value={waitlistEmail}
@@ -484,9 +486,9 @@ export default function LandingPage() {
                   {waitlistLoading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Submitting...
+                      {t('waitlistSubmitting')}
                     </>
-                  ) : 'Notify Me'}
+                  ) : t('waitlistNotify')}
                 </button>
               </>
             ) : (
@@ -495,16 +497,16 @@ export default function LandingPage() {
                   <Sparkles className="w-8 h-8 text-success" />
                 </div>
                 <h2 className="text-2xl font-semibold text-text-primary mb-3">
-                  You're on the list!
+                  {t('waitlistSuccessTitle')}
                 </h2>
                 <p className="text-text-secondary mb-6">
-                  We'll notify you when the mobile app is ready.
+                  {t('waitlistSuccessDesc')}
                 </p>
                 <button
                   onClick={() => { setShowWaitlist(false); setWaitlistSubmitted(false); setWaitlistEmail(''); }}
                   className="btn-primary"
                 >
-                  Done
+                  {t('waitlistDone')}
                 </button>
               </div>
             )}
