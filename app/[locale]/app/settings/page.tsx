@@ -7,6 +7,7 @@ import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
 import { settingsSyncService } from '@/lib/settingsSync'
 import CalendarSettings from '@/components/settings/CalendarSettings'
+import { useTranslations } from 'next-intl'
 import {
   Settings,
   Bell,
@@ -53,6 +54,8 @@ function Toggle({ enabled, onClick }: { enabled: boolean; onClick: () => void })
 export default function SettingsPage() {
   const router = useRouter()
   const { user, loading, signOut } = useAuth()
+  const t = useTranslations('settings')
+  const tc = useTranslations('common')
   const { settingsActions, preferences, streaks, pomodoroSessions, totalFocusMinutes } = useStore()
   const [mounted, setMounted] = useState(false)
   const [darkMode, setDarkMode] = useState<'light' | 'dark' | 'system'>('dark')
@@ -175,11 +178,11 @@ export default function SettingsPage() {
   }
 
   const featureList = [
-    { key: 'reminders', icon: Bell, label: 'Reminders', description: 'Create and manage reminders' },
-    { key: 'calendar', icon: Calendar, label: 'Calendar', description: 'View and manage events' },
-    { key: 'pomodoro', icon: Sparkles, label: 'Focus', description: 'Pomodoro technique for productivity' },
-    { key: 'journal', icon: BookOpen, label: 'Journal', description: 'Write daily reflections' },
-    { key: 'happiness', icon: Target, label: 'Well-being', description: 'PERMA-V well-being assessments' },
+    { key: 'reminders', icon: Bell, label: t('featureReminders'), description: t('featureRemindersDesc') },
+    { key: 'calendar', icon: Calendar, label: t('featureCalendar'), description: t('featureCalendarDesc') },
+    { key: 'pomodoro', icon: Sparkles, label: t('featureFocus'), description: t('featureFocusDesc') },
+    { key: 'journal', icon: BookOpen, label: t('featureJournal'), description: t('featureJournalDesc') },
+    { key: 'happiness', icon: Target, label: t('featureWellbeing'), description: t('featureWellbeingDesc') },
   ]
 
   const toggleFeature = (key: string) => {
@@ -205,7 +208,7 @@ export default function SettingsPage() {
       <div className="min-h-screen flex items-center justify-center bg-background-primary">
         <div className="animate-pulse flex flex-col items-center gap-4">
           <div className="w-16 h-16 bg-accent-primary/20 rounded-apple-xl animate-pulse" />
-          <p className="text-text-tertiary">Loading...</p>
+          <p className="text-text-tertiary">{tc('loading')}</p>
         </div>
       </div>
     )
@@ -220,16 +223,16 @@ export default function SettingsPage() {
       <div className="max-w-4xl mx-auto">
         <header className="mb-8">
           <h1 className="text-3xl font-semibold text-text-primary mb-2">
-            Settings
+            {t('title')}
           </h1>
-          <p className="text-text-tertiary">Customize your Nudge experience</p>
+          <p className="text-text-tertiary">{t('subtitle')}</p>
         </header>
 
         <div className="space-y-6">
           <section className="card">
             <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <User className="w-5 h-5 text-accent-secondary" />
-              Profile
+              {t('profile')}
             </h2>
             <div className="flex items-center gap-4 p-4 bg-surface-secondary rounded-apple-lg">
               <div className="w-16 h-16 bg-accent-secondary rounded-full flex items-center justify-center text-white text-xl font-semibold">
@@ -239,22 +242,22 @@ export default function SettingsPage() {
                 <p className="font-medium text-text-primary">{user.name || user.email.split('@')[0]}</p>
                 <p className="text-sm text-text-tertiary">{user.email}</p>
               </div>
-              <button className="btn-secondary text-sm">Edit Profile</button>
+              <button className="btn-secondary text-sm">{t('editProfile')}</button>
             </div>
           </section>
 
           <section className="card">
             <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <ToggleRight className="w-5 h-5 text-accent-secondary" />
-              Appearance
+              {t('appearance')}
             </h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
                 <div className="flex items-center gap-3">
                   {darkMode === 'dark' ? <Moon className="w-5 h-5 text-accent-secondary" /> : <Sun className="w-5 h-5 text-action-warning" />}
                   <div>
-                    <p className="font-medium text-text-primary">Dark Mode</p>
-                    <p className="text-sm text-text-tertiary">Switch between light and dark theme</p>
+                    <p className="font-medium text-text-primary">{t('darkMode')}</p>
+                    <p className="text-sm text-text-tertiary">{t('darkModeDesc')}</p>
                   </div>
                 </div>
                 <Toggle enabled={darkMode === 'dark'} onClick={toggleDarkMode} />
@@ -264,8 +267,8 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <Zap className="w-5 h-5 text-accent-secondary" />
                   <div>
-                    <p className="font-medium text-text-primary">Visual Effects</p>
-                    <p className="text-sm text-text-tertiary">Animations and transitions</p>
+                    <p className="font-medium text-text-primary">{t('visualEffects')}</p>
+                    <p className="text-sm text-text-tertiary">{t('visualEffectsDesc')}</p>
                   </div>
                 </div>
                 <Toggle enabled={visualEffectsEnabled} onClick={toggleVisualEffects} />
@@ -276,22 +279,22 @@ export default function SettingsPage() {
           <section className="card">
             <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-action-warning" />
-              Notifications
+              {t('notifications')}
             </h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
                 <div className="flex items-center gap-3">
                   {notificationPermission === 'granted' ? <Bell className="w-5 h-5 text-success" /> : <BellOff className="w-5 h-5 text-text-tertiary" />}
                   <div>
-                    <p className="font-medium text-text-primary">Push Notifications</p>
+                    <p className="font-medium text-text-primary">{t('pushNotifications')}</p>
                     <p className="text-sm text-text-tertiary">
-                      {notificationPermission === 'granted' ? 'Enabled' : 'Click to enable'}
+                      {notificationPermission === 'granted' ? t('pushEnabled') : t('pushDisabled')}
                     </p>
                   </div>
                 </div>
                 {notificationPermission !== 'granted' ? (
                   <button onClick={requestNotificationPermission} className="btn-secondary text-sm">
-                    Enable
+                    {tc('enable')}
                   </button>
                 ) : (
                   <Toggle enabled={notificationsEnabled} onClick={toggleNotifications} />
@@ -302,24 +305,24 @@ export default function SettingsPage() {
                 <>
                   <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4 pl-8">
                     <div>
-                      <p className="font-medium text-text-primary">Reminder Notifications</p>
-                      <p className="text-sm text-text-tertiary">Get notified when reminders are due</p>
+                      <p className="font-medium text-text-primary">{t('reminderNotifications')}</p>
+                      <p className="text-sm text-text-tertiary">{t('reminderNotificationsDesc')}</p>
                     </div>
                     <Toggle enabled={reminderNotifications} onClick={toggleReminderNotifications} />
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4 pl-8">
                     <div>
-                      <p className="font-medium text-text-primary">Focus Notifications</p>
-                      <p className="text-sm text-text-tertiary">Session and break reminders</p>
+                      <p className="font-medium text-text-primary">{t('focusNotifications')}</p>
+                      <p className="text-sm text-text-tertiary">{t('focusNotificationsDesc')}</p>
                     </div>
                     <Toggle enabled={focusNotifications} onClick={toggleFocusNotifications} />
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg ml-4 pl-8">
                     <div>
-                      <p className="font-medium text-text-primary">Streak Notifications</p>
-                      <p className="text-sm text-text-tertiary">Milestone achievements</p>
+                      <p className="font-medium text-text-primary">{t('streakNotifications')}</p>
+                      <p className="text-sm text-text-tertiary">{t('streakNotificationsDesc')}</p>
                     </div>
                     <Toggle enabled={streakNotifications} onClick={toggleStreakNotifications} />
                   </div>
@@ -332,11 +335,11 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-accent-secondary" />
-                Features
+                {t('features')}
               </h2>
-              <span className="text-sm text-text-tertiary">{enabledCount} of {featureList.length} enabled</span>
+              <span className="text-sm text-text-tertiary">{t('featuresEnabled', { count: enabledCount, total: featureList.length })}</span>
             </div>
-            <p className="text-sm text-text-tertiary mb-4">Toggle features on or off based on your needs</p>
+            <p className="text-sm text-text-tertiary mb-4">{t('featuresSubtitle')}</p>
             <div className="space-y-3">
               {featureList.map(feature => {
                 const isEnabled = featureFlags?.[feature.key] !== false
@@ -360,7 +363,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="card">
-            <Suspense fallback={<div className="py-8 text-center text-text-tertiary">Loading...</div>}>
+            <Suspense fallback={<div className="py-8 text-center text-text-tertiary">{tc('loading')}</div>}>
               <CalendarSettings />
             </Suspense>
           </section>
@@ -368,24 +371,24 @@ export default function SettingsPage() {
           <section className="card">
             <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-success" />
-              Your Stats
+              {t('stats')}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
                 <p className="text-2xl font-semibold text-text-primary">{streaks.journal?.currentCount || 0}</p>
-                <p className="text-sm text-text-tertiary">Journal Streak</p>
+                <p className="text-sm text-text-tertiary">{t('journalStreak')}</p>
               </div>
               <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
                 <p className="text-2xl font-semibold text-text-primary">{streaks.focus?.currentCount || 0}</p>
-                <p className="text-sm text-text-tertiary">Focus Streak</p>
+                <p className="text-sm text-text-tertiary">{t('focusStreak')}</p>
               </div>
               <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
                 <p className="text-2xl font-semibold text-text-primary">{pomodoroSessions}</p>
-                <p className="text-sm text-text-tertiary">Sessions Today</p>
+                <p className="text-sm text-text-tertiary">{t('sessionsToday')}</p>
               </div>
               <div className="p-4 bg-surface-secondary rounded-apple-lg text-center">
                 <p className="text-2xl font-semibold text-text-primary">{totalFocusMinutes}</p>
-                <p className="text-sm text-text-tertiary">Minutes Focused</p>
+                <p className="text-sm text-text-tertiary">{t('minutesFocused')}</p>
               </div>
             </div>
           </section>
@@ -393,20 +396,20 @@ export default function SettingsPage() {
           <section className="card">
             <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-accent-secondary" />
-              More
+              {t('more')}
             </h2>
             <div className="space-y-3">
               <button className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
                 <div className="flex items-center gap-3">
                   <Lock className="w-5 h-5 text-text-tertiary" />
-                  <span className="font-medium text-text-primary">Privacy Policy</span>
+                  <span className="font-medium text-text-primary">{t('privacyPolicy')}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-tertiary" />
               </button>
               <button className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
                 <div className="flex items-center gap-3">
                   <HelpCircle className="w-5 h-5 text-text-tertiary" />
-                  <span className="font-medium text-text-primary">Help & Support</span>
+                  <span className="font-medium text-text-primary">{t('helpSupport')}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-tertiary" />
               </button>
@@ -419,7 +422,7 @@ export default function SettingsPage() {
               className="w-full flex items-center justify-center gap-2 p-4 bg-action-danger/10 text-action-danger rounded-apple-lg hover:bg-action-danger/20 transition-colors"
             >
               <LogOut className="w-5 h-5" />
-              <span className="font-medium">Sign Out</span>
+              <span className="font-medium">{t('signOut')}</span>
             </button>
           </section>
 
