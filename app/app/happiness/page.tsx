@@ -178,33 +178,32 @@ export default function HappinessPage() {
     setAnswers((prev) => ({ ...prev, [q.id]: value }))
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (current < QUESTIONS.length - 1) {
       setCurrent((c) => c + 1)
     } else {
-      const computed = computeScores(answers)
+      const updatedAnswers = { ...answers, [q.id]: answers[q.id] ?? 5 }
+      const computed = computeScores(updatedAnswers)
       setScores(computed)
       setPhase('results')
+      if (user) {
+        setSaving(true)
+        try {
+          await fetch('/api/happiness', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.id, answers: updatedAnswers, scores: computed }),
+          })
+          setSaved(true)
+        } finally {
+          setSaving(false)
+        }
+      }
     }
   }
 
   const handleBack = () => {
     if (current > 0) setCurrent((c) => c - 1)
-  }
-
-  const handleSave = async () => {
-    if (!user || !scores || saving || saved) return
-    setSaving(true)
-    try {
-      await fetch('/api/happiness', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, answers, scores }),
-      })
-      setSaved(true)
-    } finally {
-      setSaving(false)
-    }
   }
 
   const handleRestart = () => {
@@ -406,13 +405,8 @@ export default function HappinessPage() {
 
           {/* Actions */}
           <div className="flex flex-col gap-3 sm:flex-row justify-center">
-            <button
-              onClick={handleSave}
-              disabled={saving || saved}
-              className="btn-primary px-8 py-3 disabled:opacity-60"
-            >
-              {saved ? 'Saved ✓' : saving ? 'Saving...' : 'Save Results'}
-            </button>
+            {saving && <p className="text-sm text-text-tertiary self-center">Saving...</p>}
+            {saved && <p className="text-sm text-emerald-500 self-center">Results saved ✓</p>}
             <button onClick={handleRestart} className="btn-secondary px-8 py-3 flex items-center gap-2 justify-center">
               <RotateCcw size={16} />
               Retake
