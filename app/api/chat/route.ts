@@ -41,6 +41,12 @@ async function getGoogleConnectedCalendars(userId: string) {
   return data ?? []
 }
 
+/** Add one hour to a HH:MM time string. */
+function addOneHour(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  return `${String((h + 1) % 24).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`
+}
+
 /** Fetch events from a Google Calendar ID using any connected account that has access. */
 async function fetchGoogleEvents(
   connectedAccounts: any[],
@@ -158,6 +164,120 @@ function buildAgentTools(userId: string) {
 
         console.log('[chat tool] getCalendarEvents:', events.length, 'events,', (remindersResult.data ?? []).length, 'reminders')
         return { events, reminders: remindersResult.data ?? [] }
+      },
+    }),
+
+    createCalendarEvent: tool({
+      description: "Creates a calendar event. If calendarId is not provided, returns available calendars for the user to pick from.",
+      inputSchema: jsonSchema<{
+        title: string
+        startDate: string
+        startTime: string
+        endDate?: string
+        endTime?: string
+        description?: string
+        location?: string
+        calendarId?: string
+        calendarName?: string
+      }>({
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Event title' },
+          startDate: { type: 'string', description: 'Start date YYYY-MM-DD' },
+          startTime: { type: 'string', description: 'Start time HH:MM (24h)' },
+          endDate: { type: 'string', description: 'End date YYYY-MM-DD, defaults to startDate' },
+          endTime: { type: 'string', description: 'End time HH:MM (24h), defaults to startTime + 1 hour' },
+          description: { type: 'string', description: 'Event description' },
+          location: { type: 'string', description: 'Event location' },
+          calendarId: { type: 'string', description: 'Google Calendar ID to create the event in' },
+          calendarName: { type: 'string', description: 'Human-readable calendar name for confirmation' },
+        },
+        required: ['title', 'startDate', 'startTime'],
+      }),
+      execute: async ({ title, startDate, startTime, endDate, endTime, description, location, calendarId, calendarName }) => {
+        console.log('[chat tool] createCalendarEvent called:', { title, startDate, startTime, calendarId })
+
+        const connectedAccounts = await getGoogleConnectedCalendars(userId)
+
+        // No calendarId — return available calendars for user to pick
+        if (!calendarId) {
+          const { data: allCals } = await supabase
+            .from('connected_calendars')
+            .select('id, account_name, account_email, provider, color')
+            .eq('user_id', userId)
+
+          const calendars = (allCals ?? []).map((c) => ({
+            id: c.account_email || c.id,
+            name: c.account_name || c.account_email,
+            provider: c.provider,
+            color: c.color,
+          }))
+
+          // Add local Nudge calendar
+          calendars.unshift({ id: 'nudge-local', name: 'My Nudge Calendar', provider: 'nudge', color: '#6366f1' })
+
+          return {
+            action: 'select_calendar' as const,
+            calendars,
+            pendingEvent: { title, startDate, startTime, endDate, endTime, description, location },
+          }
+        }
+
+        const resolvedEndDate = endDate || startDate
+        const resolvedEndTime = endTime || addOneHour(startTime)
+        const startDateTime = `${startDate}T${startTime}:00`
+        const endDateTime = `${resolvedEndDate}T${resolvedEndTime}:00`
+
+        // Local Nudge calendar — insert directly into Supabase
+        if (calendarId === 'nudge-local') {
+          const { error } = await supabase.from('calendar_events').insert({
+            user_id: userId,
+            title,
+            description: description ?? null,
+            location: location ?? null,
+            start_date: new Date(startDateTime).toISOString(),
+            end_date: new Date(endDateTime).toISOString(),
+            is_all_day: false,
+            source_type: 'local',
+            color: '#6366f1',
+          })
+          if (error) return { success: false, error: error.message }
+          return { success: true, message: `"${title}" created in My Nudge Calendar.` }
+        }
+
+        // Google calendar — find a connected account with access and create via API
+        for (const account of connectedAccounts) {
+          try {
+            const accessToken = await getValidAccessToken(account)
+            const body = {
+              summary: title,
+              description: description ?? undefined,
+              location: location ?? undefined,
+              start: { dateTime: startDateTime, timeZone: 'UTC' },
+              end: { dateTime: endDateTime, timeZone: 'UTC' },
+            }
+            const res = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+              {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              }
+            )
+            if (!res.ok) {
+              if (res.status === 403 || res.status === 404) continue
+              const err = await res.json()
+              return { success: false, error: err.error?.message ?? 'Failed to create event.' }
+            }
+            const created = await res.json()
+            console.log('[chat tool] Event created:', created.id)
+            return { success: true, message: `"${title}" created in ${calendarName || calendarId}.` }
+          } catch {
+            continue
+          }
+        }
+
+        return { success: false, error: 'Could not create event. Check calendar access.' }
       },
     }),
 
@@ -300,12 +420,16 @@ export async function POST(request: Request) {
 Tools:
 - getCalendarEvents: user's OWN events/reminders. Never use for other people.
 - getPersonEvents: find another person's events by name. Handles discovery automatically.
-  - If result has "needsDisambiguation": list the matches with name/email/account and ask which one. Call again with calendarId once user picks.
-  - If result has "needsFullName": ask the user for the full name (first AND last). NEVER invent or guess a last name.
-  - If result has "error": relay it to the user.
-  - If result has "note": mention the access limitation.
+  - "needsDisambiguation": list matches with name/email/account, ask which one, then call again with calendarId.
+  - "needsFullName": ask for full name. NEVER guess a last name.
+  - "error": relay to user.
+- createCalendarEvent: creates an event. Always extract title, date, and time from the user's message before calling.
+  - If calendarId is omitted, the tool returns available calendars — the UI will show buttons for the user to pick. Do NOT ask the user to type a calendar name.
+  - When the user sends a message like "Calendar selected: [name] (id: [id])", call createCalendarEvent again with that calendarId and the same event details.
+  - "success": confirm to the user with the message from the result.
+  - "error": relay to user.
 
-Group events by calendar when listing. Be concise.`
+Be concise. Group events by calendar when listing.`
 
   const providers = [
     { name: 'Google gemini-2.0-flash', model: google('gemini-2.0-flash') },

@@ -4,12 +4,21 @@ import { useState, useRef, useEffect, useMemo, FormEvent } from 'react'
 import { DefaultChatTransport } from 'ai'
 import { useChat } from '@ai-sdk/react'
 import { useAuth } from '@/components/Providers'
-import { MessageCircle, Send, X } from 'lucide-react'
+import { MessageCircle, Send, X, Check } from 'lucide-react'
 
 interface MessagePart {
   type: string
   text?: string
   state?: string
+  output?: any
+  toolInvocation?: { result?: any }
+}
+
+interface CalendarOption {
+  id: string
+  name: string
+  provider: string
+  color?: string
 }
 
 function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
@@ -75,6 +84,16 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
             (p) => p.type.startsWith('tool-') && p.state !== 'output-available'
           )
 
+          // Find a completed createCalendarEvent call that needs calendar selection
+          const calendarSelectPart = parts.find((p) => {
+            if (!p.type.startsWith('tool-') || p.state !== 'output-available') return false
+            const result = p.output ?? p.toolInvocation?.result
+            return result?.action === 'select_calendar'
+          })
+          const calendarSelectData = calendarSelectPart
+            ? (calendarSelectPart.output ?? calendarSelectPart.toolInvocation?.result)
+            : null
+
           return (
             <div key={msg.id}>
               {textContent && (
@@ -95,6 +114,30 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
                   <div className="bg-surface-secondary text-text-tertiary px-3 py-2 rounded-apple-lg text-sm flex items-center gap-2">
                     <span className="inline-block w-3 h-3 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
                     Consultando calendario...
+                  </div>
+                </div>
+              )}
+              {calendarSelectData && !isLoading && (
+                <div className="flex justify-start mt-2">
+                  <div className="bg-surface-secondary rounded-apple-lg px-3 py-2 max-w-[80%]">
+                    <p className="text-xs text-text-tertiary mb-2">Choose a calendar:</p>
+                    <div className="flex flex-col gap-1.5">
+                      {(calendarSelectData.calendars as CalendarOption[]).map((cal) => (
+                        <button
+                          key={cal.id}
+                          onClick={() =>
+                            sendMessage({ text: `Calendar selected: ${cal.name} (id: ${cal.id})` })
+                          }
+                          className="flex items-center gap-2 text-left px-3 py-2 rounded-apple-lg bg-surface-primary hover:bg-accent-primary/10 transition-colors text-sm text-text-primary border border-border-primary"
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: cal.color ?? '#6366f1' }}
+                          />
+                          {cal.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
