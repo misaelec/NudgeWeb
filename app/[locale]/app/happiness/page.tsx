@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/components/Providers'
+import { supabaseAuth } from '@/lib/auth'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, RotateCcw, History } from 'lucide-react'
 
@@ -93,7 +94,10 @@ export default function HappinessPage() {
     if (!user) return
     setLoadingHistory(true)
     try {
-      const res = await fetch(`/api/happiness?user_id=${user.id}`)
+      const token = supabaseAuth.currentAccessToken
+      const res = await fetch('/api/happiness', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       const data = await res.json()
       setHistory(data.assessments ?? [])
     } finally {
@@ -116,10 +120,14 @@ export default function HappinessPage() {
       if (user) {
         setSaving(true)
         try {
+          const token = supabaseAuth.currentAccessToken
           await fetch('/api/happiness', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: user.id, answers: updatedAnswers, scores: computed }),
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ answers: updatedAnswers, scores: computed }),
           })
           setSaved(true)
         } finally {

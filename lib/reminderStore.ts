@@ -72,7 +72,7 @@ export const useReminderStore = create<ReminderStore>()(
         
         // Sync to Supabase in background (only if no ID - meaning it's a new local reminder)
         if (!rem.id) {
-          reminderSyncService.createReminder(convertToInput(newReminder))
+          reminderSyncService.createReminder(convertToInput(newReminder), newReminder.id)
         }
       },
 

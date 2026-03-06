@@ -191,7 +191,7 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
         // Trigger sync as a separate request so it gets its own timeout window
         fetch('/api/calendar/sync', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-user-id': rule.userId },
           body: JSON.stringify({ calendar_id: rule.sourceCalendarId }),
         }).catch(e => console.error('Sync after rule creation failed:', e))
       }
@@ -244,7 +244,7 @@ export const useCalendarSyncStore = create<CalendarSyncState>((set, get) => ({
       if (data.needs_sync) {
         fetch('/api/calendar/sync', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-user-id': oldRule?.userId ?? '' },
           body: JSON.stringify({ calendar_id: data.needs_sync }),
         }).catch(e => console.error('Sync after rule update failed:', e))
       }

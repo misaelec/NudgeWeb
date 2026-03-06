@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // Get calendars (include webhook status for JIT renewal)
     const { data: calendars, error: calendarsError } = await supabase
       .from('connected_calendars')
-      .select('*, webhook_channel_id, webhook_expiration')
+      .select('id, user_id, provider, account_email, account_name, calendar_id, is_primary, color, webhook_channel_id, webhook_expiration, created_at, updated_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
 

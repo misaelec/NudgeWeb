@@ -4,6 +4,11 @@ import { createClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const body = await request.json()
   const { calendar_id, color, account_name } = body
 
@@ -20,11 +25,12 @@ export async function POST(request: NextRequest) {
   if (color) updates.color = color
   if (account_name !== undefined) updates.account_name = account_name
 
-  // Update the calendar record
+  // Update only if owned by the authenticated user
   const { error: calError } = await supabase
     .from('connected_calendars')
     .update(updates)
     .eq('id', calendar_id)
+    .eq('user_id', userId)
 
   if (calError) {
     return NextResponse.json({ error: calError.message }, { status: 500 })

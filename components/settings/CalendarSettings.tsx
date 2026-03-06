@@ -307,7 +307,7 @@ export default function CalendarSettings() {
     try {
       await fetch(`/api/calendar/disconnect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
         body: JSON.stringify({ calendar_id: calendarId })
       })
       removeCalendar(calendarId)
@@ -336,7 +336,7 @@ export default function CalendarSettings() {
     try {
       await fetch('/api/calendar/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
         body: JSON.stringify({ calendar_id: calendarId, color }),
       })
     } catch (error) {
@@ -350,7 +350,7 @@ export default function CalendarSettings() {
     try {
       await fetch('/api/calendar/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
         body: JSON.stringify({ calendar_id: calendarId, account_name: name }),
       })
     } catch (error) {
@@ -363,7 +363,7 @@ export default function CalendarSettings() {
     try {
       await fetch('/api/calendar/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user?.id ?? '' },
         body: JSON.stringify({ calendar_id: calendarId }),
       })
     } catch (error) {

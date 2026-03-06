@@ -54,10 +54,10 @@ class ReminderSyncService {
     return null
   }
 
-  async createReminder(input: ReminderInput): Promise<SupabaseReminder | null> {
+  async createReminder(input: ReminderInput, id?: string): Promise<SupabaseReminder | null> {
     this.accessToken = supabaseAuth.currentAccessToken
     const userId = this.getUserId()
-    
+
     if (!this.accessToken || !userId) {
       return null
     }
@@ -67,6 +67,7 @@ class ReminderSyncService {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
+          ...(id ? { id } : {}),
           user_id: userId,
           title: input.title,
           notes: input.notes || null,

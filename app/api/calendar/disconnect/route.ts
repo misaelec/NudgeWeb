@@ -8,6 +8,11 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { calendar_id } = body
 
@@ -17,12 +22,17 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get calendar to check for webhook
+    // Get calendar and verify ownership
     const { data: calendar } = await supabase
       .from('connected_calendars')
       .select('*')
       .eq('id', calendar_id)
+      .eq('user_id', userId)
       .single()
+
+    if (!calendar) {
+      return NextResponse.json({ error: 'Calendar not found' }, { status: 404 })
+    }
 
     // Stop Google webhook if exists
     if (calendar?.webhook_channel_id && calendar?.webhook_resource_id && calendar?.access_token) {

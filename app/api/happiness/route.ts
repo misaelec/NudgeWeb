@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getAuthenticatedUserId } from '@/lib/serverAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,14 +10,19 @@ const supabase = createClient(
 )
 
 export async function POST(request: NextRequest) {
-  const { user_id, answers, scores } = await request.json()
-  if (!user_id || !answers || !scores) {
+  const userId = await getAuthenticatedUserId(request)
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { answers, scores } = await request.json()
+  if (!answers || !scores) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
   const { data, error } = await supabase
     .from('happiness_assessments')
-    .insert({ user_id, answers, scores, created_at: new Date().toISOString() })
+    .insert({ user_id: userId, answers, scores, created_at: new Date().toISOString() })
     .select('id, created_at')
     .single()
 
@@ -25,8 +31,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('user_id')
-  if (!userId) return NextResponse.json({ error: 'Missing user_id' }, { status: 400 })
+  const userId = await getAuthenticatedUserId(request)
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const { data, error } = await supabase
     .from('happiness_assessments')

@@ -7,6 +7,11 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const body = await request.json()
   const { calendar_id, action } = body
 
@@ -19,6 +24,18 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+
+    // Verify calendar ownership
+    const { data: ownerCheck } = await supabase
+      .from('connected_calendars')
+      .select('id')
+      .eq('id', calendar_id)
+      .eq('user_id', userId)
+      .single()
+
+    if (!ownerCheck) {
+      return NextResponse.json({ error: 'Calendar not found' }, { status: 404 })
+    }
 
     if (action === 'register_webhook') {
       const { data: calendar } = await supabase
@@ -166,6 +183,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const calendar_id = searchParams.get('calendar_id')
 
@@ -174,6 +196,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: ownerCheck } = await supabase
+      .from('connected_calendars')
+      .select('id')
+      .eq('id', calendar_id)
+      .eq('user_id', userId)
+      .single()
+
+    if (!ownerCheck) {
+      return NextResponse.json({ error: 'Calendar not found' }, { status: 404 })
+    }
+
     const result = await syncCalendar(calendar_id)
     return NextResponse.json(result)
   } catch (error: any) {
