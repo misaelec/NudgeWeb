@@ -190,7 +190,7 @@ function buildAgentTools(userId: string, userTimezone: string = 'UTC') {
           description: { type: 'string', description: 'Event description' },
           location: { type: 'string', description: 'Event location' },
           calendarId: { type: 'string', description: 'Google Calendar ID to create the event in' },
-          calendarName: { type: 'string', description: 'Human-readable calendar name for confirmation' },
+          calendarName: { type: 'string', description: 'Human-readable calendar name the user mentioned (e.g. "Nerds", "Work"). Used to auto-match a calendar when calendarId is unknown.' },
         },
         required: ['title', 'startDate', 'startTime'],
       }),
@@ -513,6 +513,7 @@ Tools:
   - "error": relay to user.
 - createCalendarEvent: creates a calendar event.
   - ALWAYS resolve relative dates ("tomorrow", "next Monday", "Friday") to YYYY-MM-DD using today's date before calling. Only ask the user if both date AND time are completely absent from their message.
+  - If the user mentions a calendar by name (e.g. "nerds calendar", "work calendar"), pass it as calendarName — NEVER ask the user for a calendar ID.
   - If calendarId is omitted, the tool returns available calendars. Output NO text — the UI shows the picker buttons automatically.
   - When user sends "Calendar selected: [name] (id: [id])", call createCalendarEvent again with that calendarId and the same event details from context.
   - "success": confirm using the result message. "error": relay to user.
