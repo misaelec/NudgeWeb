@@ -109,7 +109,7 @@ async function fetchGoogleEvents(
   return { events: [], error: 'Could not access that calendar.' }
 }
 
-function buildAgentTools(userId: string) {
+function buildAgentTools(userId: string, userTimezone: string = 'UTC') {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   return {
@@ -230,13 +230,34 @@ function buildAgentTools(userId: string) {
 
         // Local Nudge calendar — insert directly into Supabase
         if (calendarId === 'nudge-local') {
+          // Parse the local datetime string as if it's in the user's timezone
+          // by using the Intl API to get the UTC equivalent
+          const toUTC = (localDT: string) => {
+            const [date, time] = localDT.split('T')
+            const [y, mo, d] = date.split('-').map(Number)
+            const [h, mi, s] = time.split(':').map(Number)
+            // Create date in user's timezone via formatting trick
+            const formatter = new Intl.DateTimeFormat('en-CA', {
+              timeZone: userTimezone,
+              year: 'numeric', month: '2-digit', day: '2-digit',
+              hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+            })
+            // Use temporal-like approach: build a UTC date and adjust offset
+            const naiveUTC = Date.UTC(y, mo - 1, d, h, mi, s || 0)
+            const utcDate = new Date(naiveUTC)
+            // Get what the timezone thinks this UTC time is
+            const parts = formatter.formatToParts(utcDate)
+            const p = Object.fromEntries(parts.filter(x => x.type !== 'literal').map(x => [x.type, Number(x.value)]))
+            const tzOffset = naiveUTC - Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second)
+            return new Date(naiveUTC + tzOffset).toISOString()
+          }
           const { error } = await supabase.from('calendar_events').insert({
             user_id: userId,
             title,
             description: description ?? null,
             location: location ?? null,
-            start_date: new Date(startDateTime).toISOString(),
-            end_date: new Date(endDateTime).toISOString(),
+            start_date: toUTC(startDateTime),
+            end_date: toUTC(endDateTime),
             is_all_day: false,
             source_type: 'local',
             color: '#6366f1',
@@ -253,8 +274,8 @@ function buildAgentTools(userId: string) {
               summary: title,
               description: description ?? undefined,
               location: location ?? undefined,
-              start: { dateTime: startDateTime, timeZone: 'UTC' },
-              end: { dateTime: endDateTime, timeZone: 'UTC' },
+              start: { dateTime: startDateTime, timeZone: userTimezone },
+              end: { dateTime: endDateTime, timeZone: userTimezone },
             }
             const res = await fetch(
               `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
@@ -454,15 +475,17 @@ export async function POST(request: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  console.log('[chat] POST hit, userId:', userId)
+  const userTimezone = request.headers.get('x-timezone') || 'UTC'
+  console.log('[chat] POST hit, userId:', userId, 'timezone:', userTimezone)
 
   const { messages } = await request.json()
   // Limit history to last 8 messages to reduce token usage
   const recentMessages = messages.slice(-8)
   const modelMessages = await convertToModelMessages(recentMessages)
-  const tools = buildAgentTools(userId)
+  const tools = buildAgentTools(userId, userTimezone)
 
-  const systemPrompt = `You are the AI assistant for Nudge. Today: ${new Date().toISOString().split('T')[0]}.
+  const now = new Date().toLocaleString('en-CA', { timeZone: userTimezone, hour12: false }).split(',')[0].trim()
+  const systemPrompt = `You are the AI assistant for Nudge. Today: ${now}. User timezone: ${userTimezone}.
 
 Tools:
 - getCalendarEvents: user's OWN events/reminders. Never use for other people.

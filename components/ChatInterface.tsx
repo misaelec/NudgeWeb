@@ -30,7 +30,10 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
     () =>
       new DefaultChatTransport({
         api: '/api/chat',
-        headers: { 'x-user-id': userId },
+        headers: {
+          'x-user-id': userId,
+          'x-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
       }),
     [userId]
   )
