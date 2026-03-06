@@ -19,11 +19,13 @@ import {
   Smile,
 } from 'lucide-react'
 import { useAuth } from './Providers'
+import { useTranslations } from 'next-intl'
 
 function FeedbackModal({ email, onClose }: { email: string; onClose: () => void }) {
   const [message, setMessage] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const tf = useTranslations('feedback')
 
   useEffect(() => {
     textareaRef.current?.focus()
@@ -51,7 +53,7 @@ function FeedbackModal({ email, onClose }: { email: string; onClose: () => void 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-surface-primary border border-border-primary rounded-apple-xl shadow-2xl w-[420px] mx-4 flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-primary">
-          <h2 className="text-text-primary font-semibold text-sm">Send Feedback</h2>
+          <h2 className="text-text-primary font-semibold text-sm">{tf('title')}</h2>
           <button onClick={onClose} className="text-text-tertiary hover:text-text-primary transition-colors">
             <X size={18} />
           </button>
@@ -59,19 +61,19 @@ function FeedbackModal({ email, onClose }: { email: string; onClose: () => void 
 
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-text-tertiary">Your message</label>
+            <label className="text-xs text-text-tertiary">{tf('messageLabel')}</label>
             <textarea
               ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="What's on your mind? Bug reports, suggestions, anything..."
+              placeholder={tf('placeholder')}
               rows={5}
               className="bg-surface-secondary text-text-primary placeholder-text-tertiary text-sm px-3 py-2.5 rounded-apple-lg border border-border-primary outline-none focus:ring-1 focus:ring-accent-primary resize-none"
             />
           </div>
 
           {status === 'error' && (
-            <p className="text-xs text-red-500">Something went wrong. Please try again.</p>
+            <p className="text-xs text-red-500">{tf('error')}</p>
           )}
 
           <button
@@ -80,13 +82,13 @@ function FeedbackModal({ email, onClose }: { email: string; onClose: () => void 
             className="flex items-center justify-center gap-2 bg-accent-primary text-white text-sm font-medium py-2.5 rounded-apple-lg disabled:opacity-50 transition-opacity"
           >
             {status === 'sent' ? (
-              'Feedback sent!'
+              tf('sent')
             ) : status === 'sending' ? (
-              'Sending...'
+              tf('sending')
             ) : (
               <>
                 <Send size={15} />
-                Send Feedback
+                {tf('send')}
               </>
             )}
           </button>
@@ -99,6 +101,8 @@ function FeedbackModal({ email, onClose }: { email: string; onClose: () => void 
 export default function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
+  const t = useTranslations('nav')
+  const tf = useTranslations('feedback')
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({
     reminders: true,
@@ -131,13 +135,13 @@ export default function Sidebar() {
   }, [])
 
   const navItems = [
-    { href: '/app/reminders', icon: Bell, label: 'Reminders', key: 'reminders' },
-    { href: '/app', icon: BarChart3, label: 'Statistics', key: null },
-    { href: '/app/focus', icon: Focus, label: 'Focus', key: 'pomodoro' },
-    { href: '/app/calendar', icon: Calendar, label: 'Calendar', key: 'calendar' },
-    { href: '/app/journal', icon: BookOpen, label: 'Journal', key: 'journal' },
-    { href: '/app/happiness', icon: Smile, label: 'Well-being', key: 'happiness' },
-    { href: '/app/settings', icon: Settings, label: 'Settings', key: null },
+    { href: '/app/reminders', icon: Bell, label: t('reminders'), key: 'reminders' },
+    { href: '/app', icon: BarChart3, label: t('statistics'), key: null },
+    { href: '/app/focus', icon: Focus, label: t('focus'), key: 'pomodoro' },
+    { href: '/app/calendar', icon: Calendar, label: t('calendar'), key: 'calendar' },
+    { href: '/app/journal', icon: BookOpen, label: t('journal'), key: 'journal' },
+    { href: '/app/happiness', icon: Smile, label: t('wellbeing'), key: 'happiness' },
+    { href: '/app/settings', icon: Settings, label: t('settings'), key: null },
   ].filter(item => item.key === null || featureFlags[item.key] !== false)
 
   return (
@@ -187,14 +191,14 @@ export default function Sidebar() {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-apple-lg text-text-tertiary hover:text-text-primary hover:bg-surface-secondary transition-all duration-200 mb-1"
         >
           <MessageSquarePlus className="w-5 h-5" />
-          <span>Feedback</span>
+          <span>{t('feedback')}</span>
         </button>
         <button
           onClick={() => signOut()}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-apple-lg text-text-tertiary hover:text-action-danger hover:bg-action-danger/10 transition-all duration-200"
         >
           <LogOut className="w-5 h-5" />
-          <span>Sign Out</span>
+          <span>{t('signOut')}</span>
         </button>
       </div>
 

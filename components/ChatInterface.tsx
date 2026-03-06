@@ -5,6 +5,7 @@ import { DefaultChatTransport } from 'ai'
 import { useChat } from '@ai-sdk/react'
 import { useAuth } from '@/components/Providers'
 import { MessageCircle, Send, X, Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface MessagePart {
   type: string
@@ -22,6 +23,7 @@ interface CalendarOption {
 }
 
 function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
+  const tc = useTranslations('chat')
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -61,7 +63,7 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
     <div className="fixed bottom-6 right-6 z-50 w-[400px] h-[520px] bg-surface-primary border border-border-primary rounded-apple-xl shadow-2xl flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-primary">
-        <h3 className="text-text-primary font-semibold text-sm">Nudge AI</h3>
+        <h3 className="text-text-primary font-semibold text-sm">{tc('title')}</h3>
         <button
           onClick={onClose}
           className="text-text-tertiary hover:text-text-primary transition-colors"
@@ -74,7 +76,7 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
           <p className="text-text-tertiary text-sm text-center mt-8">
-            Ask me about your calendar or reminders.
+            {tc('empty')}
           </p>
         )}
         {messages.map((msg, msgIndex) => {
@@ -124,7 +126,7 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
               {calendarSelectData && !isLoading && (
                 <div className="flex justify-start mt-2">
                   <div className="bg-surface-secondary rounded-apple-lg px-3 py-2 max-w-[80%]">
-                    <p className="text-xs text-text-tertiary mb-2">Choose a calendar:</p>
+                    <p className="text-xs text-text-tertiary mb-2">{tc('chooseCalendar')}</p>
                     <div className="flex flex-col gap-1.5">
                       {(calendarSelectData.calendars as CalendarOption[]).map((cal) => (
                         <button
@@ -176,7 +178,7 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your schedule..."
+          placeholder={tc('placeholder')}
           className="flex-1 bg-surface-secondary text-text-primary placeholder-text-tertiary text-sm px-3 py-2 rounded-apple-lg border border-border-primary outline-none focus:ring-1 focus:ring-accent-primary"
         />
         <button
