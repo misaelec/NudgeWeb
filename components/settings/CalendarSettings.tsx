@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCalendarSyncStore, ConnectedCalendar, CalendarSyncRule, VisibilityType } from '@/lib/calendarSyncStore'
 import { useAuth } from '@/components/Providers'
-import { Calendar, X, Globe, Loader2, RefreshCw } from 'lucide-react'
+import { Calendar, X, Globe, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
 import { useStore } from '@/lib/store'
 
 const CALENDAR_COLORS = [
@@ -96,14 +96,31 @@ function CalendarCard({ calendar, onRemove, onSync, onColorChange, onNameChange,
           {calendar.provider === 'nudge' ? (
             <p className="font-medium text-text-primary">My Nudge Calendar</p>
           ) : editingName ? (
-            <input
-              ref={nameInputRef}
-              value={nameValue}
-              onChange={(e) => setNameValue(e.target.value)}
-              onBlur={commitName}
-              onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setEditingName(false); setNameValue(calendar.accountName || calendar.accountEmail || '') } }}
-              className="font-medium text-text-primary bg-surface-primary border border-accent-primary rounded px-1 py-0.5 text-sm outline-none w-48"
-            />
+            <div className="flex items-center gap-1">
+              <input
+                ref={nameInputRef}
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                onBlur={commitName}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setEditingName(false); setNameValue(calendar.accountName || calendar.accountEmail || '') } }}
+                className="font-medium text-text-primary bg-surface-primary border border-accent-primary rounded px-1 py-0.5 text-sm outline-none w-48"
+              />
+              {calendar.accountEmail && nameValue !== calendar.accountEmail && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setNameValue(calendar.accountEmail!)
+                    onNameChange?.(calendar.accountEmail!)
+                    setEditingName(false)
+                  }}
+                  className="text-text-tertiary hover:text-accent-primary transition-colors"
+                  title="Reset to email address"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           ) : (
             <button
               onClick={() => setEditingName(true)}
