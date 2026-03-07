@@ -34,6 +34,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Calendar not found' }, { status: 404 })
     }
 
+    // Revoke OAuth token at Google so it can't be used again even if somehow leaked
+    if (calendar.access_token) {
+      try {
+        await fetch(`https://oauth2.googleapis.com/revoke?token=${calendar.access_token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        })
+        console.log('Revoked Google OAuth token for calendar:', calendar_id)
+      } catch (e) {
+        console.warn('Failed to revoke Google OAuth token (non-fatal):', e)
+      }
+    }
+
     // Stop Google webhook if exists
     if (calendar?.webhook_channel_id && calendar?.webhook_resource_id && calendar?.access_token) {
       await stopWebhook(

@@ -197,24 +197,45 @@ function buildAgentTools(userId: string, userTimezone: string = 'UTC') {
       execute: async ({ title, startDate, startTime, endDate, endTime, description, location, calendarId, calendarName }) => {
         console.log('[chat tool] createCalendarEvent called:', { title, startDate, startTime, calendarId })
 
+        // Always fetch fresh connected calendars — never rely on a stale calendarId
+        const { data: allCals } = await supabase
+          .from('connected_calendars')
+          .select('id, account_name, account_email, provider, color')
+          .eq('user_id', userId)
+
+        const connectedCalendars = allCals ?? []
         const connectedAccounts = await getGoogleConnectedCalendars(userId)
+
+        const buildCalendarList = () => [
+          { id: 'nudge-local', name: 'My Nudge Calendar', provider: 'nudge', color: '#6366f1' },
+          ...connectedCalendars.map((c) => ({
+            id: c.account_email || c.id,
+            name: c.account_name || c.account_email,
+            provider: c.provider,
+            color: c.color,
+          })),
+        ]
+
+        // If calendarId was provided, verify it still corresponds to a connected calendar.
+        // This prevents creating events on previously linked calendars that have since been removed.
+        if (calendarId && calendarId !== 'nudge-local') {
+          const isStillConnected = connectedCalendars.some(
+            (c) => c.id === calendarId || c.account_email === calendarId
+          )
+          if (!isStillConnected) {
+            console.warn('[chat tool] calendarId no longer connected, showing picker:', calendarId)
+            return {
+              action: 'select_calendar' as const,
+              calendars: buildCalendarList(),
+              pendingEvent: { title, startDate, startTime, endDate, endTime, description, location },
+              reason: 'That calendar is no longer connected. Please select an active calendar.',
+            }
+          }
+        }
 
         // No calendarId — try to resolve from calendarName or show picker
         if (!calendarId) {
-          const { data: allCals } = await supabase
-            .from('connected_calendars')
-            .select('id, account_name, account_email, provider, color')
-            .eq('user_id', userId)
-
-          const calendars = [
-            { id: 'nudge-local', name: 'My Nudge Calendar', provider: 'nudge', color: '#6366f1' },
-            ...(allCals ?? []).map((c) => ({
-              id: c.account_email || c.id,
-              name: c.account_name || c.account_email,
-              provider: c.provider,
-              color: c.color,
-            })),
-          ]
+          const calendars = buildCalendarList()
 
           // If a name hint was provided, try to match it
           if (calendarName) {
