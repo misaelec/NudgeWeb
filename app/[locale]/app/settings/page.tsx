@@ -87,8 +87,19 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('billing') === 'success') setBillingSuccess(true)
-  }, [])
+    if (params.get('billing') !== 'success') return
+    setBillingSuccess(true)
+
+    // Poll subscription up to 8 times (every 2s) waiting for the webhook to fire
+    if (!user) return
+    let attempts = 0
+    const interval = setInterval(() => {
+      attempts++
+      fetchSubscription(user.id)
+      if (attempts >= 8) clearInterval(interval)
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [user])
 
   useEffect(() => {
     const loadSettings = () => {
