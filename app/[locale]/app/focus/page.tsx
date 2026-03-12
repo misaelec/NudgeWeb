@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
-import { Play, Pause, RotateCcw, Clock, Target, Shield, CheckCircle2, XCircle, Bell, BellOff } from 'lucide-react'
+import { Play, Pause, RotateCcw, Clock, Target, CheckCircle2, XCircle, Bell, BellOff } from 'lucide-react'
 
 export default function FocusPage() {
   const t = useTranslations('focus')
@@ -100,7 +100,6 @@ export default function FocusPage() {
   if (!user) return null
 
   const isPomodoroEnabled = preferences.pomodoroEnabled
-  const isAppBlockingEnabled = preferences.appBlockingEnabled && preferences.notificationsEnabled
 
   return (
     <div className="min-h-screen bg-background-primary">
@@ -231,32 +230,6 @@ export default function FocusPage() {
                 </div>
               </div>
 
-              {isAppBlockingEnabled && (
-                <div className="card">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-action-danger/10 rounded-apple-lg">
-                      <Shield className="w-5 h-5 text-action-danger" />
-                    </div>
-                    <h3 className="font-semibold text-text-primary">{t('appBlocking')}</h3>
-                  </div>
-                  <p className="text-sm text-text-tertiary mb-4">
-                    {t('appBlockingDesc')}
-                  </p>
-                  <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-apple-lg">
-                    <div className="flex items-center gap-3">
-                      {notificationPermission === 'granted' ? (
-                        <CheckCircle2 className="w-5 h-5 text-success" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-text-tertiary" />
-                      )}
-                      <span className="text-sm font-medium text-text-primary">
-                        {notificationPermission === 'granted' ? t('enabled') : t('disabled')}
-                      </span>
-                    </div>
-                    <span className="text-xs text-text-tertiary">{t('iosOnly')}</span>
-                  </div>
-                </div>
-              )}
 
               <div className="card">
                 <div className="flex items-center gap-3 mb-4">

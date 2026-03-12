@@ -11,6 +11,7 @@ import { groq } from '@ai-sdk/groq'
 import { google } from '@ai-sdk/google'
 import { createClient } from '@supabase/supabase-js'
 import { getValidAccessToken } from '@/lib/calendar/syncEngine'
+import { requirePro } from '@/lib/subscription'
 
 export const maxDuration = 60
 
@@ -526,6 +527,9 @@ export async function POST(request: Request) {
   if (!userId) {
     return new Response('Unauthorized', { status: 401 })
   }
+
+  const proCheck = await requirePro(userId)
+  if (proCheck) return proCheck
 
   const userTimezone = request.headers.get('x-timezone') || 'UTC'
   console.log('[chat] POST hit, userId:', userId, 'timezone:', userTimezone)

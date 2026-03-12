@@ -5,6 +5,7 @@ import { supabaseAuth, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { settingsSyncService } from '@/lib/settingsSync'
 import { useSupabaseSync } from '@/hooks/useSupabaseSync'
+import { useSubscriptionStore } from '@/lib/subscriptionStore'
 
 interface AuthContextType {
   user: User | null
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const initialized = useRef(false)
+  const { fetchSubscription, reset: resetSubscription } = useSubscriptionStore()
 
   useEffect(() => {
     const isAuthRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')
@@ -89,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (clientSession?.user) {
           console.log('[AuthProvider] Restored user from localStorage:', clientSession.user.email)
           setUser(clientSession.user)
+          fetchSubscription(clientSession.user.id)
         } else {
           // Fallback: check if the Supabase client has a session (e.g. from auto-refresh)
           const { data: { session } } = await supabase.auth.getSession()
@@ -133,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem('supabase_session')
         setUser(null)
+        resetSubscription()
       } else if (session?.user) {
         const supaUser = session.user
         const mappedUser: User = {
@@ -151,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_IN') {
           console.log('[AuthProvider] SIGNED_IN — loading user settings...')
           loadUserSettings()
+          fetchSubscription(supaUser.id)
         }
       }
     })

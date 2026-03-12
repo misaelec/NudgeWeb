@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
 import { settingsSyncService } from '@/lib/settingsSync'
 import CalendarSettings from '@/components/settings/CalendarSettings'
 import { useTranslations } from 'next-intl'
+import { useSubscriptionStore } from '@/lib/subscriptionStore'
+import { supabaseAuth } from '@/lib/auth'
 import {
   Settings,
   Bell,
@@ -31,7 +33,10 @@ import {
   Smartphone,
   BellOff,
   Zap,
-  BarChart3
+  BarChart3,
+  CreditCard,
+  CheckCircle2,
+  Loader2
 } from 'lucide-react'
 
 function Toggle({ enabled, onClick }: { enabled: boolean; onClick: () => void }) {
@@ -65,6 +70,11 @@ export default function SettingsPage() {
   const [streakNotifications, setStreakNotifications] = useState(true)
   const [visualEffectsEnabled, setVisualEffectsEnabled] = useState(true)
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
+  const [billingLoading, setBillingLoading] = useState(false)
+  const { plan, status: subStatus, cancel_at_period_end, current_period_end, fetchSubscription } = useSubscriptionStore()
+  const isPro = plan === 'pro' && (subStatus === 'active' || subStatus === 'trialing')
+  const searchParams = useSearchParams()
+  const billingSuccess = searchParams.get('billing') === 'success'
   const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({
     reminders: true,
     calendar: true,
@@ -212,6 +222,35 @@ export default function SettingsPage() {
         </div>
       </div>
     )
+  }
+
+  const handleUpgrade = async (interval: 'monthly' | 'yearly') => {
+    if (!user) return
+    setBillingLoading(true)
+    try {
+      const token = supabaseAuth.currentAccessToken
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ interval }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch { setBillingLoading(false) }
+  }
+
+  const handleManageBilling = async () => {
+    if (!user) return
+    setBillingLoading(true)
+    try {
+      const token = supabaseAuth.currentAccessToken
+      const res = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'x-user-id': user.id, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch { setBillingLoading(false) }
   }
 
   if (!user) return null
@@ -414,6 +453,78 @@ export default function SettingsPage() {
                 <ChevronRight className="w-5 h-5 text-text-tertiary" />
               </button>
             </div>
+          </section>
+
+          {/* ── Billing ── */}
+          <section className="card">
+            <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-accent-secondary" />
+              Plan &amp; Billing
+            </h2>
+
+            {billingSuccess && (
+              <div className="flex items-center gap-2 p-3 bg-success/10 text-success rounded-apple-lg text-sm mb-4">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                You&apos;re now on Pro! Welcome aboard.
+              </div>
+            )}
+
+            {isPro ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-accent-primary" />
+                    <div>
+                      <p className="font-medium text-text-primary">Nudge Pro</p>
+                      <p className="text-sm text-text-tertiary capitalize">{subStatus}{cancel_at_period_end ? ' · Cancels' : ''}{current_period_end ? ` ${new Date(current_period_end).toLocaleDateString()}` : ''}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium bg-accent-primary/10 text-accent-primary px-2 py-1 rounded-full">Active</span>
+                </div>
+                <button
+                  onClick={handleManageBilling}
+                  disabled={billingLoading}
+                  className="w-full flex items-center justify-center gap-2 p-3 bg-surface-secondary rounded-apple-lg text-sm font-medium text-text-primary hover:bg-border-primary transition-colors disabled:opacity-50"
+                >
+                  {billingLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                  Manage Subscription
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
+                  <div>
+                    <p className="font-medium text-text-primary">Free Plan</p>
+                    <p className="text-sm text-text-tertiary">Reminders, focus timer, local calendar</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleUpgrade('monthly')}
+                    disabled={billingLoading}
+                    className="flex flex-col items-center p-4 bg-surface-secondary rounded-apple-lg border border-border-primary hover:border-accent-primary transition-colors disabled:opacity-50"
+                  >
+                    <span className="font-semibold text-text-primary">$5.99</span>
+                    <span className="text-xs text-text-tertiary">per month</span>
+                  </button>
+                  <button
+                    onClick={() => handleUpgrade('yearly')}
+                    disabled={billingLoading}
+                    className="flex flex-col items-center p-4 bg-accent-primary/10 rounded-apple-lg border border-accent-primary hover:bg-accent-primary/20 transition-colors disabled:opacity-50 relative"
+                  >
+                    <span className="absolute -top-2 right-2 text-xs bg-success text-white px-1.5 py-0.5 rounded-full">Best value</span>
+                    <span className="font-semibold text-text-primary">$47.99</span>
+                    <span className="text-xs text-text-tertiary">per year · ~$4/mo</span>
+                  </button>
+                </div>
+                {billingLoading && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-text-tertiary">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Redirecting to checkout...
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           <section className="card">

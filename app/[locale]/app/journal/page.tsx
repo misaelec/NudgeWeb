@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
+import { ProGate } from '@/components/ProGate'
 import {
   Plus,
   BookOpen,
@@ -103,6 +104,7 @@ export default function JournalPage() {
   }
 
   return (
+    <ProGate>
     <div className="min-h-screen bg-apple-gray-50 dark:bg-apple-gray-950">
       
 
@@ -179,8 +181,9 @@ export default function JournalPage() {
             />
           )}
         </div>
-      
+
     </div>
+    </ProGate>
   )
 }
 

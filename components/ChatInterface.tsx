@@ -4,8 +4,10 @@ import { useState, useRef, useEffect, useMemo, FormEvent } from 'react'
 import { DefaultChatTransport } from 'ai'
 import { useChat } from '@ai-sdk/react'
 import { useAuth } from '@/components/Providers'
-import { MessageCircle, Send, X, Check } from 'lucide-react'
+import { MessageCircle, Send, X, Lock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useSubscriptionStore } from '@/lib/subscriptionStore'
+import { ProGate } from '@/components/ProGate'
 
 const STORAGE_KEY = 'nudge-chat-history'
 
@@ -194,8 +196,41 @@ function ChatPanel({
   )
 }
 
+function LockedChatButton() {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-surface-secondary border border-border-primary text-text-tertiary shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity"
+        title="AI Assistant (Pro)"
+      >
+        <MessageCircle size={24} />
+        <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent-primary rounded-full flex items-center justify-center">
+          <Lock size={10} className="text-white" />
+        </span>
+      </button>
+      {open && (
+        <div className="fixed bottom-6 right-6 z-50 w-[400px] bg-surface-primary border border-border-primary rounded-apple-xl shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border-primary">
+            <h3 className="text-text-primary font-semibold text-sm">AI Assistant</h3>
+            <button onClick={() => setOpen(false)} className="text-text-tertiary hover:text-text-primary transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+          <ProGate>{null}</ProGate>
+        </div>
+      )}
+    </>
+  )
+}
+
 function ChatInterfaceInner({ userId }: { userId: string }) {
   const [isOpen, setIsOpen] = useState(false)
+  const { plan, status: subStatus, loading: subLoading } = useSubscriptionStore()
+  const isPro = plan === 'pro' && (subStatus === 'active' || subStatus === 'trialing')
+
+  if (!subLoading && !isPro) return <LockedChatButton />
 
   const transport = useMemo(
     () =>
@@ -218,7 +253,7 @@ function ChatInterfaceInner({ userId }: { userId: string }) {
     }
   }, [])
 
-  const { messages, sendMessage, status, error } = useChat({ transport, messages: initialMessages })
+  const { messages, sendMessage, status: chatStatus, error } = useChat({ transport, messages: initialMessages })
 
   useEffect(() => {
     if (messages.length === 0) return
@@ -243,7 +278,7 @@ function ChatInterfaceInner({ userId }: { userId: string }) {
           onClose={() => setIsOpen(false)}
           messages={messages}
           sendMessage={sendMessage}
-          status={status}
+          status={chatStatus}
           error={error}
         />
       )}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePro } from '@/lib/subscription'
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 const GOOGLE_REDIRECT_URI = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/calendar/google/callback'
@@ -14,6 +15,9 @@ export async function GET(request: NextRequest) {
     console.error('🔗 Google Connect - Missing user_id')
     return NextResponse.redirect(new URL('/app/settings?error=missing_user_id', request.url))
   }
+
+  const proCheck = await requirePro(userId)
+  if (proCheck) return NextResponse.redirect(new URL('/app/settings?error=pro_required', request.url))
 
   if (!GOOGLE_CLIENT_ID) {
     console.error('🔗 Google Connect - GOOGLE_CLIENT_ID is not configured')

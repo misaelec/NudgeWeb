@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getAuthenticatedUserId } from '@/lib/serverAuth'
+import { requirePro } from '@/lib/subscription'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,9 +12,10 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   const userId = await getAuthenticatedUserId(request)
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const proCheck = await requirePro(userId)
+  if (proCheck) return proCheck
 
   const { answers, scores } = await request.json()
   if (!answers || !scores) {

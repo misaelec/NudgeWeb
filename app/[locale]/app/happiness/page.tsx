@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useAuth } from '@/components/Providers'
 import { supabaseAuth } from '@/lib/auth'
+import { ProGate } from '@/components/ProGate'
+import { useSubscriptionStore } from '@/lib/subscriptionStore'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, RotateCcw, History } from 'lucide-react'
 
@@ -72,6 +74,7 @@ interface PastAssessment { id: string; scores: Scores; created_at: string }
 
 export default function HappinessPage() {
   const { user } = useAuth()
+  const { plan, status: subStatus, loading: subLoading } = useSubscriptionStore()
   const t = useTranslations('happiness')
   const tr = useTranslations('happiness.results')
   const th = useTranslations('happiness.history')
@@ -153,6 +156,9 @@ export default function HappinessPage() {
   }
 
   if (!user) return null
+
+  const isPro = plan === 'pro' && (subStatus === 'active' || subStatus === 'trialing')
+  if (!subLoading && !isPro) return <ProGate>{null}</ProGate>
 
   // ── Intro ──
   if (phase === 'intro') {
