@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Providers'
 import { useStore } from '@/lib/store'
 import { notificationService } from '@/lib/notifications'
@@ -71,10 +71,9 @@ export default function SettingsPage() {
   const [visualEffectsEnabled, setVisualEffectsEnabled] = useState(true)
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
   const [billingLoading, setBillingLoading] = useState(false)
+  const [billingSuccess, setBillingSuccess] = useState(false)
   const { plan, status: subStatus, cancel_at_period_end, current_period_end, fetchSubscription } = useSubscriptionStore()
   const isPro = plan === 'pro' && (subStatus === 'active' || subStatus === 'trialing')
-  const searchParams = useSearchParams()
-  const billingSuccess = searchParams.get('billing') === 'success'
   const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({
     reminders: true,
     calendar: true,
@@ -85,6 +84,11 @@ export default function SettingsPage() {
     objectives: true,
     happiness: true,
   })
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('billing') === 'success') setBillingSuccess(true)
+  }, [])
 
   useEffect(() => {
     const loadSettings = () => {
