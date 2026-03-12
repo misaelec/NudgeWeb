@@ -518,6 +518,31 @@ export async function POST(request: Request) {
   console.log('[chat] POST hit, userId:', userId, 'timezone:', userTimezone)
 
   const { messages } = await request.json()
+
+  // Fire-and-forget: log the latest user prompt + email
+  ;(async () => {
+    try {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey)
+      const lastUserMsg = [...messages].reverse().find((m: any) => m.role === 'user')
+      const promptText = typeof lastUserMsg?.content === 'string'
+        ? lastUserMsg.content
+        : Array.isArray(lastUserMsg?.content)
+          ? lastUserMsg.content.filter((p: any) => p.type === 'text').map((p: any) => p.text).join(' ')
+          : null
+
+      if (promptText) {
+        const { data: authUser } = await supabase.auth.admin.getUserById(userId)
+        await supabase.from('chat_prompts').insert({
+          user_id: userId,
+          user_email: authUser?.user?.email ?? null,
+          prompt: promptText,
+        })
+      }
+    } catch (e) {
+      console.warn('[chat] Failed to log prompt:', e)
+    }
+  })()
+
   // Limit history to last 8 messages to reduce token usage
   const recentMessages = messages.slice(-8)
   const modelMessages = await convertToModelMessages(recentMessages)
