@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
       if (!userId) break
 
       const subscription = await stripe.subscriptions.retrieve(session.subscription)
-      const interval = (subscription.items.data[0]?.price.recurring?.interval === 'year') ? 'pro_yearly' : 'pro_monthly'
 
       await supabase.from('user_subscriptions').upsert({
         user_id: userId,
@@ -41,8 +40,6 @@ export async function POST(request: NextRequest) {
         status: subscription.status,
         cancel_at_period_end: subscription.cancel_at_period_end,
         current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
-        stripe_price_id: subscription.items.data[0]?.price.id,
-        interval,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       break
@@ -53,8 +50,6 @@ export async function POST(request: NextRequest) {
       const userId = subscription.metadata?.user_id
       if (!userId) break
 
-      const interval = (subscription.items.data[0]?.price.recurring?.interval === 'year') ? 'pro_yearly' : 'pro_monthly'
-
       await supabase.from('user_subscriptions').upsert({
         user_id: userId,
         stripe_customer_id: subscription.customer,
@@ -63,8 +58,6 @@ export async function POST(request: NextRequest) {
         status: subscription.status,
         cancel_at_period_end: subscription.cancel_at_period_end,
         current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        stripe_price_id: subscription.items.data[0]?.price.id,
-        interval,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       break
