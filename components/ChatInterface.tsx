@@ -230,8 +230,7 @@ function ChatInterfaceInner({ userId }: { userId: string }) {
   const { plan, status: subStatus, loading: subLoading } = useSubscriptionStore()
   const isPro = plan === 'pro' && (subStatus === 'active' || subStatus === 'trialing')
 
-  if (!subLoading && !isPro) return <LockedChatButton />
-
+  // All hooks must run unconditionally before any early return
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -261,6 +260,8 @@ function ChatInterfaceInner({ userId }: { userId: string }) {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
     } catch {}
   }, [messages])
+
+  if (!subLoading && !isPro) return <LockedChatButton />
 
   return (
     <>
