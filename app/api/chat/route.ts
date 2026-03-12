@@ -109,6 +109,19 @@ async function fetchGoogleEvents(
   return { events: [], error: 'Could not access that calendar.' }
 }
 
+function formatInTz(iso: string | null | undefined, tz: string): string | null {
+  if (!iso) return null
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(new Date(iso))
+  } catch {
+    return iso
+  }
+}
+
 function buildAgentTools(userId: string, userTimezone: string = 'UTC') {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -155,8 +168,8 @@ function buildAgentTools(userId: string, userTimezone: string = 'UTC') {
 
         const events = (eventsResult.data ?? []).map((e) => ({
           title: e.title,
-          start_date: e.start_date,
-          end_date: e.end_date,
+          start: e.is_all_day ? e.start_date?.slice(0, 10) : formatInTz(e.start_date, userTimezone),
+          end: e.is_all_day ? e.end_date?.slice(0, 10) : formatInTz(e.end_date, userTimezone),
           is_all_day: e.is_all_day,
           location: e.location,
           calendar: calendarMap.get(e.source_id) || e.source_type || 'Local',
@@ -548,8 +561,8 @@ export async function POST(request: Request) {
   const modelMessages = await convertToModelMessages(recentMessages)
   const tools = buildAgentTools(userId, userTimezone)
 
-  const now = new Date().toLocaleString('en-CA', { timeZone: userTimezone, hour12: false }).split(',')[0].trim()
-  const systemPrompt = `You are the AI assistant for Nudge. Today: ${now}. User timezone: ${userTimezone}.
+  const now = new Date().toLocaleString('en-CA', { timeZone: userTimezone, hour12: false })
+  const systemPrompt = `You are the AI assistant for Nudge. Current date and time: ${now} (${userTimezone}).
 
 Tools:
 - getCalendarEvents: user's OWN events/reminders. Never use for other people.

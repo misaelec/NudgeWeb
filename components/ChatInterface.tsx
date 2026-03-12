@@ -7,6 +7,8 @@ import { useAuth } from '@/components/Providers'
 import { MessageCircle, Send, X, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+const STORAGE_KEY = 'nudge-chat-history'
+
 interface MessagePart {
   type: string
   text?: string
@@ -22,27 +24,26 @@ interface CalendarOption {
   color?: string
 }
 
-function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
+function ChatPanel({
+  onClose,
+  messages,
+  sendMessage,
+  status,
+  error,
+}: {
+  onClose: () => void
+  messages: ReturnType<typeof useChat>['messages']
+  sendMessage: ReturnType<typeof useChat>['sendMessage']
+  status: ReturnType<typeof useChat>['status']
+  error: ReturnType<typeof useChat>['error']
+}) {
   const tc = useTranslations('chat')
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: '/api/chat',
-        headers: {
-          'x-user-id': userId,
-          'x-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-        },
-      }),
-    [userId]
-  )
-
-  const { messages, sendMessage, status, error } = useChat({ transport })
-
   const isLoading = status === 'submitted' || status === 'streaming'
+
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -193,11 +194,38 @@ function ChatPanel({ userId, onClose }: { userId: string; onClose: () => void })
   )
 }
 
-export default function ChatInterface() {
+function ChatInterfaceInner({ userId }: { userId: string }) {
   const [isOpen, setIsOpen] = useState(false)
-  const { user } = useAuth()
 
-  if (!user) return null
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/chat',
+        headers: {
+          'x-user-id': userId,
+          'x-timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+      }),
+    [userId]
+  )
+
+  const initialMessages = useMemo(() => {
+    try {
+      const stored = sessionStorage.getItem(STORAGE_KEY)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  }, [])
+
+  const { messages, sendMessage, status, error } = useChat({ transport, messages: initialMessages })
+
+  useEffect(() => {
+    if (messages.length === 0) return
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+    } catch {}
+  }, [messages])
 
   return (
     <>
@@ -210,7 +238,21 @@ export default function ChatInterface() {
         </button>
       )}
 
-      {isOpen && <ChatPanel userId={user.id} onClose={() => setIsOpen(false)} />}
+      {isOpen && (
+        <ChatPanel
+          onClose={() => setIsOpen(false)}
+          messages={messages}
+          sendMessage={sendMessage}
+          status={status}
+          error={error}
+        />
+      )}
     </>
   )
+}
+
+export default function ChatInterface() {
+  const { user } = useAuth()
+  if (!user) return null
+  return <ChatInterfaceInner userId={user.id} />
 }
