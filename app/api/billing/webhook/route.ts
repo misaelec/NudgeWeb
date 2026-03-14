@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const webhookSecret = (process.env.STRIPE_WEBHOOK_SECRET_PROD || process.env.STRIPE_WEBHOOK_SECRET)!
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
