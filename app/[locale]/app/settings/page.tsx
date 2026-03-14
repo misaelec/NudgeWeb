@@ -453,20 +453,27 @@ export default function SettingsPage() {
               {t('more')}
             </h2>
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
+              <a href="/privacy" className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
                 <div className="flex items-center gap-3">
                   <Lock className="w-5 h-5 text-text-tertiary" />
                   <span className="font-medium text-text-primary">{t('privacyPolicy')}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-tertiary" />
-              </button>
-              <button className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
+              </a>
+              <a href="/terms" className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
+                <div className="flex items-center gap-3">
+                  <HelpCircle className="w-5 h-5 text-text-tertiary" />
+                  <span className="font-medium text-text-primary">Terms of Service</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-text-tertiary" />
+              </a>
+              <a href="mailto:support@nudgereminds.com" className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
                 <div className="flex items-center gap-3">
                   <HelpCircle className="w-5 h-5 text-text-tertiary" />
                   <span className="font-medium text-text-primary">{t('helpSupport')}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-tertiary" />
-              </button>
+              </a>
             </div>
           </section>
 

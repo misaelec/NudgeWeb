@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { stripe } from '@/lib/stripe'
+import { sendWelcomeProEmail, sendPaymentFailedEmail } from '@/lib/resend'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,6 +59,16 @@ export async function POST(request: NextRequest) {
         }
 
         console.log('[webhook] Upserted subscription for user:', userId)
+
+        // Send welcome email
+        try {
+          const { data: userData } = await supabase.auth.admin.getUserById(userId)
+          const email = userData?.user?.email
+          const name = userData?.user?.user_metadata?.display_name || userData?.user?.user_metadata?.name
+          if (email) await sendWelcomeProEmail(email, name)
+        } catch (emailErr) {
+          console.error('[webhook] Failed to send welcome email:', emailErr)
+        }
         break
       }
 
@@ -102,6 +113,14 @@ export async function POST(request: NextRequest) {
         await supabase.from('user_subscriptions')
           .update({ status: 'past_due', updated_at: new Date().toISOString() })
           .eq('stripe_customer_id', invoice.customer)
+
+        // Send payment failed email
+        try {
+          const email = invoice.customer_email
+          if (email) await sendPaymentFailedEmail(email)
+        } catch (emailErr) {
+          console.error('[webhook] Failed to send payment failed email:', emailErr)
+        }
         break
       }
 
