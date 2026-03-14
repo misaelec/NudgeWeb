@@ -261,7 +261,8 @@ function ChatInterfaceInner({ userId }: { userId: string }) {
     } catch {}
   }, [messages])
 
-  if (!subLoading && !isPro) return <LockedChatButton />
+  if (subLoading) return null
+  if (!isPro) return <LockedChatButton />
 
   return (
     <>

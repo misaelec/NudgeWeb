@@ -27,7 +27,10 @@ export const useSubscriptionStore = create<SubscriptionState>((set) => ({
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        set({ loading: false }) // default to free on error
+        return
+      }
       const data = await res.json()
       set({ ...data, loading: false })
     } catch {
