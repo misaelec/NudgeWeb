@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
+import { focusSync } from './focusSync'
 
 const generateId = () => uuidv4()
 
@@ -170,6 +171,9 @@ interface AppState {
   setCalendarEvents: (events: CalendarEvent[]) => void
   setJournalEntries: (entries: JournalEntry[]) => void
   setObjectives: (objectives: Objective[]) => void
+  setFearObjectives: (fears: FearObjective[]) => void
+  setPomodoroData: (sessions: number, minutes: number) => void
+  setStreaksFromDB: (data: Record<string, { currentCount: number; longestCount: number; lastCompletedDate: string | null }>) => void
 
   settingsActions: {
     toggleFeature: (key: string) => void
@@ -391,6 +395,7 @@ export const useStore = create<AppState>()(
             totalFocusMinutes: state.totalFocusMinutes + minutes,
           }))
           get().streakActions.incrementStreak('focus')
+          focusSync.saveSession(minutes)
         },
         reset: () => set({ pomodoroSessions: 0, totalFocusMinutes: 0 }),
       },
@@ -410,17 +415,17 @@ export const useStore = create<AppState>()(
           const newCount = isConsecutive ? streak.currentCount + 1 : 1
           const newLongest = Math.max(newCount, streak.longestCount)
 
-          return {
-            streaks: {
-              ...state.streaks,
-              [type]: {
-                ...streak,
-                currentCount: newCount,
-                longestCount: newLongest,
-                lastCompletedDate: today,
-              }
+          const updated = {
+            ...state.streaks,
+            [type]: {
+              ...streak,
+              currentCount: newCount,
+              longestCount: newLongest,
+              lastCompletedDate: today,
             }
           }
+          focusSync.saveStreak(type, newCount, newLongest, today)
+          return { streaks: updated }
         }),
         checkAndUpdateStreaks: () => set((state) => {
           const today = new Date().toISOString().split('T')[0]
@@ -478,10 +483,27 @@ export const useStore = create<AppState>()(
 
       setSearchQuery: (query) => set({ searchQuery: query }),
 
+      setFearObjectives: (fears) => set({ fearObjectives: fears }),
       setReminders: (reminders) => set({ reminders }),
       setCalendarEvents: (events) => set({ calendarEvents: events }),
       setJournalEntries: (entries) => set({ journalEntries: entries }),
       setObjectives: (objectives) => set({ objectives }),
+      setPomodoroData: (sessions, minutes) => set({ pomodoroSessions: sessions, totalFocusMinutes: minutes }),
+      setStreaksFromDB: (data) => set((state) => {
+        const merged = { ...state.streaks }
+        for (const [type, vals] of Object.entries(data)) {
+          const key = type as keyof typeof merged
+          if (key in merged) {
+            merged[key] = {
+              ...merged[key],
+              currentCount: vals.currentCount,
+              longestCount: vals.longestCount,
+              lastCompletedDate: vals.lastCompletedDate ?? '',
+            }
+          }
+        }
+        return { streaks: merged }
+      }),
     }),
     {
       name: STORAGE_VERSION,

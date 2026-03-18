@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store'
 import { useReminderStore } from '@/lib/reminderStore'
 import { supabase, syncSupabaseSession } from '@/lib/supabase'
 import { useAuth } from '@/components/Providers'
+import { focusSync } from '@/lib/focusSync'
 
 export function useSupabaseSync() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
@@ -241,17 +242,23 @@ export function useSupabaseSync() {
 
       const API_URL = 'https://tdidckvdawyctcswoppi.supabase.co'
 
-      const [remindersRes, calendarRes, journalRes, objectivesRes] = await Promise.all([
+      const [remindersRes, calendarRes, journalRes, objectivesRes, fearsRes, fearStepsRes, fearReflectionsRes] = await Promise.all([
         fetch(`${API_URL}/rest/v1/reminders?user_id=eq.${userId}&order=created_at.desc`, { headers }),
         fetch(`${API_URL}/rest/v1/calendar_events?user_id=eq.${userId}&order=start_date.asc`, { headers }),
         fetch(`${API_URL}/rest/v1/journal_entries?user_id=eq.${userId}&order=created_at.desc`, { headers }),
         fetch(`${API_URL}/rest/v1/objectives?user_id=eq.${userId}&order=created_at.desc`, { headers }),
+        fetch(`${API_URL}/rest/v1/fear_objectives?user_id=eq.${userId}&order=created_at.desc`, { headers }),
+        fetch(`${API_URL}/rest/v1/fear_action_steps?select=*,fear_objectives!inner(user_id)&fear_objectives.user_id=eq.${userId}`, { headers }),
+        fetch(`${API_URL}/rest/v1/fear_reflections?select=*,fear_objectives!inner(user_id)&fear_objectives.user_id=eq.${userId}`, { headers }),
       ])
 
       const reminders = await remindersRes.json()
       const calendar = await calendarRes.json()
       const journal = await journalRes.json()
       const objectives = await objectivesRes.json()
+      const fears = await fearsRes.json()
+      const fearSteps = fearStepsRes.ok ? await fearStepsRes.json() : []
+      const fearReflections = fearReflectionsRes.ok ? await fearReflectionsRes.json() : []
 
       const reminderStore = useReminderStore.getState()
       const store = useStore.getState()
@@ -294,6 +301,50 @@ export function useSupabaseSync() {
           dueDate: o.due_date ? new Date(o.due_date) : undefined,
           createdAt: new Date(o.created_at),
         })))
+      }
+
+      if (Array.isArray(fears)) {
+        store.setFearObjectives(fears.map((f: any) => ({
+          id: f.id,
+          fear: f.fear,
+          why: f.why,
+          prevention: f.prevention ?? '',
+          repair: f.repair ?? '',
+          status: f.status,
+          createdAt: new Date(f.created_at),
+          actionSteps: Array.isArray(fearSteps)
+            ? fearSteps
+                .filter((s: any) => s.fear_id === f.id)
+                .map((s: any) => ({
+                  id: s.id,
+                  title: s.title,
+                  completed: s.is_completed ?? false,
+                  createdAt: new Date(s.created_at),
+                }))
+            : [],
+          reflections: Array.isArray(fearReflections)
+            ? fearReflections
+                .filter((r: any) => r.fear_id === f.id)
+                .map((r: any) => ({
+                  id: r.id,
+                  question: r.question,
+                  answer: r.answer,
+                  createdAt: new Date(r.created_at),
+                }))
+            : [],
+        })))
+      }
+
+      // Load focus totals and streaks from Supabase
+      const [focusTotals, streaksData] = await Promise.all([
+        focusSync.loadTotals(),
+        focusSync.loadStreaks(),
+      ])
+      if (focusTotals) {
+        store.setPomodoroData(focusTotals.sessions, focusTotals.minutes)
+      }
+      if (streaksData) {
+        store.setStreaksFromDB(streaksData)
       }
 
       setupRealtime()

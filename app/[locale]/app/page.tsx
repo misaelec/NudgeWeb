@@ -20,13 +20,15 @@ import {
   Trophy
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import { useReminderStore } from '@/lib/reminderStore'
 import { format, subDays } from 'date-fns'
 
 export default function StatisticsPage() {
   const t = useTranslations('statistics')
   const router = useRouter()
   const { user, loading } = useAuth()
-  const { objectives, fearObjectives, reminders, totalFocusMinutes, pomodoroSessions, streaks, journalEntries } = useStore()
+  const { objectives, fearObjectives, totalFocusMinutes, pomodoroSessions, streaks, journalEntries } = useStore()
+  const { reminders } = useReminderStore()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -129,7 +131,7 @@ export default function StatisticsPage() {
                 title={t('setObjectives')}
                 description={t('setObjectivesDesc')}
                 color="purple"
-                onClick={() => router.push('/app/journal')}
+                onClick={() => router.push('/app/objectives')}
               />
             </div>
           </div>
@@ -168,7 +170,7 @@ export default function StatisticsPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-text-primary">{t('recentObjectives')}</h2>
               <button
-                onClick={() => router.push('/app/journal')}
+                onClick={() => router.push('/app/objectives')}
                 className="text-accent-primary text-sm font-medium hover:underline"
               >
                 {t('viewAll')}
