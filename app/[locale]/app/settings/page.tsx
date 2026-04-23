@@ -8,7 +8,7 @@ import { notificationService } from '@/lib/notifications'
 import { settingsSyncService } from '@/lib/settingsSync'
 import CalendarSettings from '@/components/settings/CalendarSettings'
 import { useTranslations } from 'next-intl'
-import { useSubscriptionStore } from '@/lib/subscriptionStore'
+// import { useSubscriptionStore } from '@/lib/subscriptionStore' // Payments disabled
 import { supabaseAuth } from '@/lib/auth'
 import {
   Settings,
@@ -34,10 +34,50 @@ import {
   BellOff,
   Zap,
   BarChart3,
-  CreditCard,
-  CheckCircle2,
-  Loader2
+  // CreditCard, // Payments disabled
+  // CheckCircle2, // Payments disabled
+  // Loader2 // Payments disabled
 } from 'lucide-react'
+
+function DeleteAccountButton({ onDelete }: { onDelete: () => Promise<void> }) {
+  const [confirming, setConfirming] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  if (!confirming) {
+    return (
+      <button
+        onClick={() => setConfirming(true)}
+        className="w-full flex items-center justify-center gap-2 p-4 text-text-tertiary rounded-apple-lg hover:bg-surface-secondary transition-colors text-sm"
+      >
+        Delete Account
+      </button>
+    )
+  }
+
+  return (
+    <div className="p-4 bg-surface-secondary rounded-apple-lg space-y-3">
+      <p className="text-sm text-text-primary font-medium">Delete your account?</p>
+      <p className="text-xs text-text-tertiary">
+        This will permanently delete your account and all associated data. This action cannot be undone.
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setConfirming(false)}
+          className="flex-1 p-2 bg-border-primary rounded-apple text-sm text-text-primary hover:bg-surface-secondary transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => { setLoading(true); await onDelete(); setLoading(false) }}
+          disabled={loading}
+          className="flex-1 p-2 bg-action-danger/10 text-action-danger rounded-apple text-sm font-medium hover:bg-action-danger/20 transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Deleting…' : 'Delete'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function Toggle({ enabled, onClick }: { enabled: boolean; onClick: () => void }) {
   return (
@@ -70,10 +110,10 @@ export default function SettingsPage() {
   const [streakNotifications, setStreakNotifications] = useState(true)
   const [visualEffectsEnabled, setVisualEffectsEnabled] = useState(true)
   const [notificationPermission, setNotificationPermission] = useState<string>('default')
-  const [billingLoading, setBillingLoading] = useState(false)
-  const [billingSuccess, setBillingSuccess] = useState(false)
-  const { plan, status: subStatus, cancel_at_period_end, current_period_end, fetchSubscription } = useSubscriptionStore()
-  const isPro = plan === 'pro' && (subStatus === 'active' || subStatus === 'trialing')
+  // Payments disabled — billing state removed
+  // const [billingLoading, setBillingLoading] = useState(false)
+  // const [billingSuccess, setBillingSuccess] = useState(false)
+  // const { plan, status: subStatus, ... } = useSubscriptionStore()
   const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({
     reminders: true,
     calendar: true,
@@ -85,21 +125,8 @@ export default function SettingsPage() {
     happiness: true,
   })
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('billing') !== 'success') return
-    setBillingSuccess(true)
-
-    // Poll subscription up to 8 times (every 2s) waiting for the webhook to fire
-    if (!user) return
-    let attempts = 0
-    const interval = setInterval(() => {
-      attempts++
-      fetchSubscription(user.id)
-      if (attempts >= 8) clearInterval(interval)
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [user])
+  // Payments disabled — billing success polling removed
+  // useEffect(() => { ... }, [user])
 
   useEffect(() => {
     const loadSettings = () => {
@@ -239,33 +266,18 @@ export default function SettingsPage() {
     )
   }
 
-  const handleUpgrade = async (interval: 'monthly' | 'yearly') => {
-    if (!user) return
-    setBillingLoading(true)
-    try {
-      const token = supabaseAuth.currentAccessToken
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ interval }),
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch { setBillingLoading(false) }
-  }
+  // Payments disabled — handleUpgrade and handleManageBilling removed
 
-  const handleManageBilling = async () => {
+  const handleDeleteAccount = async () => {
     if (!user) return
-    setBillingLoading(true)
-    try {
-      const token = supabaseAuth.currentAccessToken
-      const res = await fetch('/api/billing/portal', {
-        method: 'POST',
-        headers: { 'x-user-id': user.id, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch { setBillingLoading(false) }
+    const token = supabaseAuth.currentAccessToken ?? ''
+    const res = await fetch('/api/auth/delete-account', {
+      method: 'POST',
+      headers: { 'x-user-id': user.id, Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      await signOut()
+    }
   }
 
   if (!user) return null
@@ -467,7 +479,7 @@ export default function SettingsPage() {
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-tertiary" />
               </a>
-              <a href="mailto:support@nudgereminds.com" className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
+              <a href="/support" className="w-full flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg hover:bg-border-primary transition-colors">
                 <div className="flex items-center gap-3">
                   <HelpCircle className="w-5 h-5 text-text-tertiary" />
                   <span className="font-medium text-text-primary">{t('helpSupport')}</span>
@@ -477,79 +489,9 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* ── Billing ── */}
-          <section className="card">
-            <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-accent-secondary" />
-              Plan &amp; Billing
-            </h2>
+          {/* Billing section disabled — no premium for now */}
 
-            {billingSuccess && (
-              <div className="flex items-center gap-2 p-3 bg-success/10 text-success rounded-apple-lg text-sm mb-4">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                You&apos;re now on Pro! Welcome aboard.
-              </div>
-            )}
-
-            {isPro ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="w-5 h-5 text-accent-primary" />
-                    <div>
-                      <p className="font-medium text-text-primary">Nudge Pro</p>
-                      <p className="text-sm text-text-tertiary capitalize">{subStatus}{cancel_at_period_end ? ' · Cancels' : ''}{current_period_end ? ` ${new Date(current_period_end).toLocaleDateString()}` : ''}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-medium bg-accent-primary/10 text-accent-primary px-2 py-1 rounded-full">Active</span>
-                </div>
-                <button
-                  onClick={handleManageBilling}
-                  disabled={billingLoading}
-                  className="w-full flex items-center justify-center gap-2 p-3 bg-surface-secondary rounded-apple-lg text-sm font-medium text-text-primary hover:bg-border-primary transition-colors disabled:opacity-50"
-                >
-                  {billingLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                  Manage Subscription
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-apple-lg">
-                  <div>
-                    <p className="font-medium text-text-primary">Free Plan</p>
-                    <p className="text-sm text-text-tertiary">Reminders, focus timer, local calendar</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleUpgrade('monthly')}
-                    disabled={billingLoading}
-                    className="flex flex-col items-center p-4 bg-surface-secondary rounded-apple-lg border border-border-primary hover:border-accent-primary transition-colors disabled:opacity-50"
-                  >
-                    <span className="font-semibold text-text-primary">$5.99</span>
-                    <span className="text-xs text-text-tertiary">per month</span>
-                  </button>
-                  <button
-                    onClick={() => handleUpgrade('yearly')}
-                    disabled={billingLoading}
-                    className="flex flex-col items-center p-4 bg-accent-primary/10 rounded-apple-lg border border-accent-primary hover:bg-accent-primary/20 transition-colors disabled:opacity-50 relative"
-                  >
-                    <span className="absolute -top-2 right-2 text-xs bg-success text-white px-1.5 py-0.5 rounded-full">Best value</span>
-                    <span className="font-semibold text-text-primary">$47.99</span>
-                    <span className="text-xs text-text-tertiary">per year · ~$4/mo</span>
-                  </button>
-                </div>
-                {billingLoading && (
-                  <div className="flex items-center justify-center gap-2 text-sm text-text-tertiary">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Redirecting to checkout...
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="card">
+          <section className="card space-y-3">
             <button
               onClick={() => signOut()}
               className="w-full flex items-center justify-center gap-2 p-4 bg-action-danger/10 text-action-danger rounded-apple-lg hover:bg-action-danger/20 transition-colors"
@@ -557,6 +499,8 @@ export default function SettingsPage() {
               <LogOut className="w-5 h-5" />
               <span className="font-medium">{t('signOut')}</span>
             </button>
+
+            <DeleteAccountButton onDelete={handleDeleteAccount} />
           </section>
 
           <div className="text-center text-sm text-text-tertiary">
